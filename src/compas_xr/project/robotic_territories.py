@@ -7,6 +7,12 @@ from compas.geometry import Frame
 from compas.geometry import Point
 from compas.geometry import Transformation
 from compas_rhino.conversions import plane_to_compas_frame, frame_to_rhino_plane
+from compas.geometry.transformations import Translation
+from compas.geometry import Box
+
+from copy import deepcopy
+import math
+
 
 class OptitrackItems(object):
     
@@ -38,39 +44,76 @@ class OptitrackItems(object):
                 "compas_frame": plane_to_compas_frame(plane),
             }
         return items_dict
-
-
-class GeometryHelpers(object):
-    """
-    AssemblyExtensions is a class for extending the functionality of the :class:`~compas.datastructures.Assembly` class.
-
-    The AssemblyExtensions class provides additional functionalities such as exporting parts as .obj files
-    and creating a frame assembly from a list of :class:`~compas.geometry.Frame` with a specific data structure
-    for localization information.
-
-    """
-
-    def transform_optitrack_items_to_origin(self, optitrack_items_dict, alignment_frame):
+    
+    def transformed_to_alignment_frame(self, alignment_frame):
         """
-        Transform the assembly to the origin based on the optitrack data.
+        Transform the assembly to the origin based on the OptiTrack data,
+        and return a new instance of the class with transformed data.
 
         Parameters
         ----------
-        optitrackdict : dict
-            A dictionary with the optitrack data.
+        alignment_frame : compas.geometry.Frame
+            The target alignment frame.
 
+        Returns
+        -------
+        OptitrackItems
+            A new instance of the OptitrackItems class, transformed to the alignment frame.
         """
-        #Transform from the origin to the desired alignment frame
-        optitrack_origin = optitrack_items_dict['Origin']["compas_frame"]
+        # Get the origin frame from the current instance
+        optitrack_origin = self.dict['Origin']["compas_frame"]
+
+        # Compute the transformation
         transformation = Transformation.from_frame_to_frame(optitrack_origin, alignment_frame)
 
-        for key, value in optitrack_items_dict.items():
+        # Create transformed data
+        transformed_dict = deepcopy(self.dict)
+        transformed_planes = []
+        transformed_frames = []
+
+        for key, value in transformed_dict.items():
             frame = value['compas_frame']
             transformed_frame = frame.transformed(transformation)
+            transformed_frames.append(transformed_frame)
+            transformed_planes.append(frame_to_rhino_plane(transformed_frame))
+
+            # Update the dictionary for the transformed instance
             value['compas_frame'] = transformed_frame
             value['rhino_plane'] = frame_to_rhino_plane(transformed_frame)
 
-        return optitrack_items_dict
+        # Create a new instance of the class with transformed data
+        transformed_instance = OptitrackItems(
+            rb_ids=self.ids,
+            rb_names=self.names,
+            rb_planes=transformed_planes,
+            rb_frames=transformed_frames
+        )
+
+        return transformed_instance
+
+
+    #TEST ME
+    def _create_box_geo(self, frame, xsize, ysize, zsize):
+        # Create a box geometry for each item in the dictionary
+
+        x_vec = frame.x()
+        y_vec = frame.y()
+        z_vec = frame.z()
+
+        x_trans = -x_vec ((xsize/2) - 24.5)
+        y_trans = -y_vec ((ysize/2) - 52)
+        z_trans = -zvec * (zsize/2)
+
+        translation_vector = [x_trans ,y_trans, z_transs]
+
+        frame_point = frame.point
+        tx = Transformation.from_translation(translation_vector)
+        point_translated = frame_point.transformed(tx)
+        frame = Frame(point_translated, x_vec, y_vec)
+        box = Box(frame, xsize, ysize, zsize)
+
+        transformed_box_frame = Frame(frame_z_transformed_point, frame.xaxis, frame.yaxis)
+    return None
     
     
 
