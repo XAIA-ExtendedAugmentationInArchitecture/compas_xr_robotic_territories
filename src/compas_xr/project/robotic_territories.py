@@ -102,42 +102,51 @@ class OptitrackItems(object):
         return transformed_instance
 
 
-    # INCORRECT NEEDS UPDATING
-    # def create_box_geometry_from_items_dict(self, optitrack_items_dict, xsize, ysize, zsize):
-    #     boxes = []
-    #     # Create a box geometry for each item in the dictionary
-    #     for key, value in optitrack_items_dict.items():
-    #         if key != 'Origin' or key != 'Robot':
-    #             frame = value['compas_frame']
-    #             box = self._create_box_geo(frame, xsize, ysize, zsize)
-    #             boxes.append(box)
-    #     return boxes
+    #INCORRECT NEEDS UPDATING
+    def create_box_geometry_from_items_dict(self, optitrack_items_dict, xsize, ysize, zsize):
+        boxes = []
+        # Create a box geometry for each item in the dictionary
+        for key, value in optitrack_items_dict.items():
+            if key != 'Origin' and key != 'Robot':
+                frame = value['compas_frame']
+                box = self._create_box_geo(frame, xsize, ysize, zsize)
+                boxes.append(box)
+        return boxes
     
-    # #TEST ME
-    # def _create_box_geo(self, frame, xsize, ysize, zsize):
-    #     # Create a box geometry for each item in the dictionary
+    #TEST ME
+    def _create_box_geo(self, frame, xsize, ysize, zsize):
+        """
+        Create a box geometry for each item in the dictionary.
+        """
+        # Extract frame vectors
+        x_vec = frame.xaxis
+        y_vec = frame.yaxis
+        z_vec = frame.zaxis
 
-    #     x_vec = frame.xaxis
-    #     y_vec = frame.yaxis
-    #     z_vec = frame.zaxis
+        # Compute individual translation components
+        translation_vector = (x_vec.unitized() + -y_vec.unitized()).unitized()
+        horiz_translation_dist = math.sqrt((xsize / 2)**2 + (ysize / 2)**2)
 
-    #     # Compute individual translation components
-    #     x_trans = -x_vec * (((xsize) - 24.5)/1000)
-    #     y_trans = -y_vec * (((ysize) - 52)/1000)
-    #     z_trans = -z_vec * ((zsize)/1000)
+        # Scale the normalized vector
+        horiz_translation_vector = translation_vector * horiz_translation_dist
 
-    #     # Combine the translation vectors
-    #     combined_translation_vector = x_trans + y_trans + z_trans
+        # Create the translation transformation
+        translation = Translation.from_vector(horiz_translation_vector)
 
-    #     # Create the combined translation transformation
-    #     translation = Translation.from_vector(combined_translation_vector)
+        # Create a translation for the negative z-axis
+        neg_z_vec = z_vec.unitized() * -(zsize / 2)
+        z_translation = Translation.from_vector(neg_z_vec)
 
-    #     frame_point = frame.point
-    #     point_translated = frame_point.transformed(translation)
-        
-    #     transformed_frame = Frame(point_translated, x_vec, y_vec)
-    #     box = Box(xsize, ysize, zsize, transformed_frame)
-    #     return box
+        # Apply the translation to the frame's origin point
+        frame_point = frame.point
+        point_translated = frame_point.transformed(translation)
+        point_z_translated = point_translated.transformed(z_translation)
+
+        # Create a new frame and box geometry
+        transformed_frame = Frame(point_z_translated, x_vec, y_vec)
+        box = Box(xsize, ysize, zsize, transformed_frame)
+
+        return box
     
     
 
