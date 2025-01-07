@@ -7,22 +7,33 @@ from compas.geometry import Frame
 from compas.geometry import Point
 from compas.geometry import Transformation
 from compas_rhino.conversions import plane_to_compas_frame, frame_to_rhino_plane
-from compas.geometry.transformations import Translation
+from compas.geometry import Translation
 from compas.geometry import Box
+from Rhino.Geometry import Point3d
 
 from copy import deepcopy
 import math
 
 
+class OptiTrackConversions(object):
+
+    def convert_to_rhino_planes(self, optitrack_planes):
+        rhino_planes = []
+        for plane in optitrack_planes:
+            new_point = Point3d(-plane.Origin.X, plane.Origin.Z, plane.Origin.Y)
+            plane.Origin = new_point
+            rhino_planes.append(plane)
+        return rhino_planes
+
 class OptitrackItems(object):
     
     def __init__(self, rb_ids, rb_names, rb_planes, rb_frames=None):
         # Initialize the dictionary
-        self.dict = self._create_items_dict(rb_ids, rb_names, rb_planes)
         self.names = rb_names
         self.planes = rb_planes
         self.frames = rb_frames or [plane_to_compas_frame(plane) for plane in rb_planes]
         self.ids = rb_ids
+        self.dict = self._create_items_dict(rb_ids, rb_names, rb_planes)
         # Add list attribute for geomtry
 
     # Create box geometry in a method.
@@ -88,7 +99,6 @@ class OptitrackItems(object):
             rb_planes=transformed_planes,
             rb_frames=transformed_frames
         )
-
         return transformed_instance
 
 
@@ -102,9 +112,9 @@ class OptitrackItems(object):
 
         x_trans = -x_vec ((xsize/2) - 24.5)
         y_trans = -y_vec ((ysize/2) - 52)
-        z_trans = -zvec * (zsize/2)
+        z_trans = -z_vec * (zsize/2)
 
-        translation_vector = [x_trans ,y_trans, z_transs]
+        translation_vector = [x_trans ,y_trans, z_trans]
 
         frame_point = frame.point
         tx = Transformation.from_translation(translation_vector)
@@ -113,7 +123,7 @@ class OptitrackItems(object):
         box = Box(frame, xsize, ysize, zsize)
 
         transformed_box_frame = Frame(frame_z_transformed_point, frame.xaxis, frame.yaxis)
-    return None
+    # return None
     
     
 
