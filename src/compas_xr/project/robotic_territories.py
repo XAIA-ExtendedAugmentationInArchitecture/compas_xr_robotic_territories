@@ -1,10 +1,6 @@
 import os
 
-from compas.datastructures import Assembly
-from compas.datastructures import Mesh
-from compas.datastructures import Part
 from compas.geometry import Frame
-from compas.geometry import Point
 from compas.geometry import Transformation
 from compas_rhino.conversions import plane_to_compas_frame, frame_to_rhino_plane, box_to_compas, point_to_compas
 from compas.geometry import Translation
