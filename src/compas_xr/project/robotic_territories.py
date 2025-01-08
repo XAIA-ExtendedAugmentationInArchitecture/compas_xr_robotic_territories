@@ -37,11 +37,6 @@ class OptitrackItems(object):
         self.dict = self._create_items_dict(rb_ids, rb_names, rb_planes)
         # Add list attribute for geomtry
 
-    # Create box geometry in a method.
-
-    # move method for transforming to an input plane in this class.
-    # double check if transformed will make a new instance of this class and return that.... this might be the best way to go.
-
     def _create_items_dict(self, rb_ids, rb_names, rb_planes):
         # Create a dictionary to store items
         items_dict = {}
@@ -179,7 +174,7 @@ class RoboticTerritoriesFormattingHelpers(object):
         Returns:
         - List of points (Rhino.Geometry.Point3d).
         """
-        if isinstance(polyline, Polyline):  # Ensure it's a Polyline
+        if isinstance(polyline, rg.Polyline):  # Ensure it's a Polyline
             points = [point for point in polyline]
             compas_points = [point_to_compas(pt) for pt in points]
             points_dict = {index: pt.__data__ for index, pt in enumerate(compas_points)}
@@ -215,7 +210,6 @@ class RoboticTerritoriesProjectManager(object):
         self.project_manager = ProjectManager(config_path)
         self.FormatHelpers = RoboticTerritoriesFormattingHelpers()
 
-    
     def upload_rt_project_data(self, project_name, qr_frames, boundary_zone, infer_pick_zone, infer_collab_zone, mimic_human_zone, mimic_robot_zone, tele_mimic_zone):
         
         upload_dict = {}
