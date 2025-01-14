@@ -109,7 +109,6 @@ class OptitrackItems(object):
                 boxes.append(box)
         return boxes
     
-    #TEST ME
     def _create_box_geo(self, frame, xsize, ysize, zsize):
         """
         Create a box geometry for each item in the dictionary.
@@ -156,6 +155,7 @@ class RoboticTerritoriesFormattingHelpers(object):
         Returns:
         - compas box data (Compas.Geometry.Box.__data__).
         """
+        print(type(rhino_box))
         if not isinstance(rhino_box, rg.Box):
             raise TypeError("The input is not a Rhino Box.")
         
@@ -214,15 +214,17 @@ class RoboticTerritoriesProjectManager(object):
         
         upload_dict = {}
         
+        boundary_zone_dict = {}
         boundary_dict = self.FormatHelpers.format_box_dict(boundary_zone)
-        upload_dict["boundry_zone"] = boundary_dict
+        boundary_zone_dict["boundary_zone"] = boundary_dict
+        upload_dict["boundary_zone"] = boundary_zone_dict
         
         infer_dict = {}
         infer_pick_dict = self.FormatHelpers.format_box_dict(infer_pick_zone)
         infer_collab_dict = self.FormatHelpers.format_box_dict(infer_collab_zone)
         infer_dict["collaboration_zone"] = infer_collab_dict
         infer_dict["pick_zone"] = infer_pick_dict
-        upload_dict["inferance_zones"] = infer_dict
+        upload_dict["inference_zones"] = infer_dict
         
         mimic_dict = {}
         mimic_human_dict = self.FormatHelpers.format_box_dict(mimic_human_zone)
@@ -231,8 +233,10 @@ class RoboticTerritoriesProjectManager(object):
         mimic_dict["robot_zone"] = mimic_robot_dict
         upload_dict["mimic_zones"] = mimic_dict
         
+        mimic_zone = {}
         tele_mimic_dict = self.FormatHelpers.format_box_dict(tele_mimic_zone)
-        upload_dict["tele_mimic_zone"] = tele_mimic_dict
+        mimic_zone["tele_mimic_zone"] = tele_mimic_dict
+        upload_dict["tele_mimic_zone"] = mimic_zone
         
         self.database.upload_data_to_reference_as_child(upload_dict, project_name, "zones")
         self.project_manager.upload_qr_frames_to_project(project_name, qr_frames)
