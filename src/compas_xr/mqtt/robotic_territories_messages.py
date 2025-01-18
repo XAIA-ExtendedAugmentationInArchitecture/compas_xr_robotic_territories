@@ -51,9 +51,7 @@ class Header(Message):
         """Parse the header information
         from the input value
         """
-        # instance = cls(value["device_id"], value["time_stamp"])
-        instance = cls("device_id", "time_stamp")
-        return instance
+        return cls(value["device_id"], value["time_stamp"])
 
     def _get_device_id(self):
         """Ensure device ID is set and return it.
@@ -88,15 +86,11 @@ class MimicTrajectoryRequestMessage(Message):
         """Parse the message information
         from the input data
         """
-        # header = Header.parse(data["header"])
-        header = Header("device_id", "time_stamp")
-        # human_frames = data["human_frames"] #cls._parse_frames_list_from_data(data["human_frames"])
-        # robot_frames = data["robot_frames"]#cls._parse_frames_list_from_data(data["robot_frames"])
-        # robot_name = data["robot_name"]
-        test_frames_list = [Frame.worldXY(), Frame.worldXY(), Frame.worldXY()]
-        instance = cls(test_frames_list, test_frames_list, "UR20", header)
-        return instance
-        # return cls(human_frames, robot_frames, robot_name, header)
+        header = Header.parse(data["header"])
+        human_frames = cls._parse_frames_list_from_data(data["human_frames"])
+        robot_frames = cls._parse_frames_list_from_data(data["robot_frames"])
+        robot_name = data["robot_name"]
+        return cls(human_frames, robot_frames, robot_name, header)
 
     def __init__(self, human_frames, robot_frames, robot_name, header=None):
         super(MimicTrajectoryRequestMessage, self).__init__()
@@ -105,9 +99,10 @@ class MimicTrajectoryRequestMessage(Message):
         self["robot_frames"] = robot_frames
         self["robot_name"] = robot_name
 
+    @classmethod
     def _parse_frames_list_from_data(self, data):
         """Parse the list of frames from the input data."""
-        return [Frame.__from_data__(frame) for frame in data] #TODO: CHECK IF THIS WORKS
+        return [Frame.__from_data__(frame) for frame in data] #TODO: CHECK IF THIS WORKS... it does :) 
 
     @classmethod
     def parse(cls, value):
@@ -115,5 +110,7 @@ class MimicTrajectoryRequestMessage(Message):
         from the input value
         """
         header = Header.parse(value["header"])
-        trajectory = [Frame.from_data(frame) for frame in value["trajectory"]]
-        return cls(header, trajectory)
+        human_frames = cls._parse_frames_list_from_data(value["human_frames"])
+        robot_frames = cls._parse_frames_list_from_data(value["robot_frames"])
+        robot_name = value["robot_name"]
+        return cls(human_frames, robot_frames, robot_name, header)
