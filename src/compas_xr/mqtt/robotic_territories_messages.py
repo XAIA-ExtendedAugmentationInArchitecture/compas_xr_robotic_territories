@@ -4,6 +4,7 @@ import uuid
 from datetime import datetime
 
 from compas.geometry import Frame, Point, Vector
+from compas_fab.robots import JointTrajectory
 from compas_eve import Message
 
 class Header(Message):
@@ -81,16 +82,6 @@ class MimicTrajectoryRequestMessage(Message):
     header : Header
         The header of the message.
     """
-    @classmethod
-    def parse(cls, data):
-        """Parse the message information
-        from the input data
-        """
-        header = Header.parse(data["header"])
-        human_frames = cls._parse_frames_list_from_data(data["human_frames"])
-        robot_frames = cls._parse_frames_list_from_data(data["robot_frames"])
-        robot_name = data["robot_name"]
-        return cls(human_frames, robot_frames, robot_name, header)
 
     def __init__(self, human_frames, robot_frames, robot_name, header=None):
         super(MimicTrajectoryRequestMessage, self).__init__()
@@ -114,3 +105,41 @@ class MimicTrajectoryRequestMessage(Message):
         robot_frames = cls._parse_frames_list_from_data(value["robot_frames"])
         robot_name = value["robot_name"]
         return cls(human_frames, robot_frames, robot_name, header)
+    
+class MimicTrajectoryResultMessage(Message):
+    """
+    The MimicTrajectoryResultMessage class is responsible for sending the result of a robot mimicking a trajectory.
+    """
+
+    def __init__(self, trajectories, robot_base_frame, robot_name, header=None):
+        super(MimicTrajectoryResultMessage, self).__init__()
+        self["header"] = header or Header()
+        self["trajectories"] = trajectories
+        self["combined_trajectory_points"] = self._combine_trajectories_points(trajectories)
+        self["robot_base_frame"] = robot_base_frame
+        self["robot_name"] = robot_name
+
+    def _combine_trajectories_points(self, trajectories):
+        """Combine the trajectories into a single trajectory."""
+        combined_trajectory = []
+        for trajectory in trajectories:
+            combined_trajectory.extend(trajectory.points)
+        print(type(combined_trajectory))
+        return combined_trajectory
+    
+    @classmethod
+    def _parse_trajectory_list(self, data):
+        """Parse the list of trajectories from the input data."""
+        #TODO: Check this and throw an error?
+        return [JointTrajectory.__from_data__(trajectory) for trajectory in data]
+
+    @classmethod
+    def parse(cls, value):
+        """Parse the message information
+        from the input value
+        """
+        header = Header.parse(value["header"])
+        trajectories = cls._parse_trajectory_list(value["trajectories"])
+        robot_base_frame = Frame.__from_data__(value["robot_base_frame"])
+        robot_name = value["robot_name"]
+        return cls(trajectories, robot_base_frame, robot_name, header)
