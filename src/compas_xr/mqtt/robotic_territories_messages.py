@@ -4,8 +4,25 @@ import uuid
 from datetime import datetime
 
 from compas.geometry import Frame, Point, Vector
-from compas_fab.robots import JointTrajectory
+from compas_fab.robots import JointTrajectory, JointTrajectoryPoint
 from compas_eve import Message
+
+
+class MessageHandelingExtensions(object):
+
+    def _parse_frames_list_from_data(self, data):
+        """Parse the list of frames from the input data."""
+        return [Frame.__from_data__(frame) for frame in data] #TODO: CHECK IF THIS WORKS... it does :)
+    
+    def _parse_trajectory_list(self, data):
+        """Parse the list of trajectories from the input data."""
+        #TODO: Check this and throw an error?
+        return [JointTrajectory.__from_data__(trajectory) for trajectory in data]
+    
+    def _parse_trajectory_point_list(self, data):
+        """Parse the list of trajectory points from the input data."""
+        return [JointTrajectoryPoint.__from_data__(point) for point in data]
+
 
 class Header(Message):
     """
@@ -143,3 +160,34 @@ class MimicTrajectoryResultMessage(Message):
         robot_base_frame = Frame.__from_data__(value["robot_base_frame"])
         robot_name = value["robot_name"]
         return cls(trajectories, robot_base_frame, robot_name, header)
+
+    # class ExecuteMimicTrajectoryRequestMessage(Message):
+    #     """
+    #     The ExecuteMimicTrajectoryRequestMessage class is responsible for requesting a robot to execute a trajectory.
+
+    #     The ExecuteMimicTrajectoryRequestMessage class provides methods for parsing, updating, and accessing the fields of a message,
+    #     and provides a means of defining attributes of the message in order to accept or ignore specific messages.
+
+    #     Parameters
+    #     ----------
+    #     header : Header
+    #         The header of the message.
+    #     """
+
+    #     def __init__(self, trajectories, combined_trajectory_points_list, robot_name, robot_base_frame, header=None):
+    #         super(ExecuteMimicTrajectoryRequestMessage, self).__init__()
+    #         self["header"] = header or Header()
+    #         self["trajectories"] = trajectories
+    #         self["robot_name"] = robot_name
+    #         self["robot_base_frame"] = robot_base_frame
+    #         self["combined_trajectory_points_list"] = combined_trajectory_points_list
+
+    #     @classmethod
+    #     def parse(cls, value):
+    #         """Parse the message information
+    #         from the input value
+    #         """
+    #         header = Header.parse(value["header"])
+    #         trajectory = JointTrajectory.__from_data__(value["trajectory"])
+    #         robot_name = value["robot_name"]
+    #         return cls(trajectory, robot_name, header)

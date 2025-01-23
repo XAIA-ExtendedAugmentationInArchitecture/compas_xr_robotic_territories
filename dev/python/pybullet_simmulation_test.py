@@ -27,6 +27,7 @@ output_file_path = os.path.normpath(output_relative_path)
 with PyBulletClient() as client:
     urdf_file = compas_fab.get(urdf_file_path)
     robot = client.load_robot(urdf_file)
+    print(dir(robot))
     time.sleep(1)
 
     ik_information = {}
@@ -37,8 +38,14 @@ with PyBulletClient() as client:
             start_config = robot.zero_configuration()
         else:
             start_config = ik_configurations[-1]
-    
+        state = robot.__getstate__()
+        print ("STATE Pre:", state["_current_ik"])
         ik_configuration = robot.inverse_kinematics(frame_WCF=frame, start_configuration=start_config)
+        # test = robot.get_group_configuration(robot.main_group_name, ik_configuration)
+        # print(test)
+        state2 = robot.__getstate__()
+        print ("STATE post:", state["_current_ik"])
+        time.sleep(1)
         ik_configurations.append(ik_configuration)
 
         timestamp = datetime.now().isoformat()
@@ -48,6 +55,7 @@ with PyBulletClient() as client:
         "start_configuration": start_config,
         "time": timestamp
         }
+        
 
     print(ik_configurations)
     json_dump(ik_information, output_file_path, pretty=True)
