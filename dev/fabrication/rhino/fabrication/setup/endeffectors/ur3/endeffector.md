@@ -1,0 +1,1 @@
+This is intended to be an end effector in .obj format or .json format of compas_mesh()
