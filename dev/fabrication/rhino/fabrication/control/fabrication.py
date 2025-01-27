@@ -236,7 +236,7 @@ def send_trajectory(trajectory_points, speed, accel, ip):
 def send_trajectory_path(configurations, speed, accel, radius, ur_c):
 
     print(f"Move trajectory of {len(configurations)} points with speed {speed}, accel {accel} and blend {radius}")
-    
+    print ("HEREHERE")
     path = []
    
     for config in configurations:
@@ -348,7 +348,7 @@ def send_to_single_trajectory(trajectory_configs, speed, accel, radius, nowait, 
             set_digital_io(vaccum_io,True,ip=ip)
             #sleep on position to give some time for release
             time.sleep(1.0)
-
+        print ("HERE")
         #Send pick trajectoy
         send_trajectory_path(trajectory_configs, speed, accel, radius,ur_c)
     
