@@ -103,7 +103,9 @@ class OptitrackItems(object):
         boxes = []
         # Create a box geometry for each item in the dictionary
         for key, value in optitrack_items_dict.items():
+            print(key)
             if key != 'Origin' and key != 'Robot':
+                print(key)
                 frame = value['compas_frame']
                 box = self._create_box_geo(frame, xsize, ysize, zsize)
                 boxes.append(box)
