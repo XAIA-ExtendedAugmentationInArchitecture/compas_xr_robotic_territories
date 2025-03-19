@@ -244,6 +244,16 @@ def send_trajectory_path(configurations, speed, accel, radius, ur_c):
     if len(path):
         ur_c.moveJ(path)
 
+def send_trajectory_path_joint_values_only(joint_values, speed, accel, radius, ur_c):
+
+    print(f"Move trajectory of {len(joint_values)} points with speed {speed}, accel {accel} and blend {radius}")
+    path = []
+   
+    for config in joint_values:
+        path.append(config + [speed, accel, radius])
+
+    if len(path):
+        ur_c.moveJ(path)
 
 def pick_and_place_blocks_trajectories(move_to_pick_trajectory, pick_trajectory, move_trajectory, place_trajectory, speed, accel, radius, ip, vaccum_io):
     
@@ -353,6 +363,25 @@ def send_to_single_trajectory(trajectory_configs, speed, accel, radius, nowait, 
     except Exception as e:
         print(e)
         raise
+
+def send_to_single_trajectory_only_joint_values(trajectory_configs, speed, accel, radius, nowait, ip, vaccum_io=None):
+
+    ur_c = RTDEControl(ip)
+    nowait = True
+
+    try:
+        if vaccum_io != None:
+            #Turn on io to release stick that is being held
+            set_digital_io(vaccum_io,True,ip=ip)
+            #sleep on position to give some time for release
+            time.sleep(1.0)
+        #Send pick trajectoy
+        send_trajectory_path_joint_values_only(trajectory_configs, speed, accel, radius,ur_c)
+    
+    except Exception as e:
+        print(e)
+        raise
+
 
 def exit_pick_and_place_jk(pick_trajectory_configs, move_trajectory_configs, place_trajectory_configs, speed, accel, radius, ip, vaccum_io=None):
 

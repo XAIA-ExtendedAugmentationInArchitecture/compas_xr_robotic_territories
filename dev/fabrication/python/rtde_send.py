@@ -23,7 +23,8 @@ IP = "192.168.1.10"
 if __name__ == "__main__":
 
     # SET THE FILE NAME OF THE TRAJECTORY YOU WANT TO SEND
-    trajectories_file_name = "trajectories_testing_2.json"
+    trajectories_file_name = "trajectories_testing_raj_fixed.json"
+    # trajectories_file_name = "trajectories_testing_2.json"
 
     # Get the path to the trajectory you want to send
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -40,3 +41,13 @@ if __name__ == "__main__":
     
     #Initialize the RTDE control
     rtde.send_to_single_trajectory(configs, SPEED, ACCELERATION, RADIUS, nowait=True, ip=IP)
+
+    #Loading only the configurations for testing
+    # trajectories_file_name = "just_joint_values.json"
+
+    # # # Get the path to the trajectory you want to send
+    # script_dir = os.path.dirname(os.path.abspath(__file__))
+    # trajectories_path = os.path.join(script_dir, "trajectories", trajectories_file_name)
+    # configs = json_load(trajectories_path)
+
+    # rtde.send_to_single_trajectory_only_joint_values(configs, SPEED, ACCELERATION, RADIUS, nowait=True, ip=IP)
