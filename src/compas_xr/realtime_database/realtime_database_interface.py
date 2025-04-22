@@ -31,7 +31,7 @@ class RealtimeDatabaseInterface(object):
     def delete_data_from_reference(self, database_reference):
         raise NotImplementedError("Implemented on child classes")
 
-    def stream_data_from_reference(self, callback, database_reference):
+    def stream_data_from_reference(self, start, database_reference):
         raise NotImplementedError("Implemented on child classes")
 
     def upload_data(self, data, reference_name):
@@ -225,3 +225,21 @@ class RealtimeDatabaseInterface(object):
         """
         database_reference = self.construct_reference_from_list(reference_list)
         self.delete_data_from_reference(database_reference)
+
+    def stream_reference_from_list(self, start, reference_list):
+        """
+        Streams data from the Firebase Realtime Database under specified reference names in list order.
+
+        Parameters
+        ----------
+        reference_list : list of str
+            The names in sequence order in which the data should be nested for upload.
+
+        Returns
+        -------
+        None
+
+        """
+        database_reference = self.construct_reference_from_list(reference_list)
+        r = self.stream_data_from_reference(start, database_reference)
+        return r

@@ -7,6 +7,7 @@ from compas.geometry import Translation
 from compas.geometry import Box
 from Rhino.Geometry import Point3d
 import Rhino.Geometry as rg
+import time
 
 from copy import deepcopy
 import math
@@ -15,6 +16,9 @@ from compas_xr.project.assembly_extensions import AssemblyExtensions
 from compas_xr.realtime_database import RealtimeDatabase
 from compas_xr.storage import Storage
 from compas_xr.project.project_manager import ProjectManager
+
+
+#TODO: REMOVE THE CREATING OF THE BOX.... maybe make the DICT an instance of the class, and use the singleton to not remake it.... just update the fames when needed.
 
 class OptiTrackConversions(object):
 
@@ -115,6 +119,9 @@ class OptitrackItems(object):
         """
         Create a box geometry for each item in the dictionary.
         """
+        print ("I am creating a box a lot")
+        print ("I am creating a box now" + time.strftime("%H:%M:%S", time.localtime()))
+
         # Extract frame vectors
         x_vec = frame.xaxis
         y_vec = frame.yaxis

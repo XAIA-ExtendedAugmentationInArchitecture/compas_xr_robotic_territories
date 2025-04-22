@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import json
 import os
 import sys
@@ -23,10 +24,15 @@ clr.AddReference("Firebase.Auth.dll")
 clr.AddReference("Firebase.dll")
 clr.AddReference("LiteDB.dll")
 clr.AddReference("System.Reactive.dll")
+clr.AddReference("System")
 
 from Firebase.Database import FirebaseClient  # noqa: E402
 from Firebase.Database.Query import QueryExtensions  # noqa: E402
+from Firebase.Database.Offline import RealtimeDatabase
+from System.Collections.Generic import Dictionary
+from System.Reactive import IObserver
 
+import Firebase.Database.Offline as OfflineNS
 
 class RealtimeDatabase(RealtimeDatabaseInterface):
     """
@@ -261,8 +267,8 @@ class RealtimeDatabase(RealtimeDatabaseInterface):
         data = json.loads(json_data)
         return data
 
-    def stream_data_from_reference(self, callback, database_reference):
-        raise NotImplementedError("Function Under Developement")
+    # def stream_data_from_reference(self, callback, database_reference):
+    #     raise NotImplementedError("Function Under Developement")
 
     def upload_data_to_reference(self, data, database_reference):
         """
@@ -290,3 +296,82 @@ class RealtimeDatabase(RealtimeDatabaseInterface):
             result["data"] = True
 
         self._start_async_call(_begin_upload)
+
+    def stream_data_from_reference(self, start, database_reference, callback=None):
+        """
+        Starts or stops a Firebase stream from the given reference.
+
+        Parameters
+        ----------
+        start : bool
+            Whether to start (True) or stop (False) the stream.
+        database_reference : Firebase.Database.Query.ChildQuery
+            The reference to stream data from.
+        callback : function, optional
+            A function to call with the event object on update.
+
+        Returns
+        -------
+        dict or None
+        """
+        if not start:
+            if hasattr(self, "_active_stream") and self._active_stream:
+                self._active_stream["subscription"].Dispose()
+                self._active_stream["db"].Dispose()
+                print("Firebase stream stopped.")
+                self._active_stream = None
+            else:
+                print("No active stream to stop.")
+            return None
+
+        self._ensure_database()
+
+        firebase_assembly = clr.GetClrType(Dictionary[str, object]).Assembly  # any type from Firebase.dll
+        RTD_GenericType = firebase_assembly.GetType("Firebase.Database.Offline.RealtimeDatabase`1")
+        RTD_Object = RTD_GenericType.MakeGenericType([Object])
+
+
+        # Offline DB factory (use .NET Dictionary directly)
+        def offline_db_factory(type_arg, filename_modifier):
+            return Dictionary[str, object]()
+
+        # Instantiate RealtimeDatabase<object>
+        realtime_db = RTD_Object(
+            database_reference,
+            "streamed_data",
+            offline_db_factory,
+            "",
+            2,  # StreamingOptions.Everything
+            1,  # InitialPullStrategy.Everything
+            False
+        )
+
+        class FirebaseObserver(IObserver):
+            def OnNext(self, event):
+                print("[{}] → {}".format(event.Key, event.Object))
+                if callback:
+                    callback(event)
+
+            def OnError(self, error):
+                print("Stream error:", error)
+
+            def OnCompleted(self):
+                print("Stream completed.")
+
+        def stream_worker():
+            observer = FirebaseObserver()
+            observable = realtime_db.AsObservable()
+            subscription = observable.Subscribe(observer)
+
+            self._active_stream = {
+                "thread": threading.current_thread(),
+                "subscription": subscription,
+                "db": realtime_db
+            }
+
+        thread = threading.Thread(target=stream_worker)
+        thread.daemon = True
+        thread.start()
+
+        return {"thread": thread}
+
