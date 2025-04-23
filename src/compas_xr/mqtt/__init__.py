@@ -22,6 +22,6 @@ MQTT Messages
 """
 
 from .messages import ApproveTrajectory, GetTrajectoryRequest, GetTrajectoryResult, SendTrajectory
-from.robotic_territories_messages import MimicTrajectoryRequestMessage, MimicTrajectoryResultMessage, ExecuteMimicTrajectoryRequestMessage
+from.robotic_territories_messages import MimicTrajectoryRequestMessage, MimicTrajectoryResultMessage, ExecuteMimicTrajectoryRequestMessage, RealtimeMimicRequestMessage, RealtimeMimicResultMessage
 
-__all__ = ["GetTrajectoryRequest", "GetTrajectoryResult", "ApproveTrajectory", "SendTrajectory", "MimicTrajectoryRequestMessage", "MimicTrajectoryResultMessage", "ExecuteMimicTrajectoryRequestMessage"]
+__all__ = ["GetTrajectoryRequest", "GetTrajectoryResult", "ApproveTrajectory", "SendTrajectory", "MimicTrajectoryRequestMessage", "MimicTrajectoryResultMessage", "ExecuteMimicTrajectoryRequestMessage", "RealtimeMimicRequestMessage", "RealtimeMimicResultMessage"]

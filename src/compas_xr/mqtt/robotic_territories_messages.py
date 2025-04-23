@@ -175,34 +175,96 @@ class MimicTrajectoryResultMessage(Message):
 
 class ExecuteMimicTrajectoryRequestMessage(Message):
 
+    """
+    The ExecuteMimicTrajectoryRequestMessage class is responsible for requesting a robot to execute a trajectory.
+
+    The ExecuteMimicTrajectoryRequestMessage class provides methods for parsing, updating, and accessing the fields of a message,
+    and provides a means of defining attributes of the message in order to accept or ignore specific messages.
+
+    Parameters
+    ----------
+    header : Header
+        The header of the message.
+    """
+
+    def __init__(self, trajectories, combined_trajectory_points_list, robot_name, robot_base_frame, header=None):
+        super(ExecuteMimicTrajectoryRequestMessage, self).__init__()
+        self["header"] = header or Header()
+        self["trajectories"] = trajectories
+        self["robot_name"] = robot_name
+        self["robot_base_frame"] = robot_base_frame
+        self["combined_trajectory_points"] = combined_trajectory_points_list
+
+    @classmethod
+    def parse(cls, value):
+        """Parse the message information
+        from the input value
         """
-        The ExecuteMimicTrajectoryRequestMessage class is responsible for requesting a robot to execute a trajectory.
+        header = Header.parse(value["header"])
+        robot_name = value["robot_name"]
+        robot_base_frame = Frame.__from_data__(value["robot_base_frame"])
+        trajectories = value["trajectories"]
+        combined_trajectory_points_list = MessageHandelingExtensions._parse_trajectory_point_list(value["combined_trajectory_points"])
+        return cls(trajectories, combined_trajectory_points_list, robot_name, robot_base_frame, header)
+        
+class RealtimeMimicRequestMessage(Message):
+    """
+    The RealtimeMimicRequestMessage class is responsible for requesting a robot to mimic a trajectory in real-time.
 
-        The ExecuteMimicTrajectoryRequestMessage class provides methods for parsing, updating, and accessing the fields of a message,
-        and provides a means of defining attributes of the message in order to accept or ignore specific messages.
+    The RealtimeMimicRequestMessage class provides methods for parsing, updating, and accessing the fields of a message,
+    and provides a means of defining attributes of the message in order to accept or ignore specific messages.
 
-        Parameters
-        ----------
-        header : Header
-            The header of the message.
+    Parameters
+    ----------
+    header : Header
+        The header of the message.
+    """
+
+    def __init__(self, robot_name, message, header=None):
+        super(RealtimeMimicRequestMessage, self).__init__()
+        self["header"] = header or Header()
+        # self["human_frames"] = human_frames
+        # self["robot_frames"] = robot_frames
+        self["robot_name"] = robot_name
+        self["message"] = message
+    
+    @classmethod
+    def parse(cls, value):
+        """Parse the message information
+        from the input value
         """
+        header = Header.parse(value["header"])
+        robot_name = value["robot_name"]
+        message = value["message"]
+        return cls(robot_name, message, header)
 
-        def __init__(self, trajectories, combined_trajectory_points_list, robot_name, robot_base_frame, header=None):
-            super(ExecuteMimicTrajectoryRequestMessage, self).__init__()
-            self["header"] = header or Header()
-            self["trajectories"] = trajectories
-            self["robot_name"] = robot_name
-            self["robot_base_frame"] = robot_base_frame
-            self["combined_trajectory_points"] = combined_trajectory_points_list
+class RealtimeMimicResultMessage(Message):
+    """
+    The RealtimeMimicResultMessage class is responsible for sending the result of a robot mimicking a trajectory in real-time.
 
-        @classmethod
-        def parse(cls, value):
-            """Parse the message information
-            from the input value
-            """
-            header = Header.parse(value["header"])
-            robot_name = value["robot_name"]
-            robot_base_frame = Frame.__from_data__(value["robot_base_frame"])
-            trajectories = value["trajectories"]
-            combined_trajectory_points_list = MessageHandelingExtensions._parse_trajectory_point_list(value["combined_trajectory_points"])
-            return cls(trajectories, combined_trajectory_points_list, robot_name, robot_base_frame, header)
+    The RealtimeMimicResultMessage class provides methods for parsing, updating, and accessing the fields of a message,
+    and provides a means of defining attributes of the message in order to accept or ignore specific messages.
+
+    Parameters
+    ----------
+    header : Header
+        The header of the message.
+    """
+
+    def __init__(self, robot_name, return_message, header=None):
+        super(RealtimeMimicResultMessage, self).__init__()
+        self["header"] = header or Header()
+        # self["human_frames"] = human_frames
+        # self["robot_frames"] = robot_frames
+        self["robot_name"] = robot_name
+        self["return_message"] = return_message
+
+    @classmethod
+    def parse(cls, value):
+        """Parse the message information
+        from the input value
+        """
+        header = Header.parse(value["header"])
+        robot_name = value["robot_name"]
+        return_message = value["return_message"]
+        return cls(robot_name, return_message, header)
