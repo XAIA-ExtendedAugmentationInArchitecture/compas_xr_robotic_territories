@@ -9,6 +9,8 @@ from compas.data import json_load
 from compas.data import json_dump
 from datetime import datetime
 
+#TODO: CHECK THIS LATER....
+
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
 # Construct relative paths to urdf
@@ -43,6 +45,8 @@ with PyBulletClient() as client:
         # state = robot.__getstate__()
         # print ("STATE Pre:", state["_current_ik"])
         ik_configuration = robot.inverse_kinematics(frame_WCF=frame, start_configuration=start_config)
+        client.step_simulation()
+        time.sleep(0.5)
         configuration_data.append(ik_configuration.__data__)
         # test = robot.get_group_configuration(robot.main_group_name, ik_configuration)
         # print(test)
