@@ -190,7 +190,7 @@ class ExecuteMimicTrajectoryRequestMessage(Message):
     def __init__(self, trajectories, combined_trajectory_points_list, robot_name, robot_base_frame, header=None):
         super(ExecuteMimicTrajectoryRequestMessage, self).__init__()
         self["header"] = header or Header()
-        self["trajectories"] = trajectories
+        self["trajectories"] = trajectories #TODO: THIS NEEDS TO BE PARSE TRAJECTORY LIST
         self["robot_name"] = robot_name
         self["robot_base_frame"] = robot_base_frame
         self["combined_trajectory_points"] = combined_trajectory_points_list
@@ -220,12 +220,13 @@ class RealtimeMimicRequestMessage(Message):
         The header of the message.
     """
 
-    def __init__(self, robot_name, message, header=None):
+    def __init__(self, requested_robot_frame, robot_name, message, header=None):
         super(RealtimeMimicRequestMessage, self).__init__()
         self["header"] = header or Header()
         # self["human_frames"] = human_frames
         # self["robot_frames"] = robot_frames
         self["robot_name"] = robot_name
+        self["requested_robot_frame"] = requested_robot_frame
         self["message"] = message
     
     @classmethod
@@ -234,9 +235,10 @@ class RealtimeMimicRequestMessage(Message):
         from the input value
         """
         header = Header.parse(value["header"])
+        requested_robot_frame = Frame.__from_data__(value["requested_robot_frame"])
         robot_name = value["robot_name"]
         message = value["message"]
-        return cls(robot_name, message, header)
+        return cls(requested_robot_frame, robot_name, message, header)
 
 class RealtimeMimicResultMessage(Message):
     """

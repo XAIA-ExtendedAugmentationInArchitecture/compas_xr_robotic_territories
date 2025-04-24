@@ -9,7 +9,7 @@ from compas.data import json_load
 from compas.data import json_dump
 from datetime import datetime
 
-#TODO: CHECK THIS LATER....
+#TODO: CHECK THIS LATER.... TRY THE STEP SIMULATION IN THE BACKEND.....
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
