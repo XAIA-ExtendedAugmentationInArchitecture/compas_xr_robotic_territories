@@ -23,6 +23,9 @@ from NatNetClient import NatNetClient
 import DataDescriptions
 import MoCapData
 
+import time
+last_print_time = 0  # Global timer
+
 # This is a callback function that gets connected to the NatNet client
 # and called once per mocap frame.
 def receive_new_frame(data_dict):
@@ -43,6 +46,15 @@ def receive_rigid_body_frame( new_id, position, rotation ):
     pass
     #print( "Received frame for rigid body", new_id )
     #print( "Received frame for rigid body", new_id," ",position," ",rotation )
+
+# def receive_rigid_body_frame(new_id, position, rotation):
+#     global last_print_time
+#     current_time = time.time()
+
+#     # Print only once per second
+#     if current_time - last_print_time >= 1.0:
+#         print(f"[{time.strftime('%H:%M:%S')}] Rigid Body {new_id}: Position {position}, Rotation {rotation}")
+#         last_print_time = current_time
 
 def add_lists(totals, totals_tmp):
     totals[0]+=totals_tmp[0]
@@ -312,3 +324,5 @@ if __name__ == "__main__":
                 print("Error: Command %s not recognized"%c1)
             print("Ready...\n")
     print("exiting")
+
+    
