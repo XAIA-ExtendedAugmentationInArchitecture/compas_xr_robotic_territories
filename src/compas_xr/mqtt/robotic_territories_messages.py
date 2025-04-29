@@ -220,7 +220,7 @@ class RealtimeMimicRequestMessage(Message):
         The header of the message.
     """
 
-    def __init__(self, requested_robot_frame, robot_name, message, header=None):
+    def __init__(self, requested_robot_frame, robot_name, message, header=None, intial_request=False):
         super(RealtimeMimicRequestMessage, self).__init__()
         self["header"] = header or Header()
         # self["human_frames"] = human_frames
@@ -228,6 +228,7 @@ class RealtimeMimicRequestMessage(Message):
         self["robot_name"] = robot_name
         self["requested_robot_frame"] = requested_robot_frame
         self["message"] = message
+        self["initial_request"] = intial_request
     
     @classmethod
     def parse(cls, value):
@@ -238,7 +239,8 @@ class RealtimeMimicRequestMessage(Message):
         requested_robot_frame = Frame.__from_data__(value["requested_robot_frame"])
         robot_name = value["robot_name"]
         message = value["message"]
-        return cls(requested_robot_frame, robot_name, message, header)
+        initial_request = value["initial_request"]
+        return cls(requested_robot_frame, robot_name, message, header, initial_request)
 
 class RealtimeMimicResultMessage(Message):
     """

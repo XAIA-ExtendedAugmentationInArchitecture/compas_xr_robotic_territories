@@ -16,8 +16,9 @@ def trajectory_points_to_configs(trajectory_points):
     return configs
 
 def handle_mimic_request(msg: RealtimeMimicRequestMessage):
-    print(f"[Realtime Mimic Request] Frame: {msg.requested_robot_frame} Robot Name: {msg.robot_name}, Message: {msg.message}, Header: {msg.header}")
-    transform_frames_from_incomming_message(msg.requested_robot_frame, msg.message, msg.robot_name, msg.header.device_id)
+    print(f"[Realtime Mimic Request] Frame: {msg.requested_robot_frame} Robot Name: {msg.robot_name}, Message: {msg.message}, Header: {msg.header}, InitialRequest: {msg.initial_request}")
+    
+    transform_frames_from_incomming_message(msg.requested_robot_frame, msg.message, msg.robot_name, msg.header.device_id, msg.initial_request)
 
 def load_transformations_from_file(file_path):
     # Load the transformations from the JSON file
@@ -26,20 +27,27 @@ def load_transformations_from_file(file_path):
     transform = transform_dict["transform"]
     return inverse_transform, transform
 
-def transform_frames_from_incomming_message(frame, message, robot_name, device_id):
+def transform_frames_from_incomming_message(frame, message, robot_name, device_id, initial_reaquest):
+
+    global transformation_testing_dict
 
     TX_FILEPATH = r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\fabrication\python\mqtt_transformations.json"
     inverse_transform, transform = load_transformations_from_file(TX_FILEPATH)
-    transformation_testing_dict = {}
 
     tx_frame = frame.transformed(transform)
     inverse_frame = frame.transformed(inverse_transform)
 
-    transformation_testing_dict["inv_frame"]["message"] = inverse_frame
-    transformation_testing_dict["frame"]["message"] = frame
-    transformation_testing_dict["tx_frame"]["message"] = tx_frame
+    if initial_reaquest:
+        transformation_testing_dict = {}
+
+    transformation_testing_dict[message] = {
+        "inv_frame": inverse_frame,
+        "frame": frame,
+        "tx_frame": tx_frame
+    }
+
     dump_file = r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\fabrication\python\received_frames.json"
-    json_dump(data=transformation_testing_dict, filepath=dump_file, pretty=True)
+    json_dump(data=transformation_testing_dict, fp=dump_file, pretty=True)
 
     print(f"Received Message: Sending Frame Number {message} to {robot_name} as requested by device ID {device_id}")
 
@@ -52,6 +60,8 @@ IP = "192.168.1.10"
 #CONSTANTS MQTT
 TOPIC_BASE = "robotic_territories/real_time_mimic_request/"
 PROJECT_NAME = "robotic_territories_testing_base_frame"
+
+transformation_testing_dict = {}
 
 # Use the data to execute the printpath
 if __name__ == "__main__":
