@@ -27,13 +27,28 @@
     <material name="visualgeom" rgba="0.5 0.9 0.2 1" />
   </asset>
 
+<!-- TEST TO SEE IF MATERIAL AND COLORS WILL BE IMPORTED AS WELL WITH DAE FILE -->
+  <!-- <asset>
+    <mesh name="base" content_type="model/stl" file="meshes/ur20/visual/base.dae" />
+    <mesh name="shoulder" content_type="model/stl" file="meshes/ur20/visual/shoulder.dae" />
+    <mesh name="upperarm" content_type="model/stl" file="meshes/ur20/visual/upperarm.dae" />
+    <mesh name="forearm" content_type="model/stl" file="meshes/ur20/visual/forearm.dae" />
+    <mesh name="wrist1" content_type="model/stl" file="meshes/ur20/visual/wrist1.dae" />
+    <mesh name="wrist2" content_type="model/stl" file="meshes/ur20/visual/wrist2.dae" />
+    <mesh name="wrist3" content_type="model/stl" file="meshes/ur20/visual/wrist3.dae" />
+    <texture name="texplane" type="2d" builtin="checker" rgb1=".0 .0 .0" rgb2=".8 .8 .8" width="100" height="100" />
+    <material name="matplane" reflectance="0." texture="texplane" texrepeat="1 1" texuniform="true" />
+    <material name="visualgeom" rgba="0.5 0.9 0.2 1" />
+  </asset> -->
+
   <worldbody>
     <light directional="true" diffuse="0.4 0.4 0.4" specular="0.1 0.1 0.1" pos="0 0 5.0" dir="0 0 -1" castshadow="false" />
     <light directional="true" diffuse="0.6 0.6 0.6" specular="0.2 0.2 0.2" pos="0 0 4" dir="0 0 -1" />
     <geom name="ground" type="plane" pos="0 0 0" size="100 100 0.001" quat="1 0 0 0" material="matplane" condim="3" conaffinity="15" />
     <camera name="fixed" pos="0 -3.0 0.8141691543396815" xyaxes="1 0 0 0 0 1" />
     <camera name="track" mode="trackcom" pos="0 -3.0 0.8141691543396815" xyaxes="1 0 0 0 0 1" />
-    <body name="root" pos="0 0 0.3141691543396815" quat="1 0 0 0">
+    <body name="root" pos="0 0 0" quat="1 0 0 0">
+    <!-- <body name="root" pos="0 0 0.3141691543396815" quat="1 0 0 0"> -->
       <!-- <freejoint name="root" /> -->
       <site name="imu" size="0.01" pos="0 0 0" />
       <geom pos="0 0 0" quat="-1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="base" contype="1" conaffinity="0" density="0" group="1" class="visualgeom" />
