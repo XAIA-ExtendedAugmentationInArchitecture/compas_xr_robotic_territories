@@ -8,6 +8,33 @@ from compas.geometry import Frame, Transformation
 from compas_robots import Configuration
 from compas.data import json_load, json_dump
 
+
+##TODO: THIS NEEDS TO BECOME A CLASS FOR HANDELING MULTIPLE MESSAGES
+"""
+EXAMPLE OF THE CLASS:
+class RobotManager:
+    def __init__(self, broker='localhost', mqtt_port=1883):
+        self.mqtt = MqttTransport(broker, mqtt_port)
+
+        self.handlers = {
+            "ur3": URRealtimeMimicHandler("ur3", ip="192.168.1.10", ros_port=9091),
+            "ur20": URRealtimeMimicHandler("ur20", ip="192.168.1.20", ros_port=9090),
+            "abb120": ABBRealtimeMimicHandler("abb120", ip="192.168.1.50", ros_port=9095)
+        }
+
+        # Subscribe to general topic
+        topic = Topic("robotic_territories/ik_requests", RealtimeMimicRequestMessage)
+        self.subscriber = Subscriber(topic, callback=self._on_message, transport=self.mqtt)
+        self.subscriber.subscribe()
+        print("[RobotManager] Subscribed to IK request topic.")
+
+    def _on_message(self, msg: RealtimeMimicRequestMessage):
+        robot_name = msg.robot_name
+        if robot_name in self.handlers:
+            self.handlers[robot_name].handle(msg)
+        else:
+            print(f"[RobotManager] Unknown robot: {robot_name}")
+"""
 def trajectory_points_to_configs(trajectory_points):
     configs = [] 
     for trajectory_point in trajectory_points:
@@ -65,6 +92,21 @@ PROJECT_NAME = "robotic_territories_testing_base_frame"
 BROKER = "broker.hivemq.com"
 # BROKER = "localhost"
 PORT = 1883
+
+ROBOT_CONFIG = {
+    "ur3": {
+        "ros_port": 11313,
+        "bridge_port": 9092,
+        "moveit_config": "ur3_moveit_config"
+    },
+    "ur20": {
+        "ros_port": 11311,
+        "bridge_port": 9090,
+        "moveit_config": "ur20_moveit_config"
+    },
+}
+
+##TODO: THIS NEEDS TO BECOME A CLASS FOR HANDELING MULTIPLE MESSAGES
 
 
 transformation_testing_dict = {}
