@@ -272,19 +272,3 @@ class RealtimeMimicResultMessage(Message):
         robot_name = value["robot_name"]
         return_message = value["return_message"]
         return cls(robot_name, return_message, header)
-    
-class RandomPrintClass(Message):
-
-    """
-    The RandomPrintClass is a simple message class that prints a random message.
-
-    Parameters
-    ----------
-    header : Header
-        The header of the message.
-    """
-
-    def __init__(self, header=None):
-        super(RandomPrintClass, self).__init__()
-        self["header"] = header or Header()
-        self["message"] = "Random message"

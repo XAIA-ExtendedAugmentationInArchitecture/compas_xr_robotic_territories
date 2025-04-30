@@ -17,6 +17,13 @@ def get_config(ip="127.0.0.1"):
     config = Configuration.from_revolute_values(robot_joints)
     return config
 
+def get_config_TEST(ip="127.0.0.1"):
+    print (f"RTDE : Getting Configfor First instance. Robot IP : {ip}")
+    # ur_r = RTDEReceive(ip)
+    # robot_joints = ur_r.getActualQ()
+    # config = Configuration.from_revolute_values(robot_joints)
+    # return config
+
 def get_tcp_offset(ip="127.0.0.1"):
     ur_c = RTDEControl(ip)
     tcp = ur_c.getTCPOffset()
@@ -41,6 +48,12 @@ def move_to_joints(config, speed, accel, nowait, ip="127.0.0.1"):
 
     ur_c = RTDEControl(ip)
     ur_c.moveJ(config.joint_values, speed, accel, nowait)
+
+def move_to_joints_TEST(config, speed, accel, nowait, ip="127.0.0.1"):
+    # speed rad/s, accel rad/s^2, nowait bool
+    print ("SENDING TO JOINTS", config.joint_values, speed, accel, nowait)
+    # ur_c = RTDEControl(ip)
+    # ur_c.moveJ(config.joint_values, speed, accel, nowait)
 
 def move_to_joints_urc(config, speed, accel, nowait, ur_c):
     # speed rad/s, accel rad/s^2, nowait bool
