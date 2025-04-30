@@ -63,6 +63,11 @@ def move_to_target(frame, speed, accel, nowait, ip="127.0.0.1"):
     ur_c.moveL(pose ,speed, accel, nowait)
     return pose
 
+def move_to_target_TEST(frame, speed, accel, nowait, ip="127.0.0.1"):
+    # speed rad/s, accel rad/s^2, nowait bool
+    pose = frame.point.x, frame.point.y, frame.point.z, *frame.axis_angle_vector
+    print("SENDING TO TARGET POSE", pose)
+
 def move_in_z_until_contact(config, speed, accel, nowait, ip):
     ur_r = RTDEReceive(ip)
     ur_c = RTDEControl(ip)

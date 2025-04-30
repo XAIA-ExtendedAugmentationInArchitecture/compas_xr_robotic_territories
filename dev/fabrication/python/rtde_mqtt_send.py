@@ -49,6 +49,8 @@ def transform_frames_from_incomming_message(frame, message, robot_name, device_i
     dump_file = r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\fabrication\python\received_frames.json"
     json_dump(data=transformation_testing_dict, fp=dump_file, pretty=True)
 
+    rtde.move_to_target(inverse_frame, speed=SPEED, accel=ACCELERATION, nowait=False, ip=IP)
+
     print(f"Received Message: Sending Frame Number {message} to {robot_name} as requested by device ID {device_id}")
 
 
@@ -60,6 +62,10 @@ IP = "192.168.1.10"
 #CONSTANTS MQTT
 TOPIC_BASE = "robotic_territories/real_time_mimic_request/"
 PROJECT_NAME = "robotic_territories_testing_base_frame"
+BROKER = "broker.hivemq.com"
+# BROKER = "localhost"
+PORT = 1883
+
 
 transformation_testing_dict = {}
 
@@ -70,7 +76,7 @@ if __name__ == "__main__":
     topic_str = f"{TOPIC_BASE}{PROJECT_NAME}"
 
     topic = Topic(topic_str, RealtimeMimicRequestMessage)
-    server = MqttTransport("localhost", 1883)
+    server = MqttTransport(BROKER, PORT)
 
     subcriber = Subscriber(topic, callback=handle_mimic_request, transport=server)
     subcriber.subscribe()
