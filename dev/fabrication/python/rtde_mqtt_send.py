@@ -76,7 +76,7 @@ def transform_frames_from_incomming_message(frame, message, robot_name, device_i
     dump_file = r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\fabrication\python\received_frames.json"
     json_dump(data=transformation_testing_dict, fp=dump_file, pretty=True)
 
-    rtde.move_to_target(inverse_frame, speed=SPEED, accel=ACCELERATION, nowait=False, ip=IP)
+    rtde.move_to_target_TEST(inverse_frame, speed=SPEED, accel=ACCELERATION, nowait=False, ip=IP)
 
     print(f"Received Message: Sending Frame Number {message} to {robot_name} as requested by device ID {device_id}")
 

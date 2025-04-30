@@ -6,7 +6,8 @@ from realtime_mimic_roshandler import RealtimeMimicROSHandler
 
 
 class RobotManager:
-    def __init__(self, broker='localhost', mqtt_port=1883):
+
+    def __init__(self, project_name, broker='localhost', mqtt_port=1883):
         self.mqtt = MqttTransport(broker, mqtt_port)
 
         self.handlers = {
@@ -31,7 +32,7 @@ class RobotManager:
             return
 
         handler = self.handlers[robot_name]
-        ik_config = handler.handle(msg)
+        ik_config = handler.handle_msg_request(msg)
 
         if ik_config:
             result = RealtimeMimicResultMessage(
