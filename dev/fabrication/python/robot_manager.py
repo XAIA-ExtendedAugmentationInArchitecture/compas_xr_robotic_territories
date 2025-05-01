@@ -12,7 +12,12 @@ class RobotManager:
         self.mqtt = MqttTransport(broker, mqtt_port)
 
         self.handlers = {
-            # "ur3": URRealtimeMimicHandler("ur3", ros_ip=, ros_port=9091),
+            # "UR3": URRealtimeMimicHandler(
+            #     robot_name="ur3",
+            #     robot_ip="192.168.0.200",     # TODO: UPDATE WITH UR3 IP
+            #     ros_ip="127.0.0.1",
+            #     ros_port=11312
+            # ),
             "UR20": URRealtimeMimicHandler("UR20", "192.168.1.10")
         }
 

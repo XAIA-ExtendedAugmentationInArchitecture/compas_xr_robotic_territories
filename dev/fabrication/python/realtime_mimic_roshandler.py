@@ -4,7 +4,7 @@ from compas_fab.backends import RosClient
 from compas_xr.mqtt import RealtimeMimicRequestMessage
 from compas_xr.mqtt import RealtimeMimicResultMessage
 from control import fabrication as rtde
-import compas_rrc
+import compas_rrc as rrc
 
 class RealtimeMimicROSHandler:
 
@@ -72,5 +72,38 @@ class URRealtimeMimicHandler(RealtimeMimicROSHandler):
         print(f"URRealtimeMimicHandler: [{self.robot_name}] (Sim) Executing UR motion: {config.joint_values}")
         rtde.move_to_joints_TEST(config, self.speed, self.acceleration, nowait=self.nowait, ip=self.robot_ip)
 
+class ABBRealtimeMimicHandler(RealtimeMimicROSHandler):
+    
+    def __init__(self, robot_name, robot_ip, abb_client, ros_ip='127.0.0.1', ros_port=9090, speed=100, nowait=False):
+        super().__init__(robot_name, robot_ip, ros_ip, ros_port)
+        self.speed = speed
+        self.nowait = nowait
 
+        self.ros_rrc = rrc.RosClient()
+        self.ros_rrc.run()
+
+        #TODO: CHECK NAME '/robLL_track' IS CORRECT
+        self.abb = rrc.AbbClient(self.ros_rrc, abb_client)
+        print(f"ABBRealtimeMimicHandler: [{robot_name}] Connected to ABB controller via RRC")
+
+    def _get_current_configuration(self):
+        robot_joints, _ = self.abb.send_and_wait(rrc.GetJoints())
+        print(f"[{self.robot_name}] Current joints from controller: {robot_joints}")
+        return self.robot.zero_configuration()
+
+    def _execute_motion(self, config: Configuration):
+        print(f"ABBRealtimeMimicHandler: [{self.robot_name}] Executing motion: {config.joint_values}")
+        
+        # Convert radians to degrees for ABB
+        joint_values_deg = [v * 180.0 / 3.1415926 for v in config.joint_values]
+        rax = rrc.RobotJoints(*joint_values_deg)
+        ext_axes = [0.0] * 6  # TODO: Placeholder for external axes
+
+        result = self.abb.send_and_wait(rrc.MoveToJoints(rax, ext_axes, self.speed, rrc.Zone.FINE))
+        print(f"[{self.robot_name}] Motion complete: {result}")
+
+    def close(self):
+        self.ros_rrc.close()
+        self.ros_rrc.terminate()
+        print(f"[{self.robot_name}] ABB RRC connection closed")
 
