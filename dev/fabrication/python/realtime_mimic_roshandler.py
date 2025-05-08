@@ -5,6 +5,7 @@ from compas_xr.mqtt import RealtimeMimicRequestMessage
 from compas_xr.mqtt import RealtimeMimicResultMessage
 from control import fabrication as rtde
 import compas_rrc as rrc
+from compas.data import json_load, json_dump
 
 class RealtimeMimicROSHandler:
 
@@ -44,6 +45,8 @@ class RealtimeMimicROSHandler:
             ik_config = self.robot.inverse_kinematics(frame, start_configuration=start_config)
             self.ik_solutions.append(ik_config)
             self._execute_motion(ik_config)
+            fp = r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\fabrication\python\test_config_vis.json"
+            json_dump(self.ik_solutions, fp=fp, pretty=True)
             return ik_config
         except Exception as e:
             print(f"RealtimeMimicROSHandler : [{self.robot_name}] IK computation failed: {e}")
@@ -65,11 +68,14 @@ class URRealtimeMimicHandler(RealtimeMimicROSHandler):
 
     def _get_current_configuration(self):
         config = rtde.get_config_TEST(self.robot_ip)
+        # config = rtde.get_config(self.robot_ip)
+        # return config
         config_zero = self.robot.zero_configuration()
         return config_zero
 
     def _execute_motion(self, config: Configuration):
         print(f"URRealtimeMimicHandler: [{self.robot_name}] (Sim) Executing UR motion: {config.joint_values}")
+        # rtde.move_to_joints(config, self.speed, self.acceleration, nowait=self.nowait, ip=self.robot_ip)
         rtde.move_to_joints_TEST(config, self.speed, self.acceleration, nowait=self.nowait, ip=self.robot_ip)
 
 class ABBRealtimeMimicHandler(RealtimeMimicROSHandler):

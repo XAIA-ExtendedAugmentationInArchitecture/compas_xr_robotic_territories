@@ -18,7 +18,7 @@ urdf_relative_path = os.path.join(script_dir, "../scripts/urdf/ur_description/ur
 urdf_file_path = os.path.normpath(urdf_relative_path)
 
 # Load the frames from the json file
-frames_relative_path = os.path.join(script_dir, "frames_same.json")
+frames_relative_path = os.path.join(script_dir, "frames.json")
 frames_file_path = os.path.normpath(frames_relative_path)
 frames = json_load(frames_file_path)
 
@@ -44,15 +44,17 @@ with PyBulletClient() as client:
             start_config = ik_configurations[-1]
         # state = robot.__getstate__()
         # print ("STATE Pre:", state["_current_ik"])
-        ik_configuration = robot.inverse_kinematics(frame_WCF=frame, start_configuration=start_config)
-        client.step_simulation()
+        ik_configuration = robot.inverse_kinematics(frame_WCF=frame, start_configuration=start_config, options={"link_name": "tool0"})
+        # ik_configuration = robot.inverse_kinematics(frame_WCF=frame, start_configuration=start_config)
+        client.set_robot_configuration(robot, ik_configuration)
+        # client.step_simulation()
         time.sleep(0.5)
         configuration_data.append(ik_configuration.__data__)
         # test = robot.get_group_configuration(robot.main_group_name, ik_configuration)
         # print(test)
         # state2 = robot.__getstate__()
         # print ("STATE post:", state["_current_ik"])
-        time.sleep(5)
+        # time.sleep(5)
         frame = robot.forward_kinematics(ik_configuration)
         random_config_frames.append(frame)
         ik_configurations.append(ik_configuration)
