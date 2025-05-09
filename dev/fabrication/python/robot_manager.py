@@ -2,14 +2,26 @@ from compas_eve import Subscriber, Publisher, Topic
 from compas_eve.mqtt import MqttTransport
 from compas_xr.mqtt import RealtimeMimicRequestMessage, RealtimeMimicResultMessage
 
-from realtime_mimic_roshandler import RealtimeMimicROSHandler, URRealtimeMimicHandler
+from realtime_mimic_roshandler import URRealtimeMimicHandler
+from realtime_mimic_pbhandler import URRealtimeMimicHandlerPyB
 from compas.data import json_load, json_dump
+import os
 
 #TODO: Tranfromation is still comming from GH explort load... it should be from streaming the .py data
 class RobotManager:
 
     def __init__(self, project_name, broker='localhost', mqtt_port=1883):
         self.mqtt = MqttTransport(broker, mqtt_port)
+
+        # self.handlers = {
+        #     # "UR3": URRealtimeMimicHandler(
+        #     #     robot_name="ur3",
+        #     #     robot_ip="192.168.0.200",     # TODO: UPDATE WITH UR3 IP
+        #     #     ros_ip="127.0.0.1",
+        #     #     ros_port=11312
+        #     # ),
+        #     "UR20": URRealtimeMimicHandler("UR20", "192.168.1.10")
+        # }
 
         self.handlers = {
             # "UR3": URRealtimeMimicHandler(
@@ -18,7 +30,7 @@ class RobotManager:
             #     ros_ip="127.0.0.1",
             #     ros_port=11312
             # ),
-            "UR20": URRealtimeMimicHandler("UR20", "192.168.1.10")
+            "UR20": URRealtimeMimicHandlerPyB("UR20", "192.168.1.10", r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\scripts\urdf\ur_description\urdf\ur20.urdf")
         }
 
         result_topic = Topic(f"robotic_territories/real_time_mimic_result/{project_name}", RealtimeMimicResultMessage)
@@ -52,7 +64,23 @@ class RobotManager:
         tx_frame = frame.transformed(transform)
         return tx_frame
 
+    def _save_requested_frame(self, msg: RealtimeMimicRequestMessage):
+        global requested_frames
 
+        if msg.initial_request:
+            requested_frames = []
+            print("RobotManager : [RobotManager] Initial request received, cleared requested_frames.")
+        else:
+            requested_frames.append(msg.requested_robot_frame)
+            print("RobotManager : [RobotManager] Appended requested frame to global list.")
+
+        file_path = os.path.join(
+            os.path.dirname(__file__),
+            "requested_frames_pybullet.json"
+        )
+        json_dump(requested_frames, file_path)
+        print(f"RobotManager : [RobotManager] Dumped requested_frames to {file_path}")
+    
     def _on_message(self, msg: RealtimeMimicRequestMessage):
         robot_name = msg.robot_name
         if robot_name not in self.handlers:
@@ -60,6 +88,8 @@ class RobotManager:
             return
 
         handler = self.handlers[robot_name]
+        self._save_requested_frame(msg)
+
         msg.requested_robot_frame = self._transform_incoming_requested_frame(msg.requested_robot_frame)
         ik_config = handler.handle_msg_request(msg)
 
@@ -80,6 +110,7 @@ class RobotManager:
 PROJECT_NAME = "robotic_territories_testing_base_frame"
 BROKER = "broker.hivemq.com"
 # BROKER = "localhost"
+requested_frames = []
 
 if __name__ == "__main__":
     manager = RobotManager(PROJECT_NAME, broker=BROKER)

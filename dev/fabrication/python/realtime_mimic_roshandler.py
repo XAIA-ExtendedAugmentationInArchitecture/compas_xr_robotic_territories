@@ -45,7 +45,7 @@ class RealtimeMimicROSHandler:
             ik_config = self.robot.inverse_kinematics(frame, start_configuration=start_config)
             self.ik_solutions.append(ik_config)
             self._execute_motion(ik_config)
-            fp = r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\fabrication\python\test_config_vis.json"
+            fp = r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\fabrication\python\test_config_vis_pb.json"
             json_dump(self.ik_solutions, fp=fp, pretty=True)
             return ik_config
         except Exception as e:
