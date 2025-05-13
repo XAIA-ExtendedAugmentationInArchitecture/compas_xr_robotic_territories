@@ -23,7 +23,9 @@ ros_client.run(5)
 is_connected = ros_client.is_connected if ros_client else False
 
 if is_connected:
-    robot = ros_client.load_robot(load_geometry=False, precision=12)
+    robot = ros_client.load_robot(load_geometry=True, precision=12)
+    fp = r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\random\robot_vs_geo.json"
+    json_dump(data=robot, fp=fp, pretty=True)
     if robot:
         robot.client = ros_client
         
