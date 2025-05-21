@@ -11,12 +11,17 @@ import pybullet as pb
 
 class RealtimeMimicPyBulletHandler:
 
-    def __init__(self, robot_name, urdf_path):
+    def __init__(self, robot_name, urdf_path, srdf_path=None):
         self.robot_name = robot_name
         self.urdf_path = os.path.normpath(urdf_path)
+        if srdf_path:
+            self.srdf_path = os.path.normpath(srdf_path)
+        else:
+            self.srdf_path = None
         self.client = PyBulletClient()
         self.client.__enter__()  # For manual control over context
         self.robot = self._load_robot()
+        self.semantics = self._load_semantics()
         self.ik_solutions = []
         self._got_initial_config = False
         print(f"RealtimeMimicPyBulletHandler: [{robot_name}] Handler initialized")
@@ -24,8 +29,18 @@ class RealtimeMimicPyBulletHandler:
     def _load_robot(self):
         urdf_file = compas_fab.get(self.urdf_path)
         robot = self.client.load_robot(urdf_file)
-        # self.disable_self_collision_between_links("base_link_inertia", "shoulder_link")
         return robot
+
+    def _load_semantics(self):
+        if self.srdf_path:
+            print("Semantics Loaded")
+            semantics = self.client.load_semantics(self.robot, srdf_filename=self.srdf_path)
+        else:
+            print("Sementics Not loaded")
+            semantics = None
+        return semantics
+        # self.disable_self_collision_between_links("base_link_inertia", "shoulder_link")
+        
 
     def disable_self_collision_between_links(self, link_name_a, link_name_b):
         """Disable collision between two robot links using the PyBullet API directly."""
@@ -114,7 +129,47 @@ class RealtimeMimicPyBulletHandler:
         if not printed:
             print("No self-collisions detected.")
 
-    def handle_msg_request(self, msg: RealtimeMimicRequestMessage) -> Configuration:
+    def handle_msg_request(self, msg: RealtimeMimicRequestMessage) -> Configuration: #TODO: Using this one, and check the visualization, but run on the robot.
+        print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Handling request: {msg.message} from {msg.header.device_id}")
+        frame = msg.requested_robot_frame
+
+        if msg.initial_request:
+            print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Initial request received. Resetting IK solutions.")
+            self.ik_solutions = []
+
+        start_config = self._get_current_configuration()
+
+        try:
+            ik_config = self.robot.inverse_kinematics(frame_WCF=frame, start_configuration=start_config, options={"link_name": "tool0"}) #TODO: This tool0 param is hard coded for the UR20, it should be checked with the UR3 and ABB. Or passed as a paramater for the tool frame as well.
+            self.client.set_robot_configuration(self.robot, ik_config)
+            self.client.step_simulation()
+            is_collision = self.client.check_robot_self_collision(self.robot)
+            if is_collision:
+                print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] IK solution is in collision. Logging details:")
+                self.log_self_collisions()
+                if self.ik_solutions:
+                    self.client.set_robot_configuration(self.robot, self.ik_solutions[-1])
+                    self.client.step_simulation()
+                else:
+                    self.client.set_robot_configuration(self.robot, self.robot.zero_configuration())
+                    self.client.step_simulation()
+
+                for _ in range(5):
+                    self.client.step_simulation()
+                    time.sleep(0.05)
+                print("NOT SETTING CONFIG: IN COLLISION")
+                return None
+            self.ik_solutions.append(ik_config)
+
+            self._execute_motion(ik_config)
+            fp = os.path.join(os.path.dirname(__file__), "ik_configurations_pybullet.json")
+            json_dump(self.ik_solutions, fp=fp, pretty=True)
+            return ik_config
+        except Exception as e:
+            print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] IK computation failed: {e}")
+            return None
+
+    def handle_msg_request_old(self, msg: RealtimeMimicRequestMessage) -> Configuration:
         print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Handling request: {msg.message} from {msg.header.device_id}")
         frame = msg.requested_robot_frame
 
@@ -169,8 +224,8 @@ class RealtimeMimicPyBulletHandler:
 
 class URRealtimeMimicHandlerPyB(RealtimeMimicPyBulletHandler):
     
-    def __init__(self, robot_name, robot_ip, urdf_path, speed=0.6, acceleration=0.1, radius=0.006, nowait=False):
-        super().__init__(robot_name, urdf_path)
+    def __init__(self, robot_name, robot_ip, urdf_path, srdf_path=None, speed=0.6, acceleration=0.1, radius=0.006, nowait=False):
+        super().__init__(robot_name, urdf_path, srdf_path=srdf_path)
         self.robot_ip = robot_ip
         self.speed = speed
         self.acceleration = acceleration

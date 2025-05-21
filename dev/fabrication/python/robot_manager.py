@@ -30,7 +30,9 @@ class RobotManager:
             #     ros_ip="127.0.0.1",
             #     ros_port=11312
             # ),
-            "UR20": URRealtimeMimicHandlerPyB("UR20", "192.168.1.10", r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\scripts\urdf\ur_description\urdf\ur20.urdf")
+            "UR20": URRealtimeMimicHandlerPyB("UR20", "192.168.1.10", 
+                                                r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\scripts\urdf\ur_description\urdf\ur20.urdf",
+                                                r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\scripts\urdf\ur_description\urdf\ur20.srdf")
         }
 
         result_topic = Topic(f"robotic_territories/real_time_mimic_result/{project_name}", RealtimeMimicResultMessage)

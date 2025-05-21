@@ -1,0 +1,171 @@
+{
+    "name": "upper_arm_link",
+    "type": null,
+    "visual": [
+        {
+            "geometry": {
+                "attr": {},
+                "shape": {
+                    "attr": {},
+                    "data": {
+                        "attr": {},
+                        "filename": "package://ur_description/meshes/ur20/visual/upperarm.dae",
+                        "meshes": [],
+                        "scale": [
+                            1.0,
+                            1.0,
+                            1.0
+                        ]
+                    },
+                    "dtype": "compas_robots.model/MeshDescriptor",
+                    "guid": "352054e9-45fa-42ed-8df3-69600a0a5933"
+                }
+            },
+            "origin": {
+                "point": [
+                    0.0,
+                    0.0,
+                    0.26
+                ],
+                "xaxis": [
+                    6.123032E-17,
+                    -1.0,
+                    0.0
+                ],
+                "yaxis": [
+                    6.123032E-17,
+                    3.7491518E-33,
+                    1.0
+                ]
+            },
+            "name": null,
+            "material": "Material",
+            "attr": {}
+        }
+    ],
+    "collision": [
+        {
+            "geometry": {
+                "attr": {},
+                "shape": {
+                    "attr": {},
+                    "data": {
+                        "attr": {},
+                        "filename": "package://ur_description/meshes/ur20/collision/upperarm.stl",
+                        "meshes": [],
+                        "scale": [
+                            1.0,
+                            1.0,
+                            1.0
+                        ]
+                    },
+                    "dtype": "compas_robots.model/MeshDescriptor",
+                    "guid": "8f34cd1a-d5af-4a41-bbba-10512c2b8725"
+                }
+            },
+            "origin": {
+                "point": [
+                    0.0,
+                    0.0,
+                    0.26
+                ],
+                "xaxis": [
+                    6.123032E-17,
+                    -1.0,
+                    0.0
+                ],
+                "yaxis": [
+                    6.123032E-17,
+                    3.7491518E-33,
+                    1.0
+                ]
+            },
+            "name": null,
+            "attr": {}
+        }
+    ],
+    "inertial": {
+        "origin": {
+            "point": [
+                -0.426,
+                0.0,
+                0.275
+            ],
+            "xaxis": [
+                6.123032E-17,
+                0.0,
+                -1.0
+            ],
+            "yaxis": [
+                0.0,
+                1.0,
+                0.0
+            ]
+        },
+        "mass": {
+            "Value": 29.632
+        },
+        "inertia": {
+            "Ixx": 1.8341682,
+            "Ixy": 0.0,
+            "Ixz": 0.0,
+            "Iyy": 1.8341682,
+            "Iyz": 0.0,
+            "Izz": 0.08334
+        },
+        "attr": {}
+    },
+    "attr": {},
+    "joints": [
+        {
+            "Name": "elbow_joint",
+            "Type": 0,
+            "Parent": {
+                "link": null
+            },
+            "Child": {
+                "link": null
+            },
+            "Origin": {
+                "point": [
+                    -0.862,
+                    0.0,
+                    0.0
+                ],
+                "xaxis": [
+                    1.0,
+                    0.0,
+                    0.0
+                ],
+                "yaxis": [
+                    0.0,
+                    1.0,
+                    0.0
+                ]
+            },
+            "Axis": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0,
+                "attr": {}
+            },
+            "Calibration": null,
+            "Dynamics": {
+                "damping": 0.0,
+                "friction": 0.0,
+                "attr": {}
+            },
+            "Limit": {
+                "effort": 0.0,
+                "velocity": 0.0,
+                "lower": 0.0,
+                "upper": 0.0,
+                "attr": {}
+            },
+            "SafetyController": null,
+            "Mimic": null,
+            "Attr": {},
+            "Position": 0.0
+        }
+    ]
+}
