@@ -39,54 +39,6 @@ class RealtimeMimicPyBulletHandler:
             print("Sementics Not loaded")
             semantics = None
         return semantics
-        # self.disable_self_collision_between_links("base_link_inertia", "shoulder_link")
-        
-
-    def disable_self_collision_between_links(self, link_name_a, link_name_b):
-        """Disable collision between two robot links using the PyBullet API directly."""
-        robot_uid = self.client.client_id
-
-        def get_link_index(name):
-            if name == "base_link" or name.endswith("_inertia"):
-                return -1  # base
-            for i in range(pb.getNumJoints(robot_uid)):
-                joint_info = pb.getJointInfo(robot_uid, i)
-                if joint_info[12].decode("utf-8") == name:
-                    return i
-            return None
-
-        idx_a = get_link_index(link_name_a)
-        idx_b = get_link_index(link_name_b)
-
-        if idx_a is None or idx_b is None:
-            print(f"Could not find link indices for '{link_name_a}' or '{link_name_b}'")
-            return
-
-        pb.setCollisionFilterPair(robot_uid, robot_uid, idx_a, idx_b, enableCollision=0)
-        print(f"Ignoring collision between '{link_name_a}' and '{link_name_b}'")
-
-    def check_self_collision_ignoring(self, ignored_pairs, threshold=0.001):
-        robot_uid = self.client.client_id
-
-        for i in range(pb.getNumJoints(robot_uid)):
-            for j in range(i + 1, pb.getNumJoints(robot_uid)):
-                name_i = pb.getJointInfo(robot_uid, i)[12].decode("utf-8")
-                name_j = pb.getJointInfo(robot_uid, j)[12].decode("utf-8")
-
-                # Skip if the pair is in the ignore list
-                if (name_i, name_j) in ignored_pairs or (name_j, name_i) in ignored_pairs:
-                    continue
-
-                contacts = pb.getClosestPoints(
-                    bodyA=robot_uid, bodyB=robot_uid,
-                    distance=threshold, linkIndexA=i, linkIndexB=j
-                )
-
-                for c in contacts:
-                    if c[8] < threshold:  # 8 = contact distance
-                        #A collision that matters!
-                        return True
-        return False
 
     def _get_current_configuration(self):
         if not self.ik_solutions:
@@ -129,6 +81,81 @@ class RealtimeMimicPyBulletHandler:
         if not printed:
             print("No self-collisions detected.")
 
+    def handle_msg_request_recursive_solver(self, msg: RealtimeMimicRequestMessage) -> Configuration: #TODO: test run on the robot.
+        """
+        Checks recursively until it findes a valid IK that is collision free and returns it, but has a max attempt of 8. It returns the first solution without collision.
+        """
+        print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Handling request: {msg.message} from {msg.header.device_id}")
+        frame = msg.requested_robot_frame
+
+        if msg.initial_request:
+            print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Initial request received. Resetting IK solutions.")
+            self.ik_solutions = []
+            start_config = self._get_current_configuration()
+        else:
+            if len(self.ik_solutions) == 0:
+                start_config = self._get_current_configuration()
+            else:
+                start_config = self.ik_solutions[-1]
+
+        try:
+            options = {"link_name": "tool0"}
+            max_attempts = 8
+            ik_config = self.find_valid_ik_recursive(frame, start_config, options, max_tries=max_attempts)
+            if ik_config is None:
+                self.client.set_robot_configuration(self.robot, start_config)
+                self.client.step_simulation()
+                print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] No valid IK solution found after {max_attempts} attempts.")
+                return None
+
+            self.ik_solutions.append(ik_config)
+            self._execute_motion(ik_config)
+            fp = os.path.join(os.path.dirname(__file__), "ik_configurations_pybullet.json")
+            json_dump(self.ik_solutions, fp=fp, pretty=True)
+            return ik_config
+        except Exception as e:
+            print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] IK computation failed: {e}")
+            return None
+
+    def handle_msg_request_compas_fab_itter(self, msg: RealtimeMimicRequestMessage) -> Configuration: #TODO: test run on the robot.
+        """
+        Checks recursively until it findes a valid IK that is collision free and returns it, but has a max attempt of 8. It returns the first solution without collision.
+        """
+        print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Handling request: {msg.message} from {msg.header.device_id}")
+        frame = msg.requested_robot_frame
+
+        if msg.initial_request:
+            print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Initial request received. Resetting IK solutions.")
+            self.ik_solutions = []
+            start_config = self._get_current_configuration()
+        else:
+            if len(self.ik_solutions) == 0:
+                start_config = self._get_current_configuration()
+            else:
+                start_config = self.ik_solutions[-1]
+
+        try:
+            options = dict(
+                link_name="tool0",
+                high_accuracy_threshold=1e-6,
+                high_accuracy_max_iter=8
+            )
+            ik_config = self.find_best_valid_ik_compas_fab_itter_ik(frame, start_config, options)
+
+            if ik_config is None:
+                self.client.set_robot_configuration(self.robot, start_config)
+                self.client.step_simulation()
+                return None
+
+            self.ik_solutions.append(ik_config)
+            self._execute_motion(ik_config)
+            fp = os.path.join(os.path.dirname(__file__), "ik_configurations_pybullet.json")
+            json_dump(self.ik_solutions, fp=fp, pretty=True)
+            return ik_config
+        except Exception as e:
+            print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] IK computation failed: {e}")
+            return None
+
     def handle_msg_request(self, msg: RealtimeMimicRequestMessage) -> Configuration: #TODO: Using this one, and check the visualization, but run on the robot.
         print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Handling request: {msg.message} from {msg.header.device_id}")
         frame = msg.requested_robot_frame
@@ -136,8 +163,12 @@ class RealtimeMimicPyBulletHandler:
         if msg.initial_request:
             print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Initial request received. Resetting IK solutions.")
             self.ik_solutions = []
-
-        start_config = self._get_current_configuration()
+            start_config = self._get_current_configuration()
+        else:
+            if len(self.ik_solutions) == 0:
+                start_config = self._get_current_configuration()
+            else:
+                start_config = self.ik_solutions[-1]
 
         try:
             ik_config = self.robot.inverse_kinematics(frame_WCF=frame, start_configuration=start_config, options={"link_name": "tool0"}) #TODO: This tool0 param is hard coded for the UR20, it should be checked with the UR3 and ABB. Or passed as a paramater for the tool frame as well.
@@ -153,11 +184,6 @@ class RealtimeMimicPyBulletHandler:
                 else:
                     self.client.set_robot_configuration(self.robot, self.robot.zero_configuration())
                     self.client.step_simulation()
-
-                for _ in range(5):
-                    self.client.step_simulation()
-                    time.sleep(0.05)
-                print("NOT SETTING CONFIG: IN COLLISION")
                 return None
             self.ik_solutions.append(ik_config)
 
@@ -169,50 +195,14 @@ class RealtimeMimicPyBulletHandler:
             print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] IK computation failed: {e}")
             return None
 
-    def handle_msg_request_old(self, msg: RealtimeMimicRequestMessage) -> Configuration:
-        print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Handling request: {msg.message} from {msg.header.device_id}")
-        frame = msg.requested_robot_frame
+    def find_minimum_movement_config(self, start_config, candidate_configs):
+        def joint_distance(c):
+            return self.configuration_difference(start_config, c, return_sum=False)
+        return min(candidate_configs, key=joint_distance)
 
-        if msg.initial_request:
-            print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Initial request received. Resetting IK solutions.")
-            self.ik_solutions = []
-
-        start_config = self._get_current_configuration()
-
-        try:
-            ik_config = self.robot.inverse_kinematics(frame_WCF=frame, start_configuration=start_config, options={"link_name": "tool0"}) #TODO: This tool0 param is hard coded for the UR20, it should be checked with the UR3 and ABB. Or passed as a paramater for the tool frame as well.
-            self.client.set_robot_configuration(self.robot, ik_config)
-            self.client.step_simulation()
-            ignored = [
-                    ("base_link_inertia", "shoulder_link"),
-                    ("shoulder_link", "upper_arm_link"),
-                    ("forearm_link", "upper_arm_link"),
-                    ("forearm_link", "wrist_1_link"),
-                    ("forearm_link", "wrist_2_link"),
-                    ("forearm_link", "wrist_3_link"),
-                    ("wrist_1_link", "wrist_2_link"),
-                    ("wrist_2_link", "wrist_3_link"),
-                ]
-            is_collision = self.check_self_collision_ignoring(ignored)
-            if is_collision:
-                print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] IK solution is in collision. Logging details:")
-                self.log_self_collisions(ignored_pairs=ignored, threshold=0.001)
-                # print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] IK solution is in collision. Skipping execution.")
-                if self.ik_solutions:
-                    self.client.set_robot_configuration(self.robot, self.ik_solutions[-1])
-                else:
-                    self.client.set_robot_configuration(self.robot, self.robot.zero_configuration())
-                return None
-            self.ik_solutions.append(ik_config)
-            
-            # time.sleep(0.5)  # For visualization step pacing
-            self._execute_motion(ik_config)
-            fp = os.path.join(os.path.dirname(__file__), "ik_configurations_pybullet.json")
-            json_dump(self.ik_solutions, fp=fp, pretty=True)
-            return ik_config
-        except Exception as e:
-            print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] IK computation failed: {e}")
-            return None
+    def configuration_difference(self, config1, config2, return_sum=False):
+        diffs = [abs(a - b) for a, b in zip(config1.joint_values, config2.joint_values)]
+        return sum(diffs) if return_sum else diffs
 
     def _execute_motion(self, config: Configuration):
         print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] (Sim) Executing: {config.joint_values}")
@@ -220,6 +210,66 @@ class RealtimeMimicPyBulletHandler:
     def shutdown(self):
         self.client.__exit__(None, None, None)
 
+    def find_valid_ik_recursive(self, frame, start_config, options=None, max_tries=10, attempt=0):
+        if attempt >= max_tries:
+            print(f"[{self.robot_name}] Max IK attempts ({max_tries}) reached.")
+            return None
+
+        try:
+            ik_config = self.robot.inverse_kinematics(frame_WCF=frame, start_configuration=start_config, options=options)
+            self.client.set_robot_configuration(self.robot, ik_config)
+            self.client.step_simulation()
+
+            if self.client.check_robot_self_collision(self.robot):
+                print(f"[{self.robot_name}] Attempt {attempt + 1}: IK result in collision. Trying again...")
+                return self.find_valid_ik_recursive(frame, start_config, options, max_tries, attempt + 1)
+            else:
+                print(f"[{self.robot_name}] Found collision-free IK solution on attempt {attempt + 1}.")
+                return ik_config
+        except Exception as e:
+            print(f"[{self.robot_name}] IK exception at attempt {attempt + 1}: {e}")
+            return self.find_valid_ik_recursive(frame, start_config, options, max_tries, attempt + 1)
+
+    def find_best_valid_ik_compas_fab_itter_ik(self, frame, start_config, options, max_results=20):
+        """
+        Iteratively searches for valid IK solutions and selects the closest one
+        based on joint difference.
+
+        Parameters
+        ----------
+        frame : compas.geometry.Frame
+            The target frame for the IK.
+        start_config : Configuration
+            The starting configuration to compare against.
+        options : dict
+            Additional options to pass to the IK solver.
+        max_results : int, optional
+            Max number of solutions to evaluate.
+
+        Returns
+        -------
+        Configuration or None
+            The best collision-free IK solution found, or None if none valid.
+        """
+        options["max_results"] = max_results
+        valid_configs = []
+
+        for candidate in self.robot.iter_inverse_kinematics(
+            frame_WCF=frame,
+            start_configuration=start_config,
+            options=options
+        ):
+            self.client.set_robot_configuration(self.robot, candidate)
+            self.client.step_simulation()
+
+            if not self.client.check_robot_self_collision(self.robot):
+                valid_configs.append(candidate)
+
+        if not valid_configs:
+            print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] No valid collision-free IK solutions found.")
+            return None
+
+        return self.find_minimum_movement_config(start_config, valid_configs)
 
 
 class URRealtimeMimicHandlerPyB(RealtimeMimicPyBulletHandler):
@@ -234,16 +284,18 @@ class URRealtimeMimicHandlerPyB(RealtimeMimicPyBulletHandler):
         print(f"URRealtimeMimicHandlerPyB: [{robot_name}] UR handler initialized")
 
     def _get_current_configuration(self):
-        config = rtde.get_config_TEST(self.robot_ip)
-        # config = rtde.get_config(self.robot_ip)
-        # return config
-        config_zero = self.robot.zero_configuration()
-        return config_zero
+        # config = rtde.get_config_TEST(self.robot_ip)
+        config = rtde.get_config(self.robot_ip)
+        return config
+        # config_zero = self.robot.zero_configuration()
+        # return config_zero
 
     def _execute_motion(self, config: Configuration):
         print(f"URRealtimeMimicHandlerPyB: [{self.robot_name}] (Sim) Executing UR motion: {config.joint_values}")
         # rtde.move_to_joints(config, self.speed, self.acceleration, nowait=self.nowait, ip=self.robot_ip)
-        rtde.move_to_joints_TEST(config, self.speed, self.acceleration, nowait=self.nowait, ip=self.robot_ip)
+        rtde.move_to_joints_blend(config, self.speed, self.acceleration, blend=self.radius, nowait=self.nowait, ip=self.robot_ip)
+        
+        # rtde.move_to_joints_TEST(config, self.speed, self.acceleration, nowait=self.nowait, ip=self.robot_ip)
 
 #TODO: FIX later (need to compute IK in PyBullet and send to ABB using ROSClient in RRC)
 class ABBRealtimeMimicHandler(RealtimeMimicPyBulletHandler):

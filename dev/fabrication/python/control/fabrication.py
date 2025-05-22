@@ -49,6 +49,12 @@ def move_to_joints(config, speed, accel, nowait, ip="127.0.0.1"):
     ur_c = RTDEControl(ip)
     ur_c.moveJ(config.joint_values, speed, accel, nowait)
 
+def move_to_joints_blend(config, speed, accel, blend, nowait, ip="127.0.0.1"):
+    # speed rad/s, accel rad/s^2, nowait bool
+
+    ur_c = RTDEControl(ip)
+    ur_c.moveJ(config.joint_values, speed, accel, nowait)
+
 def move_to_joints_TEST(config, speed, accel, nowait, ip="127.0.0.1"):
     # speed rad/s, accel rad/s^2, nowait bool
     print ("SENDING TO JOINTS", config.joint_values, speed, accel, nowait)
