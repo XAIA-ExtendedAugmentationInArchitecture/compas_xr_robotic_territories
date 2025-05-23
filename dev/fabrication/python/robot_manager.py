@@ -31,11 +31,11 @@ class RobotManager:
             #     ros_port=11312
             # ),
             #TODO: TESTING BASE SLOW SPEED
-            # "UR20": URRealtimeMimicHandlerPyB("UR20", "192.168.1.10", 
-            #                                     r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\scripts\urdf\ur_description\urdf\ur20.urdf",
-            #                                     r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\scripts\urdf\ur_description\urdf\ur20.srdf",
-            #                                     radius=0.015,
-            #                                     nowait=False)
+            "UR20": URRealtimeMimicHandlerPyB("UR20", "192.168.1.10", 
+                                                r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\scripts\urdf\ur_description\urdf\ur20.urdf",
+                                                r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\scripts\urdf\ur_description\urdf\ur20.srdf",
+                                                radius=0.015,
+                                                nowait=False)
             
             # #TODO: TESTING MEDIUM SPEED
             # "UR20": URRealtimeMimicHandlerPyB("UR20", "192.168.1.10", 
@@ -44,10 +44,10 @@ class RobotManager:
             #                         speed=1.0, acceleration=1.0, nowait=True, radius=0.015)
 
             # #TODO: TESTING FASTER SPEED
-            "UR20": URRealtimeMimicHandlerPyB("UR20", "192.168.1.10", 
-                                    r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\scripts\urdf\ur_description\urdf\ur20.urdf",
-                                    r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\scripts\urdf\ur_description\urdf\ur20.srdf",
-                                    speed=1.5, acceleration=2.0, radius=0.025, nowait=False)
+            # "UR20": URRealtimeMimicHandlerPyB("UR20", "192.168.1.10", 
+            #                         r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\scripts\urdf\ur_description\urdf\ur20.urdf",
+            #                         r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\scripts\urdf\ur_description\urdf\ur20.srdf",
+            #                         speed=1.5, acceleration=2.0, radius=0.025, nowait=True)
 
             # #TODO: TESTING FASTEST SPEED
             # "UR20": URRealtimeMimicHandlerPyB("UR20", "192.168.1.10", 
@@ -114,7 +114,8 @@ class RobotManager:
         self._save_requested_frame(msg)
 
         msg.requested_robot_frame = self._transform_incoming_requested_frame(msg.requested_robot_frame)
-        ik_config = handler.handle_msg_request_compas_fab_itter(msg)
+        ik_config = handler.handle_msg_request_ik_target(msg)
+        # ik_config = handler.handle_msg_request_compas_fab_itter(msg)
         # ik_config = handler.handle_msg_request_recursive_solver(msg)
         # ik_config = handler.handle_msg_request(msg)
 

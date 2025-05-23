@@ -3,6 +3,7 @@ import time
 from compas.data import json_dump
 from compas_fab.backends import PyBulletClient
 from compas_robots import Configuration
+from compas.geometry import Frame
 import compas_fab
 import compas_rrc as rrc
 from compas_xr.mqtt import RealtimeMimicRequestMessage
@@ -46,6 +47,9 @@ class RealtimeMimicPyBulletHandler:
         else:
             "using last configuration as start configuration"
         return self.ik_solutions[-1]
+    
+    def _execute_motion_target(self, frame: Frame):
+        print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] (Sim) Executing motion to target frame: {frame}")
 
     def log_self_collisions(self, ignored_pairs=None, threshold=0.001):
         """Log all robot self-collisions within a given distance threshold,
@@ -195,6 +199,38 @@ class RealtimeMimicPyBulletHandler:
             print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] IK computation failed: {e}")
             return None
 
+    def handle_msg_request_ik_target(self, msg: RealtimeMimicRequestMessage) -> Configuration: #TODO: Using this one, and check the visualization, but run on the robot.
+        print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Handling request: {msg.message} from {msg.header.device_id}")
+        frame = msg.requested_robot_frame
+
+        try:
+            if msg.initial_request:
+                print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Initial request received. Resetting IK solutions.")
+                self.ik_solutions = []
+                start_config = self._get_current_configuration()
+                options = dict(
+                    link_name="tool0",
+                    high_accuracy_threshold=1e-6,
+                    high_accuracy_max_iter=8
+                )
+                ik_config = self.find_best_valid_ik_compas_fab_itter_ik(frame, start_config, options)
+
+                if ik_config is None:
+                    self.client.set_robot_configuration(self.robot, start_config)
+                    self.client.step_simulation()
+                    return None
+
+                self.ik_solutions.append(ik_config)
+                self._execute_motion(frame)
+            else:
+                print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Non-initial request received. Executing motion to target frame.")
+                self._execute_motion_target(frame)
+                return frame
+        except Exception as e:
+            print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] IK computation failed: {e}")
+            return None
+
+
     def find_minimum_movement_config(self, start_config, candidate_configs):
         def joint_distance(c):
             return self.configuration_difference(start_config, c, return_sum=False)
@@ -296,6 +332,11 @@ class URRealtimeMimicHandlerPyB(RealtimeMimicPyBulletHandler):
         rtde.move_to_joints_blend(config, self.speed, self.acceleration, blend=self.radius, nowait=self.nowait, ip=self.robot_ip)
         
         # rtde.move_to_joints_TEST(config, self.speed, self.acceleration, nowait=self.nowait, ip=self.robot_ip)
+
+    def _execute_motion_target(self, frame: Frame):
+        print(f"URRealtimeMimicHandlerPyB: [{self.robot_name}] (Sim) Executing UR motion to target frame: {frame}")
+        # rtde.move_to_target(frame, self.speed, self.acceleration, nowait=self.nowait, ip=self.robot_ip)
+        rtde.move_to_target(frame, self.speed, self.acceleration, nowait=True, ip=self.robot_ip)
 
 #TODO: FIX later (need to compute IK in PyBullet and send to ABB using ROSClient in RRC)
 class ABBRealtimeMimicHandler(RealtimeMimicPyBulletHandler):
