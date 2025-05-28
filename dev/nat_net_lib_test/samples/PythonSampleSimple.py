@@ -84,7 +84,7 @@ RIGID_BODIES_BY_TIMESTAMP_FILEPATH = os.path.join(
     TIME_STAMP_RECORDINGS_FILE_NAME
 )
 
-#TODO: DICTIONARY OF RIGID BODY NAMES
+#TODO: DICTIONARY OF RIGID BODY NAMES COULD BE IMPROVED
 rigid_body_names = {
     "1" : "Origin",
     "2" : "Red01",
@@ -124,11 +124,6 @@ def receive_rigid_body_frame_TEST(new_id, position, rotation):
 
     # Append this frame's info
     output_by_frame_data[model_name].append(frame_info)
-
-    # Optional: print once per second (for debugging)
-    # if current_time - last_print_time > 1.0:
-    #     print(f"[{time.strftime('%H:%M:%S')}] {model_name} (ID {new_id}) - Pos {frame_info['position']}")
-    #     last_print_time = current_time
 
     update_rigid_body_location_if_changed(model_name, frame_info["position"], frame_info["rotation"])
 
@@ -201,6 +196,9 @@ def rotation_changed(rot1, rot2, angle_threshold_deg=1.0):
     angle_rad = 2 * math.acos(abs(dot))
     angle_deg = math.degrees(angle_rad)
     return angle_deg > angle_threshold_deg
+
+
+#TODO : BELOW DOES NOT WORK VERY WELL YET #######################################################################################################################################
 
 def process_full_mocap_frame(mocap_data):
     global last_write_time, output_by_frame_data, OUTPUT_PATH, client
