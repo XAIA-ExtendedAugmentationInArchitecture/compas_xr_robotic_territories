@@ -48,7 +48,7 @@ WRITE_INTERVAL = 2  # seconds
 
 timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 BASE_DIR = r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\nat_net_lib_test\samples\out"
-SESION_DIR_NAME = "test_session"
+SESION_DIR_NAME = "20250603_robot_transformation_testing_2"
 FRAME_RECORDINGS_DIR = "recordings"
 TIME_STAMP_DIR = timestamp
 RECORD_OUT_FILE_NAME = f"rigid_bodies_by_frame.json"
@@ -197,7 +197,6 @@ def rotation_changed(rot1, rot2, angle_threshold_deg=1.0):
     angle_deg = math.degrees(angle_rad)
     return angle_deg > angle_threshold_deg
 
-
 #TODO : BELOW DOES NOT WORK VERY WELL YET #######################################################################################################################################
 
 def process_full_mocap_frame(mocap_data):
@@ -272,9 +271,7 @@ def receive_new_frame_with_data(data_dict):
         print(f"    ID {rb['id']}: Pos={rb['position']}, Rot={rb['orientation']}, "
               f"Error={rb.get('mean_marker_error', 0.0):.4f}, Valid={rb.get('tracking_valid', False)}")
 
-
 #TODO: TESTING  #######################################################################################################################################
-
 
 if __name__ == "__main__":
     optionsDict = {
