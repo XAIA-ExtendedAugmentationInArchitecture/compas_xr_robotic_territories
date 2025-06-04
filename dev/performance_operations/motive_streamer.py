@@ -30,13 +30,16 @@ import os
 import datetime
 import math
 
+# imports for motive transofmrations
+import numpy as np
+from compas.geometry import Point, Quaternion, Frame
+from compas.data import json_load, json_dump
+from scipy.spatial.transform import Rotation as R
 
 
 last_print_time = 0  # Global timer
 
-# This is a callback function that gets connected to the NatNet client
-# and called once per mocap frame.
-
+# TODO : Turn into class?
 
 #TODO: TESTING #######################################################################################################################################
 
@@ -196,6 +199,45 @@ def rotation_changed(rot1, rot2, angle_threshold_deg=1.0):
     angle_rad = 2 * math.acos(abs(dot))
     angle_deg = math.degrees(angle_rad)
     return angle_deg > angle_threshold_deg
+
+#TODO : BELOW IS THE FUNCTIONS FOR CONVERTING TO RHINO FRAME FROM MOTIVE OUTPUT #######################################################################################################################################
+
+
+# ------------------------------------------------------------------------
+# Transformations From Motive to Rhino
+# -----------------------------------------------------------------------
+
+# ------------------------------------------------------------------------
+# Coordinate Transform: Motive (Z forward, Y up, X left) → Rhino (Z up)
+# ------------------------------------------------------------------------
+
+MOTIVE_ZFWD_TO_RHINO_ZUP_4x4 = np.array([
+    [-1, 0,  0, 0],  # X (left) → -X (right)
+    [ 0, 0,  1, 0],  # Z (fwd)  → Y (fwd)
+    [ 0, 1,  0, 0],  # Y (up)   → Z (up)
+    [ 0, 0,  0, 1]
+])
+
+# ------------------------------------------------------------------------
+# Helper Functions # TODO: These move to the motive file
+# ------------------------------------------------------------------------
+
+def get_motive_pose(pos_dict, quat_dict) -> tuple[Point, Quaternion]:
+    point = Point(pos_dict["x"], pos_dict["y"], pos_dict["z"])
+    quat = Quaternion(quat_dict["w"], quat_dict["x"], quat_dict["y"], quat_dict["z"])
+    return point, quat
+
+def transform_point(point: Point, matrix: np.ndarray) -> Point:
+    p = np.array([point.x, point.y, point.z, 1.0])
+    transformed = matrix @ p
+    return Point(*transformed[:3])
+
+def transform_quaternion(q: Quaternion, matrix: np.ndarray) -> Quaternion:
+    R_motive = R.from_quat([q.x, q.y, q.z, q.w])
+    C = matrix[:3, :3]
+    R_rhino = C @ R_motive.as_matrix() @ C.T
+    q_rhino = R.from_matrix(R_rhino).as_quat()
+    return Quaternion(q_rhino[3], q_rhino[0], q_rhino[1], q_rhino[2])
 
 #TODO : BELOW DOES NOT WORK VERY WELL YET #######################################################################################################################################
 

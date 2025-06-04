@@ -2,6 +2,110 @@ import numpy as np
 from compas.geometry import Point, Quaternion, Frame
 from compas.data import json_load, json_dump
 from scipy.spatial.transform import Rotation as R
+from compas.geometry import Transformation
+from compas.geometry import Translation
+
+
+class RobotTransformationsFromObserved:
+
+    def __init__(self, transformations_fp, fb_config_fp): #TODO: Add project_name for reference in RTDB
+        """
+        Initialize the RobotTransformationsFromObserved class with a file path to the transformations.
+        
+        :param transformations_fp: File path to the transformations JSON file.
+        """
+        self.transformations_fp = transformations_fp
+        self.transformations = self._load_transformations()
+        self.rtdb_reference = None  # Placeholder for RTDB reference if needed
+
+    def _load_transformations(self):
+        """
+        Load transformations from the specified JSON file.
+        
+        :return: Dictionary containing the transformations.
+        """
+        try:
+            return json_load(self.transformations_fp)
+        except Exception as e:
+            print(f"Error loading transformations from {self.transformations_fp}: {e}")
+            return {}
+
+    def update_robot_transformation(self, robot_name, observed_frame):
+        """
+        Update the robot transformation based on the observed frame.
+        
+        :param robot_name: Name of the robot.
+        :param observed_frame: The observed frame to be transformed.
+        """
+
+        if robot_name not in self.transformations:
+            print(f"Robot {robot_name} not found in transformations.")
+            return
+        else:
+            if robot_name == "UR20":
+                # Special handling for UR20
+                self.update_observed_transforms_for_ur20(robot_name, observed_frame)
+            elif robot_name == "UR3":
+                # Special handling for UR3
+                self.update_observed_transforms_for_ur3(robot_name, observed_frame)
+            elif robot_name == "SmallAbbs":
+                # Special handling for SmallAbbs
+                self.update_observed_transforms_for_small_abbs(robot_name, observed_frame)
+            else:
+                print(f"Robot {robot_name} does not have a specific transformation update method.")
+
+    def update_observed_transforms_for_ur20(self, robot_name, observed_frame, translation_dist = 0.517):
+        """
+        Update the observed transformations for the UR20 robot.
+        This includes a translation for the observed frame to the actual frame
+        and a transformation from the translated frame to the Rhino frame.
+        """
+        urdf_base_frame = self.transformations[robot_name]["static"]["base_frame"]
+
+        translation_vector = observed_frame.xaxis + observed_frame.yaxis
+        unitized_translation_vector = translation_vector.unitized()
+        translation_vector = unitized_translation_vector * translation_dist
+        translation = Translation.from_vector(translation_vector)
+
+        observed_base_frame = observed_frame.transformed(translation)
+
+        transformation_to_urdf_base = Transformation.from_frame_to_frame(urdf_base_frame, observed_base_frame)
+        inverse_transformation_to_observed_base = transformation_to_urdf_base.inverse()
+
+        self.transformations[robot_name]["observed"]["base_frame"] = observed_base_frame
+        self.transformations[robot_name]["observed"]["transformation_to_urdf"] = transformation_to_urdf_base
+        self.transformations[robot_name]["observed"]["inverse_transform_to_observed"] = inverse_transformation_to_observed_base
+
+        # Update the base frame on Firebase & save the transformations
+        json_dump(self.transformations, self.transformations_fp, pretty=True)
+        self.update_baseframe_on_firebase(robot_name, observed_base_frame)
+        print(f"Updated observed transformations for {robot_name} with base frame: {observed_base_frame}")
+
+    def update_observed_transforms_for_ur3(self, robot_name, observed_frame):
+        """
+        Update the observed transformations for the UR3 robot.
+        This includes a translation for the observed frame to the actual frame
+        and a transformation from the translated frame to the Rhino frame.
+        """
+        print(f"WIP : Update observed transformations for {robot_name} is not implemented yet.")
+
+    def update_observed_transforms_for_small_abbs(self, robot_name, observed_frame):
+        """
+        Update the observed transformations for the UR3 robot.
+        This includes a translation for the observed frame to the actual frame
+        and a transformation from the translated frame to the Rhino frame.
+        """
+        print(f"WIP : Update observed transformations for {robot_name} is not implemented yet.")
+
+    def update_baseframe_on_firebase(self, robot_name, tansformed_frame):
+        """
+        Update the base frame of the robot on Firebase.
+        
+        :param robot_name: Name of the robot.
+        :param transformed_frame: The transformed frame to be updated.
+        """
+        # Placeholder for Firebase update logic
+        print(f"Updating base frame for {robot_name} on Firebase with frame: {tansformed_frame}")
 
 #TODO: ##################################################################C
 
@@ -18,6 +122,11 @@ for the creation of geometry.
   # TODO: 3 Overwrite information on the FB for the AR Robot
 
 #TODO: ##################################################################C
+
+
+# ------------------------------------------------------------------------
+# Transformations From Motive to Rhino
+# -----------------------------------------------------------------------
 
 # ------------------------------------------------------------------------
 # Coordinate Transform: Motive (Z forward, Y up, X left) → Rhino (Z up)
