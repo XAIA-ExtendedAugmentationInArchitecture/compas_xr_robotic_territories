@@ -11,6 +11,12 @@ optitrack tracking file, static robotic configuration files, and additional othe
 for the creation of geometry.
 """
 
+ #TODO : EXACT THINGS ###################################################C
+
+  # TODO: 1 Robot Transformations Class (Translations from observed to actual)
+  # TODO: 2 Overwrite the transformation in a static json configuration file
+  # TODO: 3 Overwrite information on the FB for the AR Robot
+
 #TODO: ##################################################################C
 
 # ------------------------------------------------------------------------

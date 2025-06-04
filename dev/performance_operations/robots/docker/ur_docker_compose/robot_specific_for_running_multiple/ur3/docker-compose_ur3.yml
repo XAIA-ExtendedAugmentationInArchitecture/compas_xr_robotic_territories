@@ -1,0 +1,84 @@
+version: '2'
+services:
+  moveit-demo:
+    image: xaialab/ur-planners
+    container_name: moveit-demo-ur3
+    environment:
+      - ROS_HOSTNAME=moveit-demo-ur3
+      - ROS_MASTER_URI=http://ros-core-ur3:11311
+      # GUI Option 1: To forward the GUI to an external X11 server (eg. XMing), uncomment the following line
+      # - DISPLAY=host.docker.internal:0.0
+      # GUI Option 2: To use the web-based GUI, uncomment the following line
+      # - DISPLAY=gui:0.0
+    depends_on:
+      - ros-core
+      # To use the web-based GUI, uncomment the following line
+      # - gui
+    command:
+      - roslaunch
+      - --wait
+      # To change the robot, select the corresponding package name here
+      # - eg. `ur3_moveit_config`, `ur5_moveit_config`, `ur10e_moveit_config`, 'ur20_moveit_config'
+      - ur3_moveit_config
+      - demo.launch
+      # To launch the RVIZ GUI, change the following to true and activate one of the two GUI options above
+      - use_rviz:=false
+
+  ros-core:
+    image: xaialab/ur-planners
+    container_name: ros-core-ur3
+    ports:
+      - "11312:11311"
+    command:
+      - roscore
+
+  ros-bridge:
+    image: xaialab/ur-planners
+    container_name: ros-bridge-ur3
+    environment:
+      - "ROS_HOSTNAME=ros-bridge-ur3"
+      - "ROS_MASTER_URI=http://ros-core-ur3:11311"
+    ports:
+      - "9091:9090"
+    depends_on:
+      - ros-core
+    command:
+      - roslaunch
+      - --wait
+      - rosbridge_server
+      - rosbridge_websocket.launch
+
+  ros-fileserver:
+    image: xaialab/ur-planners
+    container_name: ros-fileserver-ur3
+    environment:
+      - ROS_HOSTNAME=ros-fileserver-ur3
+      - ROS_MASTER_URI=http://ros-core-ur3:11311
+    depends_on:
+      - ros-core
+    command:
+      - roslaunch
+      - --wait
+      - file_server
+      - file_server.launch
+    
+  #Run the ur-driver for receiving information via ROS: However, we had problems with ur-driver and RTDE communication
+  # ur-driver:
+  #   image: xaialab/ur-planners
+  #   container_name: ur-driver
+  #   environment:
+  #     - ROS_HOSTNAME=ur-driver
+  #     - ROS_MASTER_URI=http://ros-master:11311
+  #   depends_on:
+  #     - ros-master
+  #   command:
+  #     - roslaunch
+  #     - --wait
+  #     - ur20_bringup.launch
+  #     - robot_ip := 192.168.0.200
+
+  # To use the web-based GUI, uncomment the following lines
+  # gui:
+  #   image: gramaziokohler/novnc:latest
+  #   ports:
+  #     - "8080:8080"
