@@ -4,11 +4,11 @@ from compas.data import json_load, json_dump
 from scipy.spatial.transform import Rotation as R
 from compas.geometry import Transformation
 from compas.geometry import Translation
-
+from compas_xr.realtime_database import RealtimeDatabase
 
 class RobotTransformationsFromObserved:
 
-    def __init__(self, transformations_fp, fb_config_fp): #TODO: Add project_name for reference in RTDB
+    def __init__(self, transformations_fp, fb_config_fp, project_name):
         """
         Initialize the RobotTransformationsFromObserved class with a file path to the transformations.
         
@@ -16,7 +16,15 @@ class RobotTransformationsFromObserved:
         """
         self.transformations_fp = transformations_fp
         self.transformations = self._load_transformations()
-        self.rtdb_reference = None  # Placeholder for RTDB reference if needed
+        self.project_name = project_name  # Project name for reference in RTDB
+        self.fb_config_fp = fb_config_fp  # Firebase configuration file path
+        if self.fp_config_fp == None:
+            # Load Firebase configuration if provided
+            raise ValueError("Firebase configuration file path must be provided.")
+        else:
+            self.rtdb_reference = RealtimeDatabase(self.fb_config_fp)
+            print(f"RobotTransformationsFromObserved : [RobotTransformationsFromObserved] Initialized with RTDB for project: {self.project_name}")
+
 
     def _load_transformations(self):
         """
@@ -45,14 +53,18 @@ class RobotTransformationsFromObserved:
             if robot_name == "UR20":
                 # Special handling for UR20
                 self.update_observed_transforms_for_ur20(robot_name, observed_frame)
-            elif robot_name == "UR3":
+            elif robot_name == "UR3Table":
                 # Special handling for UR3
-                self.update_observed_transforms_for_ur3(robot_name, observed_frame)
-            elif robot_name == "SmallAbbs":
+                self.update_observed_transforms_for_UR3Table(robot_name, observed_frame)
+            elif robot_name == "ABBTable":
                 # Special handling for SmallAbbs
-                self.update_observed_transforms_for_small_abbs(robot_name, observed_frame)
+                self.update_observed_transforms_for_ABBTable(robot_name, observed_frame)
             else:
                 print(f"Robot {robot_name} does not have a specific transformation update method.")
+
+    # ========================================================================================
+    # Update Tansformations for the UR20 Robots
+    # ========================================================================================
 
     def update_observed_transforms_for_ur20(self, robot_name, observed_frame, translation_dist = 0.517):
         """
@@ -60,7 +72,7 @@ class RobotTransformationsFromObserved:
         This includes a translation for the observed frame to the actual frame
         and a transformation from the translated frame to the Rhino frame.
         """
-        urdf_base_frame = self.transformations[robot_name]["static"]["base_frame"]
+        urdf_base_frame = self.transformations[robot_name]["static"]["urdf_base_frame"]
 
         translation_vector = observed_frame.xaxis + observed_frame.yaxis
         unitized_translation_vector = translation_vector.unitized()
@@ -72,7 +84,7 @@ class RobotTransformationsFromObserved:
         transformation_to_urdf_base = Transformation.from_frame_to_frame(urdf_base_frame, observed_base_frame)
         inverse_transformation_to_observed_base = transformation_to_urdf_base.inverse()
 
-        self.transformations[robot_name]["observed"]["base_frame"] = observed_base_frame
+        self.transformations[robot_name]["observed"]["urdf_base_frame"] = observed_base_frame
         self.transformations[robot_name]["observed"]["transformation_to_urdf"] = transformation_to_urdf_base
         self.transformations[robot_name]["observed"]["inverse_transform_to_observed"] = inverse_transformation_to_observed_base
 
@@ -81,21 +93,116 @@ class RobotTransformationsFromObserved:
         self.update_baseframe_on_firebase(robot_name, observed_base_frame)
         print(f"Updated observed transformations for {robot_name} with base frame: {observed_base_frame}")
 
-    def update_observed_transforms_for_ur3(self, robot_name, observed_frame):
-        """
-        Update the observed transformations for the UR3 robot.
-        This includes a translation for the observed frame to the actual frame
-        and a transformation from the translated frame to the Rhino frame.
-        """
-        print(f"WIP : Update observed transformations for {robot_name} is not implemented yet.")
+    # ========================================================================================
+    # Update Tansformations for the UR3 Robots
+    # ========================================================================================
 
-    def update_observed_transforms_for_small_abbs(self, robot_name, observed_frame):
+    def update_observed_transforms_for_UR3Table(self, robot_name, observed_frame):
         """
         Update the observed transformations for the UR3 robot.
         This includes a translation for the observed frame to the actual frame
         and a transformation from the translated frame to the Rhino frame.
         """
-        print(f"WIP : Update observed transformations for {robot_name} is not implemented yet.")
+        ur3_table_data = self.transformations[robot_name]
+        # self.update_observed_transforms_for_UR31("UR31", observed_frame)
+        # self.update_observed_transforms_for_UR32("UR32", observed_frame)
+
+        print(f"WIP : Transformation for UR3Table is not implemented yet. Current data: {ur3_table_data}")
+
+    def update_observed_transforms_for_UR31(self, robot_name, observed_frame): #TODO: UR3
+        """
+        Update the observed transformations for the UR31 robot.
+        This includes a translation for the observed frame to the actual frame
+        """
+        urdf_base_frame = self.transformations["UR3Table"][robot_name]["static"]["urdf_base_frame"]
+        print(f"Updating Observed Transformation for UR1 robot: {robot_name} static base frame: {urdf_base_frame}, observed frame: {observed_frame}, current information: {self.transformations['UR3Table'][robot_name]['observed']}")
+
+        #TODO: Insert Transformation Logic here.
+
+        # transformation_to_urdf_base = Transformation.from_frame_to_frame(urdf_base_frame, observed_base_frame)
+        # inverse_transformation_to_observed_base = transformation_to_urdf_base.inverse()
+
+        # self.transformations["UR3Table"][robot_name]["observed"]["urdf_base_frame"] = observed_base_frame
+        # self.transformations["UR3Table"][robot_name]["observed"]["transformation_to_urdf"] = transformation_to_urdf_base
+        # self.transformations["UR3Table"][robot_name]["observed"]["inverse_transform_to_observed"] = inverse_transformation_to_observed_base
+        # self.update_baseframe_on_firebase("UR31", observed_frame)
+
+    def update_observed_transforms_for_UR32(self, robot_name, observed_frame): #TODO: UR3 2
+        """
+        Update the observed transformations for the UR32 robot.
+        This includes a translation for the observed frame to the actual frame
+        """
+        urdf_base_frame = self.transformations["UR3Table"][robot_name]["static"]["urdf_base_frame"]
+        print(f"Updating Observed Transformation for UR1 robot: {robot_name} static base frame: {urdf_base_frame}, observed frame: {observed_frame}, current information: {self.transformations['UR3Table'][robot_name]['observed']}")
+
+        #TODO: Insert Transformation Logic here.
+
+        # transformation_to_urdf_base = Transformation.from_frame_to_frame(urdf_base_frame, observed_base_frame)
+        # inverse_transformation_to_observed_base = transformation_to_urdf_base.inverse()
+
+        # self.transformations["UR3Table"][robot_name]["observed"]["urdf_base_frame"] = observed_base_frame
+        # self.transformations["UR3Table"][robot_name]["observed"]["transformation_to_urdf"] = transformation_to_urdf_base
+        # self.transformations["UR3Table"][robot_name]["observed"]["inverse_transform_to_observed"] = inverse_transformation_to_observed_base
+        # self.update_baseframe_on_firebase("UR32", observed_frame)
+
+    # ========================================================================================
+    # Update Tansformations for the ABB Robots
+    # ========================================================================================
+
+    def update_observed_transforms_for_ABBTable(self, robot_name, observed_frame):
+        """
+        Update the observed transformations for the ABB robot table.
+        This includes a translation for the observed frame to the actual frame
+        and a transformation from the translated frame to the Rhino frame.
+        """
+        abb_table_data = self.transformations[robot_name]
+
+        # self.update_observed_transforms_for_UR31("ABB1", observed_frame)
+        # self.update_observed_transforms_for_UR32("ABB2", observed_frame)
+
+        print(f"WIP : Transformation for ABBTable is not implemented yet. Current data: {abb_table_data}")
+
+    def update_observed_transforms_for_ABB1(self, robot_name, observed_frame): #TODO: ABB1
+        """
+        Update the observed transformations for the ABB-1 robot.
+        This includes a translation for the observed frame to the actual frame
+        and a transformation from the translated frame to the Rhino frame.
+        """
+        urdf_base_frame = self.transformations["ABBTable"][robot_name]["static"]["urdf_base_frame"]
+        print(f"Updating Observed Transformation for ABB1 robot: {robot_name} static base frame: {urdf_base_frame}, observed frame: {observed_frame}, current information: {self.transformations['ABBTable'][robot_name]['observed']}")
+
+        #TODO: Insert Transformation Logic here.
+
+        # transformation_to_urdf_base = Transformation.from_frame_to_frame(urdf_base_frame, observed_base_frame)
+        # inverse_transformation_to_observed_base = transformation_to_urdf_base.inverse()
+
+        # self.transformations["ABBTable"][robot_name]["observed"]["urdf_base_frame"] = observed_base_frame
+        # self.transformations["ABBTable"][robot_name]["observed"]["transformation_to_urdf"] = transformation_to_urdf_base
+        # self.transformations["ABBTable"][robot_name]["observed"]["inverse_transform_to_observed"] = inverse_transformation_to_observed_base
+        # self.update_baseframe_on_firebase("ABB1", observed_frame)
+
+    def update_observed_transforms_for_ABB2(self, robot_name, observed_frame): #TODO: ABB2
+        """
+        Update the observed transformations for the ABB-2 robot.
+        This includes a translation for the observed frame to the actual frame
+        and a transformation from the translated frame to the Rhino frame.
+        """
+        urdf_base_frame = self.transformations["ABBTable"][robot_name]["static"]["urdf_base_frame"]
+        print(f"Updating Observed Transformation for ABB2 robot: {robot_name} static base frame: {urdf_base_frame}, observed frame: {observed_frame}, current information: {self.transformations['ABBTable'][robot_name]['observed']}")
+
+        #TODO: Insert Transformation Logic here.
+
+        # transformation_to_urdf_base = Transformation.from_frame_to_frame(urdf_base_frame, observed_base_frame)
+        # inverse_transformation_to_observed_base = transformation_to_urdf_base.inverse()
+
+        # self.transformations["ABBTable"][robot_name]["observed"]["urdf_base_frame"] = observed_base_frame
+        # self.transformations["ABBTable"][robot_name]["observed"]["transformation_to_urdf"] = transformation_to_urdf_base
+        # self.transformations["ABBTable"][robot_name]["observed"]["inverse_transform_to_observed"] = inverse_transformation_to_observed_base
+        # self.update_baseframe_on_firebase("ABB2", observed_frame)
+
+    # ========================================================================================
+    # Update Base Frames on Firebase
+    # ========================================================================================
 
     def update_baseframe_on_firebase(self, robot_name, tansformed_frame):
         """

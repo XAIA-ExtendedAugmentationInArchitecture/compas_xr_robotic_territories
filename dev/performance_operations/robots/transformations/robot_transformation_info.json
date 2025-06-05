@@ -1,0 +1,72 @@
+{
+    "ABBTable": {
+        "ABB1": {
+            "observed": {
+                "inverse_transform_to_observed": "PlaceHolder", 
+                "transformation_to_urdf": "PlaceHolder", 
+                "urdf_base_frame": "PlaceHolder"
+            }, 
+            "static": {
+                "urdf_base_frame": "PlaceHolder"
+            }
+        }, 
+        "ABB2": {
+            "observed": {
+                "inverse_transform_to_observed": "PlaceHolder", 
+                "transformation_to_urdf": "PlaceHolder", 
+                "urdf_base_frame": "PlaceHolder"
+            }, 
+            "static": {
+                "urdf_base_frame": "PlaceHolder"
+            }
+        }
+    }, 
+    "UR20": {
+        "observed": {}, 
+        "static": {
+            "urdf_base_frame": {
+                "data": {
+                    "point": [
+                        0.0, 
+                        0.0, 
+                        0.0
+                    ], 
+                    "xaxis": [
+                        0.0, 
+                        1.0, 
+                        0.0
+                    ], 
+                    "yaxis": [
+                        -1.0, 
+                        0.0, 
+                        0.0
+                    ]
+                }, 
+                "dtype": "compas.geometry/Frame", 
+                "guid": "62498933-4a95-4f8f-bce8-6070ffa8353c"
+            }
+        }
+    }, 
+    "UR3Table": {
+        "UR31": {
+            "observed": {
+                "inverse_transform_to_observed": "PlaceHolder", 
+                "transformation_to_urdf": "PlaceHolder", 
+                "urdf_base_frame": "PlaceHolder"
+            }, 
+            "static": {
+                "urdf_base_frame": "PlaceHolder"
+            }
+        }, 
+        "UR32": {
+            "observed": {
+                "inverse_transform_to_observed": "PlaceHolder", 
+                "transformation_to_urdf": "PlaceHolder", 
+                "urdf_base_frame": "PlaceHolder"
+            }, 
+            "static": {
+                "urdf_base_frame": "PlaceHolder"
+            }
+        }
+    }
+}

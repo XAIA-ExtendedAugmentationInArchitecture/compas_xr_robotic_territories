@@ -36,6 +36,9 @@ from compas.geometry import Point, Quaternion, Frame
 from compas.data import json_load, json_dump
 from scipy.spatial.transform import Rotation as R
 
+#Custom Package Imports
+from robots.transformations.robot_transformations import RobotTransformationsFromObserved #TODO : Test this big time....
+
 
 last_print_time = 0  # Global timer
 
@@ -50,14 +53,16 @@ last_write_time = 0
 WRITE_INTERVAL = 2  # seconds
 
 timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-BASE_DIR = r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\performance_operations\motive_recordings"
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = os.path.join("recordings", "motive_recordings")
 SESION_DIR_NAME = "20250603_robot_transformation_testing_2"
 FRAME_RECORDINGS_DIR = "recordings"
 TIME_STAMP_DIR = timestamp
 RECORD_OUT_FILE_NAME = f"rigid_bodies_by_frame.json"
 TIME_STAMP_RECORDINGS_FILE_NAME = f"rigid_bodies_by_timestamp.json"
 VARIATION_FILE_OUT_NAME = "current_rigid_body_locations.json"
-POSITION_THRESHOLD = 0.01  # meters
+POSITION_THRESHOLD = 0.01
 
 OUTPUT_PATH = os.path.join(
     BASE_DIR,
@@ -88,6 +93,7 @@ RIGID_BODIES_BY_TIMESTAMP_FILEPATH = os.path.join(
 )
 
 #TODO: DICTIONARY OF RIGID BODY NAMES COULD BE IMPROVED
+#TODO: Make one specifically for Robots... and one specifically for objects?
 rigid_body_names = {
     "1" : "Origin",
     "2" : "Red01",
@@ -158,6 +164,11 @@ def update_rigid_body_location_if_changed(model_name, current_position, current_
             "position": current_position,
             "rotation": current_rotation
         }
+
+        #TODO: Testing and needs to be improved....
+        if (model_name == "UR20"):
+            print(f"[{time.strftime('%H:%M:%S')}] UR20 position changed: {current_position}, rotation changed: {current_rotation}")
+            #TODO: Update the transformations for these things using the new code......
 
         # Save timestamped change
         if model_name not in output_by_timestamp_data:
@@ -238,6 +249,14 @@ def transform_quaternion(q: Quaternion, matrix: np.ndarray) -> Quaternion:
     R_rhino = C @ R_motive.as_matrix() @ C.T
     q_rhino = R.from_matrix(R_rhino).as_quat()
     return Quaternion(q_rhino[3], q_rhino[0], q_rhino[1], q_rhino[2])
+
+def transform_frame_for_robot_base_frame(robot_name, point_motive, quat_motive):
+
+    point_rhino = transform_point(point_motive, MOTIVE_ZFWD_TO_RHINO_ZUP_4x4)
+    quat_rhino = transform_quaternion(quat_motive, MOTIVE_ZFWD_TO_RHINO_ZUP_4x4)
+    frame_motive = Frame.from_quaternion(quat_motive, point_motive)
+    frame_rhino = Frame.from_quaternion(quat_rhino, point_rhino)
+    return frame_rhino
 
 #TODO : BELOW DOES NOT WORK VERY WELL YET #######################################################################################################################################
 
