@@ -69,10 +69,10 @@ rigid_body_names = {
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_CONFIG_FP = os.path.join(SCRIPT_DIR, "project_config.json")
 PROJECT_CONFIG_DICT = json_load(PROJECT_CONFIG_FP)
-SESION_DIR_NAME = "20250603_robot_transformation_testing_2"
+SESION_DIR_NAME = "20250606_Joe_script_dir_testing"
 
 # Storage Directories file names and paths
-BASE_DIR = os.path.join("recordings", "motive_recordings")
+BASE_DIR = os.path.join(SCRIPT_DIR, "recordings", "motive_recordings")
 FRAME_RECORDINGS_DIR = "recordings"
 TIME_STAMP_DIR = timestamp
 RECORD_OUT_FILE_NAME = f"rigid_bodies_by_frame.json"
@@ -149,6 +149,7 @@ def receive_rigid_body_frame_TEST(new_id, position, rotation):
             with open(RECORD_OUT_PATH, "w") as f:
                 json.dump(output_by_frame_data, f, indent=2)
             print(f"[{time.strftime('%H:%M:%S')}] Wrote data to {OUTPUT_PATH}")
+            print(f"SCRIPT_DIR: {SCRIPT_DIR}")
         except Exception as e:
             print(f"Error writing file: {e}")
         last_write_time = current_time
@@ -166,7 +167,7 @@ def update_rigid_body_location_if_changed(model_name, current_position, current_
         rot_changed = rotation_changed(current_rotation, previous["rotation"], angle_threshold_deg=2.0)
         changed = pos_changed or rot_changed
 
-    if changed:
+    if changed: #TODO: Save Rhino and motive frames?
         current_rigid_body_locations[model_name] = {
             "position": current_position,
             "rotation": current_rotation
