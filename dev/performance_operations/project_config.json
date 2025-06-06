@@ -1,0 +1,31 @@
+{
+    "firebase_config_fp": "C:\\Users\\jk6372\\Desktop\\00_princeton_projects\\00_robotic_territories\\00_git\\compas_xr_robotic_territories\\dev\\performance_operations\\fb_config\\robotic_territories_fb.json", 
+    "project_name": "robotic_territories_testing_base_frame", 
+    "robot_transformations_fp": "C:\\Users\\jk6372\\Desktop\\00_princeton_projects\\00_robotic_territories\\00_git\\compas_xr_robotic_territories\\dev\\performance_operations\\robots\\transformations\\robot_transformation_info.json",
+    "urdf_fps" : {
+        "UR20": {
+            "urdf" : "C:\\Users\\jk6372\\Desktop\\00_princeton_projects\\00_robotic_territories\\00_git\\compas_xr_robotic_territories\\dev\\scripts\\urdf\\ur_description\\urdf\\ur20.urdf",
+            "srdf" : "C:\\Users\\jk6372\\Desktop\\00_princeton_projects\\00_robotic_territories\\00_git\\compas_xr_robotic_territories\\dev\\scripts\\urdf\\ur_description\\urdf\\ur20.srdf"
+        },
+        "UR3": {
+            "urdf" : "PlaceHolder",
+            "srdf" : "PlaceHolder"
+        },
+        "ABB_IRB4600LL": {
+            "urdf" : "PlaceHolder",
+            "srdf" : "PlaceHolder"
+        },
+        "ABB_IRB4600RR": {
+            "urdf" : "PlaceHolder",
+            "srdf" : "PlaceHolder"
+        },
+        "ABB_SmallBot": {
+            "urdf" : "PlaceHolder",
+            "srdf" : "PlaceHolder"
+        }
+    },
+    "mqtt_config": {
+        "broker": "broker.hivemq.com",
+        "port": 1883
+    }
+}

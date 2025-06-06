@@ -37,23 +37,33 @@ from compas.data import json_load, json_dump
 from scipy.spatial.transform import Rotation as R
 
 #Custom Package Imports
-from robots.transformations.robot_transformations import RobotTransformationsFromObserved #TODO : Test this big time....
+from robots.transformations.robot_transformations import RobotTransformationsFromObserved
 
 
-last_print_time = 0  # Global timer
+#TODO: TESTING : Turn into class? #############################################################################################################################
 
-# TODO : Turn into class?
-
-#TODO: TESTING #######################################################################################################################################
-
+# Information Storage and Settings
 output_by_frame_data = {}
 current_rigid_body_locations = {}
 output_by_timestamp_data = {}
 last_write_time = 0
+last_print_time = 0
 WRITE_INTERVAL = 2  # seconds
-
 timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+rigid_body_names = {
+    "1" : "Origin",
+    "2" : "Red01",
+    "3" : "Red02",
+    "4" : "Red03",
+    "5" : "Blue01",
+    "6" : "Blue02",
+    "7" : "Blue03",
+    "8" : "UR20",
+    "9" : "UR3Table",
+    "10": "ABBTable"
+} #TODO: This could be improved.
 
+# Storage Directory Directories
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 BASE_DIR = os.path.join("recordings", "motive_recordings")
 SESION_DIR_NAME = "20250603_robot_transformation_testing_2"
@@ -63,7 +73,6 @@ RECORD_OUT_FILE_NAME = f"rigid_bodies_by_frame.json"
 TIME_STAMP_RECORDINGS_FILE_NAME = f"rigid_bodies_by_timestamp.json"
 VARIATION_FILE_OUT_NAME = "current_rigid_body_locations.json"
 POSITION_THRESHOLD = 0.01
-
 OUTPUT_PATH = os.path.join(
     BASE_DIR,
     SESION_DIR_NAME
@@ -74,6 +83,7 @@ RECORDINGS_DIR = os.path.join(
     TIME_STAMP_DIR
 )
 
+# Logging path Directories
 if not os.path.exists(OUTPUT_PATH):
     os.makedirs(OUTPUT_PATH)
 if not os.path.exists(RECORDINGS_DIR):
@@ -92,18 +102,9 @@ RIGID_BODIES_BY_TIMESTAMP_FILEPATH = os.path.join(
     TIME_STAMP_RECORDINGS_FILE_NAME
 )
 
-#TODO: DICTIONARY OF RIGID BODY NAMES COULD BE IMPROVED
-#TODO: Make one specifically for Robots... and one specifically for objects?
-rigid_body_names = {
-    "1" : "Origin",
-    "2" : "Red01",
-    "3" : "Red02",
-    "4" : "Red03",
-    "5" : "Blue01",
-    "6" : "Blue02",
-    "7" : "Blue03",
-    "8" : "UR20",
-}
+#Robot Transformation and Localization information
+robot_transformer = None
+
 
 def receive_rigid_body_frame_TEST(new_id, position, rotation):
     global last_print_time, output_by_frame_data, last_write_time, rigid_body_names, current_rigid_body_locations
@@ -213,14 +214,9 @@ def rotation_changed(rot1, rot2, angle_threshold_deg=1.0):
 
 #TODO : BELOW IS THE FUNCTIONS FOR CONVERTING TO RHINO FRAME FROM MOTIVE OUTPUT #######################################################################################################################################
 
-
-# ------------------------------------------------------------------------
-# Transformations From Motive to Rhino
-# -----------------------------------------------------------------------
-
-# ------------------------------------------------------------------------
-# Coordinate Transform: Motive (Z forward, Y up, X left) → Rhino (Z up)
-# ------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------------
+# Coordinate Transform: Motive (Z forward, Y up, X left) → Rhino (Z up, X right, Y forward)
+# -----------------------------------------------------------------------------------------
 
 MOTIVE_ZFWD_TO_RHINO_ZUP_4x4 = np.array([
     [-1, 0,  0, 0],  # X (left) → -X (right)
@@ -228,10 +224,6 @@ MOTIVE_ZFWD_TO_RHINO_ZUP_4x4 = np.array([
     [ 0, 1,  0, 0],  # Y (up)   → Z (up)
     [ 0, 0,  0, 1]
 ])
-
-# ------------------------------------------------------------------------
-# Helper Functions # TODO: These move to the motive file
-# ------------------------------------------------------------------------
 
 def get_motive_pose(pos_dict, quat_dict) -> tuple[Point, Quaternion]:
     point = Point(pos_dict["x"], pos_dict["y"], pos_dict["z"])
@@ -250,13 +242,21 @@ def transform_quaternion(q: Quaternion, matrix: np.ndarray) -> Quaternion:
     q_rhino = R.from_matrix(R_rhino).as_quat()
     return Quaternion(q_rhino[3], q_rhino[0], q_rhino[1], q_rhino[2])
 
-def transform_frame_for_robot_base_frame(robot_name, point_motive, quat_motive):
-
+def create_rhino_frame_from_motive(point_motive, quat_motive):
     point_rhino = transform_point(point_motive, MOTIVE_ZFWD_TO_RHINO_ZUP_4x4)
     quat_rhino = transform_quaternion(quat_motive, MOTIVE_ZFWD_TO_RHINO_ZUP_4x4)
     frame_motive = Frame.from_quaternion(quat_motive, point_motive)
     frame_rhino = Frame.from_quaternion(quat_rhino, point_rhino)
-    return frame_rhino
+    return frame_motive, frame_rhino
+
+def update_robots_localization(robot_name, point_motive, quat_motive):
+    global robot_transformer
+
+    # Convert Motive pose to Rhino frame #TODO: Do not need anything right now for moving the motive frame, but just keeping it for now.
+    observed_frame_motive, observed_frame_rhino = create_rhino_frame_from_motive(point_motive, quat_motive)
+
+    robot_transformer.update_robot_transformation(robot_name, observed_frame_rhino)
+    print(f"Updated {robot_name} localization in Rhino frame: {observed_frame_rhino}")
 
 #TODO : BELOW DOES NOT WORK VERY WELL YET #######################################################################################################################################
 
@@ -335,6 +335,20 @@ def receive_new_frame_with_data(data_dict):
 #TODO: TESTING  #######################################################################################################################################
 
 if __name__ == "__main__":
+
+    # Robotic Transofrmations class
+    config_file_path = os.path.join(SCRIPT_DIR, "project_config.json")
+    config_dict = json_load(config_file_path)
+    transformations_fp = config_dict.get("robot_transformations_fp", None)
+    fb_config_fp = config_dict.get("firebase_config_fp", None)
+    project_name = config_dict.get("project_name", None)
+
+    if not transformations_fp or not fb_config_fp or not project_name:
+        print("Error: Missing required configuration paths in project_config.json.")
+        sys.exit(1)
+    robot_transformer = RobotTransformationsFromObserved(transformations_fp, fb_config_fp, project_name)
+
+    #Natnet Streaming. #TODO: could be moved to project_config.json
     optionsDict = {
         "clientAddress": "127.0.0.1",
         "serverAddress": "127.0.0.1",

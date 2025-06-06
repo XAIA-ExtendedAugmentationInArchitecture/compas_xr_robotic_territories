@@ -59,10 +59,10 @@ class RobotManager:
             #                         speed=2.0, acceleration=3.0, nowait=True, radius=0.04)
         }
 
-        result_topic = Topic(f"robotic_territories/real_time_mimic_result/{project_name}", RealtimeMimicResultMessage)
+        result_topic = Topic(f"robotic_territories/real_time_mimic_result/{project_name}", RealtimeMimicResultMessage) # TODO: Pull project name from config dir
         self.publisher = Publisher(result_topic, transport=self.mqtt)
 
-        request_topic = Topic(f"robotic_territories/real_time_mimic_request/{project_name}", RealtimeMimicRequestMessage)
+        request_topic = Topic(f"robotic_territories/real_time_mimic_request/{project_name}", RealtimeMimicRequestMessage) # TODO: Pull project name from config dir
         self.subscriber = Subscriber(request_topic, callback=self._on_message, transport=self.mqtt)
         self.subscriber.subscribe()
 
@@ -70,21 +70,21 @@ class RobotManager:
 
     #TODO: ADD THE CORRECT TOOL AS AN ACM...
 
-    def _load_transformations_from_file(self, file_path):
+    def _load_transformations_from_file(self, file_path): #TODO: Fix Transformation file path
         # Load the transformations from the JSON file
         transform_dict = json_load(file_path)
         inverse_transform = transform_dict["inverse"]
         transform = transform_dict["transform"]
         return inverse_transform, transform
 
-    def _transform_incoming_requested_frame(self, frame):
+    def _transform_incoming_requested_frame(self, frame): #TODO: Fix Transformation file path
 
         TX_FILEPATH = r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\fabrication\python\mqtt_transformations.json"
         inverse_transform, transform = self._load_transformations_from_file(TX_FILEPATH)
         inverse_frame = frame.transformed(inverse_transform)
         return inverse_frame
 
-    def _transform_out_robot_baseframe(self, frame):
+    def _transform_out_robot_baseframe(self, frame): #TODO: Fix Transformation file path
         TX_FILEPATH = r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\fabrication\python\mqtt_transformations.json"
         inverse_transform, transform = self._load_transformations_from_file(TX_FILEPATH)
         tx_frame = frame.transformed(transform)
@@ -136,8 +136,8 @@ class RobotManager:
             print(f" RobotManager : [RobotManager] No result to publish for robot {robot_name}")
 
 
-PROJECT_NAME = "robotic_territories_testing_base_frame"
-BROKER = "broker.hivemq.com"
+PROJECT_NAME = "robotic_territories_testing_base_frame" #TODO: Pull from config dir
+BROKER = "broker.hivemq.com" #TODO: Pull from config dir
 # BROKER = "localhost"
 requested_frames = []
 
