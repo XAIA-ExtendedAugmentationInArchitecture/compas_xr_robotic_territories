@@ -35,6 +35,7 @@ import numpy as np
 from compas.geometry import Point, Quaternion, Frame
 from compas.data import json_load, json_dump
 from scipy.spatial.transform import Rotation as R
+import simpleaudio as sa
 
 #Custom Package Imports
 from robots.transformations.robot_transformations import RobotTransformationsFromObserved
@@ -49,6 +50,7 @@ output_by_timestamp_data = {}
 last_write_time = 0
 last_print_time = 0
 WRITE_INTERVAL = 2  # seconds
+POSITION_THRESHOLD = 0.01 # meters
 timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 rigid_body_names = {
     "1" : "Origin",
@@ -63,16 +65,21 @@ rigid_body_names = {
     "10": "ABBTable"
 } #TODO: This could be improved.
 
-# Storage Directory Directories
+# Project Configuration Information
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-BASE_DIR = os.path.join("recordings", "motive_recordings")
+PROJECT_CONFIG_FP = os.path.join(SCRIPT_DIR, "project_config.json")
+PROJECT_CONFIG_DICT = json_load(PROJECT_CONFIG_FP)
 SESION_DIR_NAME = "20250603_robot_transformation_testing_2"
+
+# Storage Directories file names and paths
+BASE_DIR = os.path.join("recordings", "motive_recordings")
 FRAME_RECORDINGS_DIR = "recordings"
 TIME_STAMP_DIR = timestamp
 RECORD_OUT_FILE_NAME = f"rigid_bodies_by_frame.json"
 TIME_STAMP_RECORDINGS_FILE_NAME = f"rigid_bodies_by_timestamp.json"
 VARIATION_FILE_OUT_NAME = "current_rigid_body_locations.json"
-POSITION_THRESHOLD = 0.01
+
+# Logging Directories Paths
 OUTPUT_PATH = os.path.join(
     BASE_DIR,
     SESION_DIR_NAME
@@ -83,7 +90,6 @@ RECORDINGS_DIR = os.path.join(
     TIME_STAMP_DIR
 )
 
-# Logging path Directories
 if not os.path.exists(OUTPUT_PATH):
     os.makedirs(OUTPUT_PATH)
 if not os.path.exists(RECORDINGS_DIR):
@@ -147,7 +153,7 @@ def receive_rigid_body_frame_TEST(new_id, position, rotation):
             print(f"Error writing file: {e}")
         last_write_time = current_time
 
-def update_rigid_body_location_if_changed(model_name, current_position, current_rotation):
+def update_rigid_body_location_if_changed(model_name, current_position, current_rotation, play_sound=False):
     global current_rigid_body_locations
 
     previous = current_rigid_body_locations.get(model_name)
@@ -167,9 +173,34 @@ def update_rigid_body_location_if_changed(model_name, current_position, current_
         }
 
         #TODO: Testing and needs to be improved....
-        if (model_name == "UR20"):
-            print(f"[{time.strftime('%H:%M:%S')}] UR20 position changed: {current_position}, rotation changed: {current_rotation}")
-            #TODO: Update the transformations for these things using the new code......
+        if (model_name == "UR20") or (model_name == "UR3Table") or (model_name == "ABBTable"):
+            print(f"[{time.strftime('%H:%M:%S')}] Robot Position Changed: Robot {model_name} : current pos : {current_position}, current rotation : {current_rotation}")
+            if play_sound:
+                try:
+                    sounds_dict = PROJECT_CONFIG_DICT.get("sounds", None)
+                    robot_sound_path = sounds_dict.get("robot_moved", None)
+                    if not robot_sound_path:
+                        print("No sound path found for 'robot_moved'. Using default sound.")
+                        pass
+                    wave_obj = sa.WaveObject.from_wave_file(robot_sound_path)
+                    play_obj = wave_obj.play()
+                    # play_obj.wait_done() #todo: don't know if I need this see if it plays to the end without blocking.
+                except Exception as e:
+                    print(f"Error playing sound: {e}")
+
+        else: #TODO: now this will also play a sound for the origin.... but we should create a seperation if we intende to make the origin mobile.
+            if play_sound:
+                try:
+                    sounds_dict = PROJECT_CONFIG_DICT.get("sounds", None)
+                    robot_sound_path = sounds_dict.get("object_moved", None)
+                    if not robot_sound_path:
+                        print("No sound path found for 'robot_moved'. Using default sound.")
+                        pass
+                    wave_obj = sa.WaveObject.from_wave_file(robot_sound_path)
+                    play_obj = wave_obj.play()
+                    # play_obj.wait_done() #todo: don't know if I need this see if it plays to the end without blocking.
+                except Exception as e:
+                    print(f"Error playing sound: {e}")
 
         # Save timestamped change
         if model_name not in output_by_timestamp_data:
@@ -337,11 +368,9 @@ def receive_new_frame_with_data(data_dict):
 if __name__ == "__main__":
 
     # Robotic Transofrmations class
-    config_file_path = os.path.join(SCRIPT_DIR, "project_config.json")
-    config_dict = json_load(config_file_path)
-    transformations_fp = config_dict.get("robot_transformations_fp", None)
-    fb_config_fp = config_dict.get("firebase_config_fp", None)
-    project_name = config_dict.get("project_name", None)
+    transformations_fp = PROJECT_CONFIG_DICT.get("robot_transformations_fp", None)
+    fb_config_fp = PROJECT_CONFIG_DICT.get("firebase_config_fp", None)
+    project_name = PROJECT_CONFIG_DICT.get("project_name", None)
 
     if not transformations_fp or not fb_config_fp or not project_name:
         print("Error: Missing required configuration paths in project_config.json.")

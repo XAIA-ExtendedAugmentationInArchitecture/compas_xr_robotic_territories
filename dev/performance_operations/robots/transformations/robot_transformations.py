@@ -25,7 +25,6 @@ class RobotTransformationsFromObserved:
         self.rtdb_reference = RealtimeDatabase(self.fb_config_fp)
         print(f"RobotTransformationsFromObserved : [RobotTransformationsFromObserved] Initialized with RTDB for project: {self.project_name}")
 
-
     def _load_transformations(self):
         """
         Load transformations from the specified JSON file.
