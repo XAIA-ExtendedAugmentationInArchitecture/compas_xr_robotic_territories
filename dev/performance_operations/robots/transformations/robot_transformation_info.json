@@ -2,68 +2,155 @@
     "ABBTable": {
         "ABB1": {
             "observed": {
-                "inverse_transform_to_observed": "PlaceHolder", 
-                "transformation_to_urdf": "PlaceHolder", 
+                "inverse_transform_to_observed": "PlaceHolder",
+                "transformation_to_urdf": "PlaceHolder",
                 "urdf_base_frame": "PlaceHolder"
-            }, 
+            },
             "static": {
                 "urdf_base_frame": "PlaceHolder"
             }
-        }, 
+        },
         "ABB2": {
             "observed": {
-                "inverse_transform_to_observed": "PlaceHolder", 
-                "transformation_to_urdf": "PlaceHolder", 
+                "inverse_transform_to_observed": "PlaceHolder",
+                "transformation_to_urdf": "PlaceHolder",
                 "urdf_base_frame": "PlaceHolder"
-            }, 
+            },
             "static": {
                 "urdf_base_frame": "PlaceHolder"
             }
         }
-    }, 
+    },
     "UR20": {
-        "observed": {}, 
+        "observed": {
+            "inverse_transform_to_observed": {
+                "data": {
+                    "matrix": [
+                        [
+                            0.0747430735404814,
+                            -0.9972002620733036,
+                            -0.002260592545443948,
+                            0.29224989871606244
+                        ],
+                        [
+                            0.9971984762642003,
+                            0.07473586117633699,
+                            0.0031224974921156574,
+                            -0.5769060089889115
+                        ],
+                        [
+                            -0.002944807986808405,
+                            -0.0024876445014540838,
+                            0.9999925698377737,
+                            -0.7590665599029879
+                        ],
+                        [
+                            -0.0,
+                            0.0,
+                            -0.0,
+                            1.0
+                        ]
+                    ]
+                },
+                "dtype": "compas.geometry/Transformation",
+                "guid": "a24376b9-2ce2-4f17-9ab8-32553e15dd1d"
+            },
+            "transformation_to_urdf": {
+                "data": {
+                    "matrix": [
+                        [
+                            0.07474307354048143,
+                            0.9971984762642004,
+                            -0.0029448079868084065,
+                            0.5512108321713493
+                        ],
+                        [
+                            -0.9972002620733039,
+                            0.074735861176337,
+                            -0.002487644501454085,
+                            0.33265895523616357
+                        ],
+                        [
+                            -0.0022605925454439483,
+                            0.0031224974921156574,
+                            0.9999925698377742,
+                            0.7615229654240062
+                        ],
+                        [
+                            0.0,
+                            0.0,
+                            0.0,
+                            1.0
+                        ]
+                    ]
+                },
+                "dtype": "compas.geometry/Transformation",
+                "guid": "fb62f5dd-1606-4aa4-b7bd-34780de63342"
+            },
+            "urdf_base_frame": {
+                "data": {
+                    "point": [
+                        0.5512108321713493,
+                        0.33265895523616357,
+                        0.7615229654240062
+                    ],
+                    "xaxis": [
+                        0.9971984762642004,
+                        0.074735861176337,
+                        0.0031224974921156574
+                    ],
+                    "yaxis": [
+                        -0.07474307354048143,
+                        0.9972002620733039,
+                        0.0022605925454439483
+                    ]
+                },
+                "dtype": "compas.geometry/Frame",
+                "guid": "6256fe33-1b2b-4181-ab80-2d2cd70ec26f",
+                "name": "Frame"
+            }
+        },
         "static": {
             "urdf_base_frame": {
                 "data": {
                     "point": [
-                        0.0, 
-                        0.0, 
+                        0.0,
+                        0.0,
                         0.0
-                    ], 
+                    ],
                     "xaxis": [
-                        0.0, 
-                        1.0, 
+                        0.0,
+                        1.0,
                         0.0
-                    ], 
+                    ],
                     "yaxis": [
-                        -1.0, 
-                        0.0, 
+                        -1.0,
+                        0.0,
                         0.0
                     ]
-                }, 
-                "dtype": "compas.geometry/Frame", 
+                },
+                "dtype": "compas.geometry/Frame",
                 "guid": "62498933-4a95-4f8f-bce8-6070ffa8353c"
             }
         }
-    }, 
+    },
     "UR3Table": {
         "UR31": {
             "observed": {
-                "inverse_transform_to_observed": "PlaceHolder", 
-                "transformation_to_urdf": "PlaceHolder", 
+                "inverse_transform_to_observed": "PlaceHolder",
+                "transformation_to_urdf": "PlaceHolder",
                 "urdf_base_frame": "PlaceHolder"
-            }, 
+            },
             "static": {
                 "urdf_base_frame": "PlaceHolder"
             }
-        }, 
+        },
         "UR32": {
             "observed": {
-                "inverse_transform_to_observed": "PlaceHolder", 
-                "transformation_to_urdf": "PlaceHolder", 
+                "inverse_transform_to_observed": "PlaceHolder",
+                "transformation_to_urdf": "PlaceHolder",
                 "urdf_base_frame": "PlaceHolder"
-            }, 
+            },
             "static": {
                 "urdf_base_frame": "PlaceHolder"
             }

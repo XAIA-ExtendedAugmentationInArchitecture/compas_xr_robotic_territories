@@ -5,26 +5,41 @@ from scipy.spatial.transform import Rotation as R
 from compas.geometry import Transformation
 from compas.geometry import Translation
 from compas_xr.realtime_database import RealtimeDatabase
+import os
 
 class RobotTransformationsFromObserved:
 
-    def __init__(self, transformations_fp, fb_config_fp, project_name):
+    def __init__(self, project_config_fp):
         """
         Initialize the RobotTransformationsFromObserved class with a file path to the transformations.
-        
         :param transformations_fp: File path to the transformations JSON file.
         """
-        self.transformations_fp = transformations_fp
-        self.transformations = self._load_transformations()
-        self.project_name = project_name  # Project name for reference in RTDB
-        
-        if fb_config_fp == None:
+
+        self._project_config_dict = self._load_project_config_dict(project_config_fp)
+        self.transformations_fp = self._project_config_dict.get("robot_transformations_fp", None)
+        self.project_name = self._project_config_dict.get("project_name", None)
+        self.fb_config_fp = self._project_config_dict.get("firebase_config_fp", None)
+        # self.optitrack_info_dict = self._project_config_dict.get("optitrack_info", None)
+
+        if not os.path.exists(self.fb_config_fp):
             raise ValueError("Firebase configuration file path must be provided.")
-        
-        self.fb_config_fp = fb_config_fp
+        if not os.path.exists(self.transformations_fp):
+            raise ValueError("Transformations file path must be provided in the project configuration.")
+
+        self.transformations = self._load_transformations()
         self.rtdb_reference = RealtimeDatabase(self.fb_config_fp)
         print(f"RobotTransformationsFromObserved : [RobotTransformationsFromObserved] Initialized with RTDB for project: {self.project_name}")
 
+    def _load_project_config_dict(self, project_config_fp):
+        """
+        Load the project configuration dictionary from the specified file path.
+        :return: Dictionary containing the project configuration.
+        """
+        if not os.path.exists(project_config_fp):
+            raise FileNotFoundError(f"Project configuration file not found: {project_config_fp}")
+        config_dict = json_load(project_config_fp)
+        return config_dict
+    
     def _load_transformations(self):
         """
         Load transformations from the specified JSON file.
@@ -211,6 +226,10 @@ class RobotTransformationsFromObserved:
         :param transformed_frame: The transformed frame to be updated.
         """
         # Placeholder for Firebase update logic
+        database_reference = self.rtdb_reference
+        ref_list = [self.project_name, "robot_base_frame", robot_name]
+        print(f"Reference list for {robot_name}: {ref_list}")
+        database_reference.upload_data_to_deep_reference(tansformed_frame.__data__, ref_list)
         print(f"Updating base frame for {robot_name} on Firebase with frame: {tansformed_frame}")
 
 #TODO: ##################################################################C

@@ -32,7 +32,7 @@ import math
 
 # imports for motive transofmrations
 import numpy as np
-from compas.geometry import Point, Quaternion, Frame
+from compas.geometry import Point, Quaternion, Frame, Transformation
 from compas.data import json_load, json_dump
 from scipy.spatial.transform import Rotation as R
 import simpleaudio as sa
@@ -51,6 +51,8 @@ last_write_time = 0
 last_print_time = 0
 WRITE_INTERVAL = 2  # seconds
 POSITION_THRESHOLD = 0.01 # meters
+ANGLE_THRESHOLD = 2.0 # degrees
+PLAY_SOUND = True  # Set to False to disable sound playback
 timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 rigid_body_names = {
     "1" : "Origin",
@@ -69,6 +71,7 @@ rigid_body_names = {
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_CONFIG_FP = os.path.join(SCRIPT_DIR, "project_config.json")
 PROJECT_CONFIG_DICT = json_load(PROJECT_CONFIG_FP)
+OPTITRACK_INFO_DICT = PROJECT_CONFIG_DICT.get("optitrack_info", {})
 SESION_DIR_NAME = "20250606_Joe_script_dir_testing"
 
 # Storage Directories file names and paths
@@ -141,7 +144,7 @@ def receive_rigid_body_frame_TEST(new_id, position, rotation):
     # Append this frame's info
     output_by_frame_data[model_name].append(frame_info)
 
-    update_rigid_body_location_if_changed(model_name, frame_info["position"], frame_info["rotation"])
+    update_rigid_body_location_if_changed(model_name, frame_info["position"], frame_info["rotation"], play_sound=PLAY_SOUND)
 
     # Write to file if interval has passed
     if current_time - last_write_time > WRITE_INTERVAL:
@@ -164,18 +167,28 @@ def update_rigid_body_location_if_changed(model_name, current_position, current_
         changed = True
     else:
         pos_changed = position_changed(current_position, previous["position"], POSITION_THRESHOLD)
-        rot_changed = rotation_changed(current_rotation, previous["rotation"], angle_threshold_deg=2.0)
+        rot_changed = rotation_changed(current_rotation, previous["rotation"], angle_threshold_deg=ANGLE_THRESHOLD)
         changed = pos_changed or rot_changed
 
-    if changed: #TODO: Save Rhino and motive frames?
+    if changed:
+        #TODO: Need to remember that I used frame.__data__ and json.dump ALSO ALL OF THESE ARE ACTUALLY COMPAS FRAMES
+        point_motive, quat_motive = get_motive_pose(current_position, current_rotation)
+        motive_frame, rhino_frame = create_rhino_frame_from_motive(point_motive, quat_motive)
+
+        #TODO: This transformation is for working with zone setting in Rhino. It makes it the origin very flexible.
+        rhino_frame = transform_observed_frame_based_on_optitrack_rhino_origin(rhino_frame)
+
+        #TODO: Remember that this is the native data from streaming (position & rotation).
         current_rigid_body_locations[model_name] = {
             "position": current_position,
-            "rotation": current_rotation
+            "rotation": current_rotation,
+            "motive_frame": motive_frame.__data__,
+            "rhino_frame": rhino_frame.__data__
         }
 
-        #TODO: Testing and needs to be improved....
         if (model_name == "UR20") or (model_name == "UR3Table") or (model_name == "ABBTable"):
             print(f"[{time.strftime('%H:%M:%S')}] Robot Position Changed: Robot {model_name} : current pos : {current_position}, current rotation : {current_rotation}")
+            update_robots_localization(model_name, rhino_frame, observed_frame_motive=None)
             if play_sound:
                 try:
                     sounds_dict = PROJECT_CONFIG_DICT.get("sounds", None)
@@ -210,7 +223,9 @@ def update_rigid_body_location_if_changed(model_name, current_position, current_
         output_by_timestamp_data[model_name].append({
             "timestamp": timestamp,
             "position": current_position,
-            "rotation": current_rotation
+            "rotation": current_rotation,
+            "motive_frame": motive_frame.__data__,
+            "rhino_frame": rhino_frame.__data__
         })
 
         try:
@@ -281,14 +296,32 @@ def create_rhino_frame_from_motive(point_motive, quat_motive):
     frame_rhino = Frame.from_quaternion(quat_rhino, point_rhino)
     return frame_motive, frame_rhino
 
-def update_robots_localization(robot_name, point_motive, quat_motive):
+def update_robots_localization(robot_name, observed_frame_rhino, observed_frame_motive=None):
     global robot_transformer
-
-    # Convert Motive pose to Rhino frame #TODO: Do not need anything right now for moving the motive frame, but just keeping it for now.
-    observed_frame_motive, observed_frame_rhino = create_rhino_frame_from_motive(point_motive, quat_motive)
-
     robot_transformer.update_robot_transformation(robot_name, observed_frame_rhino)
     print(f"Updated {robot_name} localization in Rhino frame: {observed_frame_rhino}")
+
+# ========================================================================================
+# Transform Frame to Optitrack Origin (This transforms to the defined location in rhino)
+# ========================================================================================
+
+def transform_observed_frame_based_on_optitrack_rhino_origin(observed_frame):
+    """
+    Transform the observed frame to the Optitrack origin.
+    
+    :param frame: The observed frame to be transformed.
+    """
+    global OPTITRACK_INFO_DICT
+
+    origin_location_rhino = OPTITRACK_INFO_DICT.get("origin_location_rhino", None)
+    if len(OPTITRACK_INFO_DICT) <= 0 or origin_location_rhino is None:
+        raise ValueError("Optitrack information or origin location in Rhino is not defined in the project configuration.")
+    
+    world_origin = Frame.worldXY()
+    tx_from_world_to_rhino = Transformation.from_frame_to_frame(world_origin, origin_location_rhino)
+    transformed_frame = observed_frame.transformed(tx_from_world_to_rhino)
+    print(f"Transformed observed frame to Optitrack origin: {transformed_frame}")
+    return transformed_frame
 
 #TODO : BELOW DOES NOT WORK VERY WELL YET #######################################################################################################################################
 
@@ -369,14 +402,7 @@ def receive_new_frame_with_data(data_dict):
 if __name__ == "__main__":
 
     # Robotic Transofrmations class
-    transformations_fp = PROJECT_CONFIG_DICT.get("robot_transformations_fp", None)
-    fb_config_fp = PROJECT_CONFIG_DICT.get("firebase_config_fp", None)
-    project_name = PROJECT_CONFIG_DICT.get("project_name", None)
-
-    if not transformations_fp or not fb_config_fp or not project_name:
-        print("Error: Missing required configuration paths in project_config.json.")
-        sys.exit(1)
-    robot_transformer = RobotTransformationsFromObserved(transformations_fp, fb_config_fp, project_name)
+    robot_transformer = RobotTransformationsFromObserved(PROJECT_CONFIG_FP)
 
     #Natnet Streaming. #TODO: could be moved to project_config.json
     optionsDict = {

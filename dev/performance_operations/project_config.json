@@ -29,7 +29,18 @@
         "port": 1883
     },
     "sounds" : {
-        "robot_moved" : "C:\\Users\\jk6372\\Desktop\\00_princeton_projects\\00_robotic_territories\\00_git\\compas_xr_robotic_territories\\dev\\performance_operations\\sounds\\17.wav",
-        "object_moved" : "C:\\Users\\jk6372\\Desktop\\00_princeton_projects\\00_robotic_territories\\00_git\\compas_xr_robotic_territories\\dev\\performance_operations\\sounds\\5.wav"
+        "robot_moved" : "C:\\Users\\jk6372\\Desktop\\00_princeton_projects\\00_robotic_territories\\00_git\\compas_xr_robotic_territories\\dev\\performance_operations\\sounds\\5.wav",
+        "object_moved" : "C:\\Users\\jk6372\\Desktop\\00_princeton_projects\\00_robotic_territories\\00_git\\compas_xr_robotic_territories\\dev\\performance_operations\\sounds\\17.wav"
+    },
+    "optitrack_info" : {
+        "origin_location_rhino" : {
+            "dtype": "compas.geometry/Frame",
+            "guid": "ebee5ed9-1a29-4b49-acfe-3c71cc386021",
+            "data": {
+                "point": [0.1524, -1.8192, 0.005],
+                "xaxis": [1.0, 0.0, 0.0],
+                "yaxis": [0.0, 1.0, 0.0]
+            }
+        }
     }
 }
