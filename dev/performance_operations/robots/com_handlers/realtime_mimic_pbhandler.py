@@ -7,7 +7,7 @@ from compas.geometry import Frame
 import compas_fab
 import compas_rrc as rrc
 from compas_xr.mqtt import RealtimeMimicRequestMessage
-from control import fabrication as rtde #TODO: CHECK IF THIS IMPORT WORKS.
+from ..control import fabrication as rtde #TODO: CHECK IF THIS IMPORT WORKS.
 import pybullet as pb
 
 class RealtimeMimicPyBulletHandler:

@@ -2,7 +2,7 @@ from compas_eve import Subscriber, Publisher, Topic
 from compas_eve.mqtt import MqttTransport
 from compas_xr.mqtt import RealtimeMimicRequestMessage, RealtimeMimicResultMessage
 
-from robots.com_handlers.realtime_mimic_roshandler import URRealtimeMimicHandler
+# from robots.com_handlers.realtime_mimic_roshandler import URRealtimeMimicHandler
 from robots.com_handlers.realtime_mimic_pbhandler import URRealtimeMimicHandlerPyB
 from compas.data import json_load, json_dump
 import os

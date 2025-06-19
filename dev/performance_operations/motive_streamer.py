@@ -40,7 +40,7 @@ import simpleaudio as sa
 #Custom Package Imports
 from robots.transformations.robot_transformations import RobotTransformationsFromObserved
 
-
+#TODO: UPDATE WRITING.....
 #TODO: TESTING : Turn into class? #############################################################################################################################
 
 # Information Storage and Settings
@@ -72,13 +72,13 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_CONFIG_FP = os.path.join(SCRIPT_DIR, "project_config.json")
 PROJECT_CONFIG_DICT = json_load(PROJECT_CONFIG_FP)
 OPTITRACK_INFO_DICT = PROJECT_CONFIG_DICT.get("optitrack_info", {})
-SESION_DIR_NAME = "20250606_Joe_script_dir_testing"
+SESION_DIR_NAME = "20250619_write_updates_testing"
 
 # Storage Directories file names and paths
 BASE_DIR = os.path.join(SCRIPT_DIR, "recordings", "motive_recordings")
 FRAME_RECORDINGS_DIR = "recordings"
 TIME_STAMP_DIR = timestamp
-RECORD_OUT_FILE_NAME = f"rigid_bodies_by_frame.json"
+RECORD_OUT_FILE_NAME = f"rigid_bodies_by_frame.jsonl"
 TIME_STAMP_RECORDINGS_FILE_NAME = f"rigid_bodies_by_timestamp.json"
 VARIATION_FILE_OUT_NAME = "current_rigid_body_locations.json"
 
@@ -156,6 +156,49 @@ def receive_rigid_body_frame_TEST(new_id, position, rotation):
         except Exception as e:
             print(f"Error writing file: {e}")
         last_write_time = current_time
+
+def receive_rigid_body_frame_TEST_Individual_writes(new_id, position, rotation):
+    global last_print_time, output_by_frame_data, last_write_time, rigid_body_names, current_rigid_body_locations
+
+    current_time = time.time()
+    model_name = rigid_body_names.get(str(new_id), f"Unknown_{new_id}")
+
+    frame_info = {
+        "model_name": model_name,
+        "timestamp": current_time,
+        "id": new_id,
+        "position": {
+            "x": position[0],
+            "y": position[1],
+            "z": position[2]
+        },
+        "rotation": {
+            "x": rotation[0],
+            "y": rotation[1],
+            "z": rotation[2],
+            "w": rotation[3]
+        }
+    }
+
+    # # Initialize list for this model name if needed
+    # if model_name not in output_by_frame_data:
+    #     output_by_frame_data[model_name] = []
+
+    # Append this frame's info
+    # output_by_frame_data[model_name].append(frame_info)
+
+    update_rigid_body_location_if_changed(model_name, frame_info["position"], frame_info["rotation"], play_sound=PLAY_SOUND)
+
+    # Write this frame to file immediately
+    try:
+        with open(RECORD_OUT_PATH, "a") as f:
+            f.write(json.dumps(frame_info) + "\n")
+
+        if current_time - last_write_time > WRITE_INTERVAL:
+            print(f"[{time.strftime('%H:%M:%S')}] Appended frame for {model_name} to file.")
+            last_write_time = current_time
+    except Exception as e:
+        print(f"Error appending frame to file: {e}")
 
 def update_rigid_body_location_if_changed(model_name, current_position, current_rotation, play_sound=False):
     global current_rigid_body_locations
@@ -417,7 +460,8 @@ if __name__ == "__main__":
     streaming_client.set_server_address(optionsDict["serverAddress"])
     streaming_client.set_use_multicast(optionsDict["use_multicast"])
     streaming_client.set_print_level(0)
-    streaming_client.rigid_body_listener = receive_rigid_body_frame_TEST
+    streaming_client.rigid_body_listener = receive_rigid_body_frame_TEST_Individual_writes
+    # streaming_client.rigid_body_listener = receive_rigid_body_frame_TEST
 
     print("Starting NatNet Streaming Client...")
     if not streaming_client.run(optionsDict["stream_type"]):
