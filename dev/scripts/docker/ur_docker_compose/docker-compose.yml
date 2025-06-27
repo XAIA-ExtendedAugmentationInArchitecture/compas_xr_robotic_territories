@@ -20,6 +20,7 @@ services:
       # To change the robot, select the corresponding package name here
       # - eg. `ur3_moveit_config`, `ur5_moveit_config`, `ur10e_moveit_config`, 'ur20_moveit_config'
       - ur20_moveit_config
+      # - ur10e_moveit_config
       - demo.launch
       # To launch the RVIZ GUI, change the following to true and activate one of the two GUI options above
       - use_rviz:=false

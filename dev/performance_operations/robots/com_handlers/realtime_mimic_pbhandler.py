@@ -341,7 +341,7 @@ class URRealtimeMimicHandlerPyB(RealtimeMimicPyBulletHandler):
 #TODO: FIX later (need to compute IK in PyBullet and send to ABB using ROSClient in RRC)
 class ABBRealtimeMimicHandler(RealtimeMimicPyBulletHandler):
     
-    def __init__(self, robot_name, robot_ip, abb_client, ros_ip='127.0.0.1', ros_port=9090, speed=100, nowait=False):
+    def __init__(self, robot_name, robot_ip, abb_client_name, ros_ip='127.0.0.1', ros_port=9090, speed=100, nowait=False):
         super().__init__(robot_name, robot_ip, ros_ip, ros_port)
         self.speed = speed
         self.nowait = nowait
@@ -350,7 +350,7 @@ class ABBRealtimeMimicHandler(RealtimeMimicPyBulletHandler):
         self.ros_rrc.run()
 
         #TODO: CHECK NAME '/robLL_track' IS CORRECT
-        self.abb = rrc.AbbClient(self.ros_rrc, abb_client)
+        self.abb = rrc.AbbClient(self.ros_rrc, abb_client_name)
         print(f"ABBRealtimeMimicHandler: [{robot_name}] Connected to ABB controller via RRC")
 
     def _get_current_configuration(self):

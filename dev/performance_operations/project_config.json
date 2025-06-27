@@ -28,6 +28,68 @@
         "broker": "broker.hivemq.com",
         "port": 1883
     },
+    "robot_hardware_info": {
+        "UR20": {
+            "robot_name": "UR20",
+            "robot_ip" : "192.168.1.10",
+            "speed": 0.6,
+            "acceleration":0.1,
+            "radius":0.006,
+            "nowait": false
+            },
+        "UR31":{
+            "robot_name": "UR31",
+            "robot_ip" : "PlaceHolder",
+            "speed": 0.6,
+            "acceleration":0.1,
+            "radius":0.006,
+            "nowait": false
+            },
+        "UR32":{
+            "robot_name": "UR32",
+            "robot_ip" : "PlaceHolder",
+            "speed": 0.6,
+            "acceleration":0.1,
+            "radius":0.006,
+            "nowait": false
+            },
+        "ABB1":{
+            "robot_name": "ABB1",
+            "robot_ip" : "PlaceHolder",
+            "abb_client_name" : "PlaceHolder", 
+            "ros_ip": "127.0.0.1",
+            "ros_port":9090,
+            "speed":100, 
+            "nowait":false
+            },
+        "ABB2":{
+            "robot_name": "ABB1",
+            "robot_ip" : "PlaceHolder",
+            "abb_client_name" : "PlaceHolder", 
+            "ros_ip": "127.0.0.1",
+            "ros_port":9090,
+            "speed":100, 
+            "nowait":false
+            },
+        "ABB_IRB4600LL":{
+            "robot_name": "ABBLL",
+            "robot_ip" : "PlaceHolder",
+            "abb_client_name" : "robLL", 
+            "ros_ip": "127.0.0.1",
+            "ros_port":9090,
+            "speed":100, 
+            "nowait":false
+            },
+        "ABB_IRB4600RR":{
+            "robot_name": "ABBRR",
+            "robot_ip" : "PlaceHolder",
+            "abb_client_name" : "robRR", 
+            "ros_ip": "127.0.0.1",
+            "ros_port":9090,
+            "speed":100, 
+            "nowait":false
+            }
+        },
     "sounds" : {
         "robot_moved" : "C:\\Users\\jk6372\\Desktop\\00_princeton_projects\\00_robotic_territories\\00_git\\compas_xr_robotic_territories\\dev\\performance_operations\\sounds\\5.wav",
         "object_moved" : "C:\\Users\\jk6372\\Desktop\\00_princeton_projects\\00_robotic_territories\\00_git\\compas_xr_robotic_territories\\dev\\performance_operations\\sounds\\17.wav"
