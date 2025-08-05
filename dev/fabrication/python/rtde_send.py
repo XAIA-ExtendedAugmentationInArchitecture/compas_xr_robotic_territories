@@ -23,7 +23,8 @@ IP = "192.168.1.10"
 if __name__ == "__main__":
 
     # SET THE FILE NAME OF THE TRAJECTORY YOU WANT TO SEND
-    trajectories_file_name = "trajectories_testing_raj_fixed.json"
+    # trajectories_file_name = "trajectories_testing_raj_fixed.json"
+    trajectories_file_name = "trajectories_testing_raj_fixed_2.json"
     # trajectories_file_name = "trajectories_testing_2.json"
 
     # Get the path to the trajectory you want to send
