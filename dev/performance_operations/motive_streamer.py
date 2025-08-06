@@ -102,6 +102,7 @@ GeometryManager needs to make Init blocks based on the rigid body names and size
 # ACTIVE_MARKER_TRANSFORMATION = Transformation.__from_data__(ACTIVE_MARKER_GEO_TRANSFORMATION_DATA)
 # PASSIVE_MARKER_GEO_TRANSFORMATION = Transformation.__from_data__(PASSIVE_MARKER_GEO_TRANSFORMATION_DATA)
 # 1) Navigate into your nested dict
+
 geo_all   = PROJECT_CONFIG_DICT.get("geometry_transformations", {})
 rhino_all = geo_all.get("rhino", {})
 
@@ -241,8 +242,6 @@ def update_rigid_body_location_if_changed(model_name, current_position, current_
         and (model_name != "UR3Table") \
         and (model_name != "ABBTable") \
         and (model_name != "UR20"):
-            #TODO: THIS WILL BE FOR GEOMETRY OBJECTS. I WANT TO ADD AN ADDITOINAL GEO FRAME TO THE DICT BASED ON MARKER TYPE.
-            # TODO: ADDITOINALLY, IT WILL BE USED TO UPDATE A BASED ON LOCATIONS OBSERVED FRAMES.
             print(f"[{time.strftime('%H:%M:%S')}] {model_name} position changed: {current_position}, rotation: {current_rotation}, marker type: {marker_type}")
             if marker_type == "active":
                 geo_frame = rhino_frame.transformed(ACTIVE_MARKER_GEO_TRANSFORMATION)
