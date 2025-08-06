@@ -41,8 +41,6 @@ import simpleaudio as sa
 from robots.transformations.robot_transformations import RobotTransformationsFromObserved
 
 
-#TODO: CHECK TRANSFORMATIONS BASED ON STATIC AND ACTIVE MARKERS
-
 # Information Storage and Settings
 output_by_frame_data = {}
 current_rigid_body_locations = {}
@@ -68,12 +66,70 @@ rigid_body_names = {
     "11": "Cube08",
 } #TODO: This could be improved.
 
+marker_types = {
+    "1": "unique",
+    "2": "unique",
+    "3": "passive",
+    "4": "passive",
+    "5": "passive",
+    "6": "passive",
+    "7": "passive",
+    "8": "passive",
+    "9": "passive",
+    "10": "passive",
+    "11": "passive",
+} #TODO: This could be improved.
+
 # Project Configuration Information
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_CONFIG_FP = os.path.join(SCRIPT_DIR, "project_config.json")
 PROJECT_CONFIG_DICT = json_load(PROJECT_CONFIG_FP)
 OPTITRACK_INFO_DICT = PROJECT_CONFIG_DICT.get("optitrack_info", {})
 SESION_DIR_NAME = "2025_anchor_block_test"
+
+#TODO: THIS SHOULD BE IMPROVED FOR A GEOMETRY MANAGER
+"""
+GeometryManager needs to make Init blocks based on the rigid body names and sizes.
+- It should also store a current geometry locations by name
+- Track the AnchorCube
+- Upload changes to the Realtime Database.
+- Also store the transformatoins below.
+"""
+# GEO_TRANSFORMATIONS_DICT = PROJECT_CONFIG_DICT.get("geometry_transformations", {}) 
+# RHINO_TRANSFORMATIONS_DICT = PROJECT_CONFIG_DICT.get("rhino_transformations", {})
+# ACTIVE_MARKER_GEO_TRANSFORMATION_DATA = GEO_TRANSFORMATIONS_DICT.get("active_marker", {})
+# PASSIVE_MARKER_GEO_TRANSFORMATION_DATA = GEO_TRANSFORMATIONS_DICT.get("passive_marker", {})
+# ACTIVE_MARKER_TRANSFORMATION = Transformation.__from_data__(ACTIVE_MARKER_GEO_TRANSFORMATION_DATA)
+# PASSIVE_MARKER_GEO_TRANSFORMATION = Transformation.__from_data__(PASSIVE_MARKER_GEO_TRANSFORMATION_DATA)
+# 1) Navigate into your nested dict
+geo_all   = PROJECT_CONFIG_DICT.get("geometry_transformations", {})
+# rhino_all = geo_all.get("rhino", {})
+# rhino_all = geo_all.get("rhino_2", {})
+rhino_all = geo_all.get("rhino_3", {})
+
+# 2) Pull out the raw JSON data for each marker type
+active_data  = rhino_all.get("active_marker", {})
+passive_data = rhino_all.get("passive_marker", {})
+
+# 3) Warn if either is missing entirely
+if not active_data:
+    print("No 'geometry_transformations.rhino.active_marker' data—using identity transform")
+if not passive_data:
+    print("No 'geometry_transformations.rhino.passive_marker' data—using identity transform")
+
+# 4) Load via COMPAS’s Data API, or default to identity
+try:
+    ACTIVE_MARKER_GEO_TRANSFORMATION = Transformation.__from_data__(active_data)
+except Exception:
+    print("Failed to load 'geometry_transformations.rhino.active_marker' data—using identity transform")
+    ACTIVE_MARKER_GEO_TRANSFORMATION = Transformation()
+
+try:
+    PASSIVE_MARKER_GEO_TRANSFORMATION = Transformation.__from_data__(passive_data)
+except Exception:
+    print("Failed to load 'geometry_transformations.rhino.active_marker' data—using identity transform")
+    PASSIVE_MARKER_GEO_TRANSFORMATION = Transformation()
+#TODO: THIS SHOULD BE IMPROVED FOR A GEOMETRY MANAGER
 
 # Storage Directories file names and paths
 BASE_DIR = os.path.join(SCRIPT_DIR, "recordings", "motive_recordings")
@@ -120,9 +176,11 @@ def receive_rigid_body_frame_TEST_Individual_writes(new_id, position, rotation):
 
     current_time = time.time()
     model_name = rigid_body_names.get(str(new_id), f"Unknown_{new_id}")
+    marker_type = marker_types.get(str(new_id), "unknown")
 
     frame_info = {
         "model_name": model_name,
+        "marker_type": marker_type,
         "timestamp": current_time,
         "id": new_id,
         "position": {
@@ -138,7 +196,20 @@ def receive_rigid_body_frame_TEST_Individual_writes(new_id, position, rotation):
         }
     }
 
-def update_rigid_body_location_if_changed(model_name, current_position, current_rotation, play_sound=False):
+    update_rigid_body_location_if_changed(model_name, frame_info["position"], frame_info["rotation"], marker_type, play_sound=PLAY_SOUND)
+
+    # Write this frame to file immediately
+    try:
+        with open(RECORD_OUT_PATH, "a") as f:
+            f.write(json.dumps(frame_info) + "\n")
+
+        if current_time - last_write_time > WRITE_INTERVAL:
+            print(f"[{time.strftime('%H:%M:%S')}] Appended frame for {model_name} to file.")
+            last_write_time = current_time
+    except Exception as e:
+        print(f"Error appending frame to file: {e}")
+
+def update_rigid_body_location_if_changed(model_name, current_position, current_rotation, marker_type, play_sound=False):
     global current_rigid_body_locations
 
     previous = current_rigid_body_locations.get(model_name)
@@ -152,20 +223,40 @@ def update_rigid_body_location_if_changed(model_name, current_position, current_
         changed = pos_changed or rot_changed
 
     if changed:
-        #TODO: Need to remember that I used frame.__data__ and json.dump ALSO ALL OF THESE ARE ACTUALLY COMPAS FRAMES
         point_motive, quat_motive = get_motive_pose(current_position, current_rotation)
         motive_frame, rhino_frame = create_rhino_frame_from_motive(point_motive, quat_motive)
 
-        #TODO: This transformation is for working with zone setting in Rhino. It makes it the origin very flexible.
+        #This transformation is for working with zone setting in Rhino. It makes it the origin very flexible.
         rhino_frame = transform_observed_frame_based_on_optitrack_rhino_origin(rhino_frame)
 
-        #TODO: Remember that this is the native data from streaming (position & rotation).
+        #TODO: Remember that this is the native data from streaming (position & rotation). NOT GEOMETRY POSITIONS.
         current_rigid_body_locations[model_name] = {
             "position": current_position,
             "rotation": current_rotation,
             "motive_frame": motive_frame.__data__,
-            "rhino_frame": rhino_frame.__data__
+            "rhino_frame": rhino_frame.__data__,
+            "marker_type": marker_type
         }
+
+        #TODO: Double check the time of transformation, because it returns oddly in 
+        if (model_name != "Origin") \
+        and (model_name != "UR3Table") \
+        and (model_name != "ABBTable") \
+        and (model_name != "UR20"):
+            #TODO: THIS WILL BE FOR GEOMETRY OBJECTS. I WANT TO ADD AN ADDITOINAL GEO FRAME TO THE DICT BASED ON MARKER TYPE.
+            # TODO: ADDITOINALLY, IT WILL BE USED TO UPDATE A BASED ON LOCATIONS OBSERVED FRAMES.
+            print(f"[{time.strftime('%H:%M:%S')}] {model_name} position changed: {current_position}, rotation: {current_rotation}, marker type: {marker_type}")
+            if marker_type == "active":
+                geo_frame = rhino_frame.transformed(ACTIVE_MARKER_GEO_TRANSFORMATION)
+                print(f"Transformation for active marker: {ACTIVE_MARKER_GEO_TRANSFORMATION}")
+                current_rigid_body_locations[model_name]["geometry_frame"] = geo_frame.__data__
+            elif marker_type == "passive":
+                print(f"Transformation for passive marker: {PASSIVE_MARKER_GEO_TRANSFORMATION}")
+                geo_frame = rhino_frame.transformed(PASSIVE_MARKER_GEO_TRANSFORMATION)
+                current_rigid_body_locations[model_name]["geometry_frame"] = geo_frame.__data__
+            else:
+                print(f"[{time.strftime('%H:%M:%S')}] UNKNOWN MARKER TYPE for {model_name}: {marker_type}. No geometry update performed.")
+                return
 
         if (model_name == "UR20") or (model_name == "UR3Table") or (model_name == "ABBTable"):
             print(f"[{time.strftime('%H:%M:%S')}] Robot Position Changed: Robot {model_name} : current pos : {current_position}, current rotation : {current_rotation}")
@@ -201,13 +292,29 @@ def update_rigid_body_location_if_changed(model_name, current_position, current_
         if model_name not in output_by_timestamp_data:
             output_by_timestamp_data[model_name] = []
 
-        output_by_timestamp_data[model_name].append({
-            "timestamp": timestamp,
-            "position": current_position,
-            "rotation": current_rotation,
-            "motive_frame": motive_frame.__data__,
-            "rhino_frame": rhino_frame.__data__
-        })
+        #TODO: Ugly, but should work I think... TEST ME PLEASE JOSEPH.
+        if (model_name != "Origin") \
+        and (model_name != "UR3Table") \
+        and (model_name != "ABBTable") \
+        and (model_name != "UR20"):
+            output_by_timestamp_data[model_name].append({
+                "timestamp": timestamp,
+                "position": current_position,
+                "rotation": current_rotation,
+                "motive_frame": motive_frame.__data__,
+                "rhino_frame": rhino_frame.__data__,
+                "marker_type": marker_type,
+                "geometry_frame": geo_frame.__data__
+            })
+        else:
+            output_by_timestamp_data[model_name].append({
+                "timestamp": timestamp,
+                "position": current_position,
+                "rotation": current_rotation,
+                "motive_frame": motive_frame.__data__,
+                "rhino_frame": rhino_frame.__data__,
+                "marker_type": marker_type
+            })
 
         try:
             with open(RIGID_BODIES_CURRENT_FILEPATH, "w") as f:
