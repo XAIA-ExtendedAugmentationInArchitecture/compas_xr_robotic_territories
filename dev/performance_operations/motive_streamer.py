@@ -103,10 +103,7 @@ GeometryManager needs to make Init blocks based on the rigid body names and size
 # PASSIVE_MARKER_GEO_TRANSFORMATION = Transformation.__from_data__(PASSIVE_MARKER_GEO_TRANSFORMATION_DATA)
 # 1) Navigate into your nested dict
 geo_all   = PROJECT_CONFIG_DICT.get("geometry_transformations", {})
-# rhino_all = geo_all.get("rhino", {})
-# rhino_all = geo_all.get("rhino_2", {})
-# rhino_all = geo_all.get("rhino_3", {})
-rhino_all = geo_all.get("rhino_4", {})
+rhino_all = geo_all.get("rhino", {})
 
 # 2) Pull out the raw JSON data for each marker type
 active_data  = rhino_all.get("active_marker", {})
