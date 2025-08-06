@@ -40,8 +40,8 @@ import simpleaudio as sa
 #Custom Package Imports
 from robots.transformations.robot_transformations import RobotTransformationsFromObserved
 
-#TODO: UPDATE WRITING.....
-#TODO: TESTING : Turn into class? #############################################################################################################################
+
+#TODO: CHECK TRANSFORMATIONS BASED ON STATIC AND ACTIVE MARKERS
 
 # Information Storage and Settings
 output_by_frame_data = {}
@@ -56,15 +56,16 @@ PLAY_SOUND = True  # Set to False to disable sound playback
 timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 rigid_body_names = {
     "1" : "Origin",
-    "2" : "Red01",
-    "3" : "Red02",
-    "4" : "Red03",
-    "5" : "Blue01",
-    "6" : "Blue02",
-    "7" : "Blue03",
-    "8" : "UR20",
-    "9" : "UR3Table",
-    "10": "ABBTable"
+    "2" : "UR20",
+    "3" : "AnchorCube",
+    "4" : "Cube01",
+    "5" : "Cube02",
+    "6" : "Cube03",
+    "7" : "Cube04",
+    "8" : "Cube05",
+    "9" : "Cube06",
+    "10": "Cube07",
+    "11": "Cube08",
 } #TODO: This could be improved.
 
 # Project Configuration Information
@@ -72,7 +73,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_CONFIG_FP = os.path.join(SCRIPT_DIR, "project_config.json")
 PROJECT_CONFIG_DICT = json_load(PROJECT_CONFIG_FP)
 OPTITRACK_INFO_DICT = PROJECT_CONFIG_DICT.get("optitrack_info", {})
-SESION_DIR_NAME = "20250619_write_updates_testing"
+SESION_DIR_NAME = "2025_anchor_block_test"
 
 # Storage Directories file names and paths
 BASE_DIR = os.path.join(SCRIPT_DIR, "recordings", "motive_recordings")
@@ -114,49 +115,6 @@ RIGID_BODIES_BY_TIMESTAMP_FILEPATH = os.path.join(
 #Robot Transformation and Localization information
 robot_transformer = None
 
-
-def receive_rigid_body_frame_TEST(new_id, position, rotation):
-    global last_print_time, output_by_frame_data, last_write_time, rigid_body_names, current_rigid_body_locations
-
-    current_time = time.time()
-    model_name = rigid_body_names.get(str(new_id), f"Unknown_{new_id}")
-
-    frame_info = {
-        "timestamp": current_time,
-        "id": new_id,
-        "position": {
-            "x": position[0],
-            "y": position[1],
-            "z": position[2]
-        },
-        "rotation": {
-            "x": rotation[0],
-            "y": rotation[1],
-            "z": rotation[2],
-            "w": rotation[3]
-        }
-    }
-
-    # Initialize list for this model name if needed
-    if model_name not in output_by_frame_data:
-        output_by_frame_data[model_name] = []
-
-    # Append this frame's info
-    output_by_frame_data[model_name].append(frame_info)
-
-    update_rigid_body_location_if_changed(model_name, frame_info["position"], frame_info["rotation"], play_sound=PLAY_SOUND)
-
-    # Write to file if interval has passed
-    if current_time - last_write_time > WRITE_INTERVAL:
-        try:
-            with open(RECORD_OUT_PATH, "w") as f:
-                json.dump(output_by_frame_data, f, indent=2)
-            print(f"[{time.strftime('%H:%M:%S')}] Wrote data to {OUTPUT_PATH}")
-            print(f"SCRIPT_DIR: {SCRIPT_DIR}")
-        except Exception as e:
-            print(f"Error writing file: {e}")
-        last_write_time = current_time
-
 def receive_rigid_body_frame_TEST_Individual_writes(new_id, position, rotation):
     global last_print_time, output_by_frame_data, last_write_time, rigid_body_names, current_rigid_body_locations
 
@@ -179,26 +137,6 @@ def receive_rigid_body_frame_TEST_Individual_writes(new_id, position, rotation):
             "w": rotation[3]
         }
     }
-
-    # # Initialize list for this model name if needed
-    # if model_name not in output_by_frame_data:
-    #     output_by_frame_data[model_name] = []
-
-    # Append this frame's info
-    # output_by_frame_data[model_name].append(frame_info)
-
-    update_rigid_body_location_if_changed(model_name, frame_info["position"], frame_info["rotation"], play_sound=PLAY_SOUND)
-
-    # Write this frame to file immediately
-    try:
-        with open(RECORD_OUT_PATH, "a") as f:
-            f.write(json.dumps(frame_info) + "\n")
-
-        if current_time - last_write_time > WRITE_INTERVAL:
-            print(f"[{time.strftime('%H:%M:%S')}] Appended frame for {model_name} to file.")
-            last_write_time = current_time
-    except Exception as e:
-        print(f"Error appending frame to file: {e}")
 
 def update_rigid_body_location_if_changed(model_name, current_position, current_rotation, play_sound=False):
     global current_rigid_body_locations
