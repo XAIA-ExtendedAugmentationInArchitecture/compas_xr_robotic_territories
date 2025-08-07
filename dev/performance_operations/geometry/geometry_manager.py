@@ -153,7 +153,7 @@ class GeometryManager:
         print(self.active_geometry_dict)
         return geo_frame
 
-    #TODO: This should upload the current geometry to the Realtime Database
+    #TODO: This should upload the current geometry to the Realtime Database ONCE YOU SORT OUT THE STRUCTURE YOU WANT.
     def upload_current_geometry_to_realtime_database(self):
         if not self.realtime_database or not self.project_name:
             print("GeometryManager: [GeometryManager] Realtime database not set up correctly.")
@@ -162,33 +162,34 @@ class GeometryManager:
             print("GeometryManager: [GeometryManager] Uploading current geometry to Realtime Database...COMMING SOON")
 
 
-if __name__ == "__main__":
+#todo: This is just for testing and can be removed.
+# if __name__ == "__main__":
     
-    rigid_body_names = {
-        "1" : "Origin",
-        "2" : "UR20",
-        "3" : "AnchorCube",
-        "4" : "Cube01",
-        "5" : "Cube02",
-        "6" : "Cube03",
-        "7" : "Cube04",
-        "8" : "Cube05",
-        "9" : "Cube06",
-        "10": "Cube07",
-        "11": "Cube08",
-    } #TODO: This could be improved.
+#     rigid_body_names = {
+#         "1" : "Origin",
+#         "2" : "UR20",
+#         "3" : "AnchorCube",
+#         "4" : "Cube01",
+#         "5" : "Cube02",
+#         "6" : "Cube03",
+#         "7" : "Cube04",
+#         "8" : "Cube05",
+#         "9" : "Cube06",
+#         "10": "Cube07",
+#         "11": "Cube08",
+#     } #TODO: This could be improved.
 
-    marker_types = {
-        "1": "unique",
-        "2": "unique",
-        "3": "passive",
-        "4": "passive",
-        "5": "passive",
-        "6": "passive",
-        "7": "passive",
-        "8": "passive",
-        "9": "passive",
-        "10": "passive",
-        "11": "passive",
-    }
-    gm = GeometryManager(rigid_body_names, marker_types, 0.3, 0.3, 0.3)
+#     marker_types = {
+#         "1": "unique",
+#         "2": "unique",
+#         "3": "passive",
+#         "4": "passive",
+#         "5": "passive",
+#         "6": "passive",
+#         "7": "passive",
+#         "8": "passive",
+#         "9": "passive",
+#         "10": "passive",
+#         "11": "passive",
+#     }
+#     gm = GeometryManager(rigid_body_names, marker_types, 0.3, 0.3, 0.3)
