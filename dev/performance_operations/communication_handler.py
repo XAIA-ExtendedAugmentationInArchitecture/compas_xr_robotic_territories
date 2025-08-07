@@ -117,7 +117,7 @@ class RobotManager:
         self._save_requested_frame(msg)
 
         msg.requested_robot_frame = self._transform_incoming_requested_frame(msg.requested_robot_frame)
-        ik_config = handler.handle_msg_request_ik_target(msg)
+        ik_config = handler.handle_realtime_msg_request_ik_target(msg)
         # ik_config = handler.handle_msg_request_compas_fab_itter(msg)
         # ik_config = handler.handle_msg_request_recursive_solver(msg)
         # ik_config = handler.handle_msg_request(msg)

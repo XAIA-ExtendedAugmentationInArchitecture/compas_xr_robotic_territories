@@ -3,13 +3,15 @@ from compas_robots import Configuration
 from compas_fab.backends import RosClient
 from compas_xr.mqtt import RealtimeMimicRequestMessage
 from compas_xr.mqtt import RealtimeMimicResultMessage
-
-from ..control import fabrication as rtde
-
-import compas_rrc as rrc
 from compas.data import json_load, json_dump
 
-class RealtimeMimicROSHandler:
+from ..control import fabrication as rtde
+from ..control.joint_value_streamer import RTDEStateStreamer
+from ..control.joint_value_streamer import ABBStateStreamer
+
+import compas_rrc as rrc
+
+class MimicROSHandler:
 
     def __init__(self, robot_name, robot_ip, tool_info_fp, additional_static_collision_meshes_fp=None, ros_ip='127.0.0.1', ros_port=9090):
         self.robot_name = robot_name
@@ -67,7 +69,7 @@ class RealtimeMimicROSHandler:
         # For example, using RTDE or another method to get the joint values
         raise NotImplementedError("This method should be implemented to get the current configuration of the robot.")
 
-    def _execute_motion(self, config: Configuration):
+    def _send_to_config(self, config: Configuration):
         # print(f" RealtimeMimicROSHandler : [{self.robot_name}] (Sim) Executing: {config.joint_values}")
         raise NotImplementedError("This method should be implemented to get the current configuration of the robot.")
 
@@ -86,7 +88,7 @@ class RealtimeMimicROSHandler:
         try:
             ik_config = self.robot.inverse_kinematics(frame, start_configuration=start_config)
             self.ik_solutions.append(ik_config)
-            self._execute_motion(ik_config)
+            self._send_to_config(ik_config)
             fp = r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\fabrication\python\test_config_vis_pb.json"
             json_dump(self.ik_solutions, fp=fp, pretty=True)
             return ik_config
@@ -95,10 +97,14 @@ class RealtimeMimicROSHandler:
             return None
 
 
-class URRealtimeMimicHandlerROS(RealtimeMimicROSHandler):
+class URMimicHandlerROS(MimicROSHandler):
     
     def __init__(self, robot_name, robot_ip,  tool_info_fp, additional_static_collision_meshes_fp=None, ros_ip='127.0.0.1', ros_port=9090, speed=0.6, acceleration=0.1, radius=0.006, nowait=False):
         super().__init__(robot_name=robot_name, robot_ip=robot_ip,  tool_info_fp=tool_info_fp, additional_static_collision_meshes_fp=additional_static_collision_meshes_fp, ros_ip=ros_ip, ros_port=ros_port)
+
+        #Feedback Streamer
+        self.robot_state_streamer = RTDEStateStreamer(robot_ip=robot_ip, poll_delay=0.001)
+
         self.speed = speed
         self.acceleration = acceleration
         self.radius = radius
@@ -112,12 +118,12 @@ class URRealtimeMimicHandlerROS(RealtimeMimicROSHandler):
         config_zero = self.robot.zero_configuration()
         return config_zero
 
-    def _execute_motion(self, config: Configuration):
+    def _send_to_config(self, config: Configuration):
         print(f"URRealtimeMimicHandler: [{self.robot_name}] (Sim) Executing UR motion: {config.joint_values}")
         # rtde.move_to_joints(config, self.speed, self.acceleration, nowait=self.nowait, ip=self.robot_ip)
         rtde.move_to_joints_TEST(config, self.speed, self.acceleration, nowait=self.nowait, ip=self.robot_ip)
 
-class ABBRealtimeMimicHandlerROS(RealtimeMimicROSHandler):
+class ABBMimicHandlerROS(MimicROSHandler):
     
     def __init__(self, robot_name, robot_ip, abb_client, ros_ip='127.0.0.1', ros_port=9090, speed=100, nowait=False):
         super().__init__(robot_name, robot_ip, ros_ip, ros_port)
@@ -126,6 +132,9 @@ class ABBRealtimeMimicHandlerROS(RealtimeMimicROSHandler):
 
         self.ros_rrc = rrc.RosClient()
         self.ros_rrc.run()
+
+        #Feedback Streamer
+        self.robot_state_streamer = ABBStateStreamer(robot_ip=robot_ip, poll_delay=0.001)
 
         #TODO: CHECK NAME '/robLL_track' IS CORRECT
         self.abb = rrc.AbbClient(self.ros_rrc, abb_client)
@@ -136,7 +145,7 @@ class ABBRealtimeMimicHandlerROS(RealtimeMimicROSHandler):
         print(f"[{self.robot_name}] Current joints from controller: {robot_joints}")
         return self.robot.zero_configuration()
 
-    def _execute_motion(self, config: Configuration):
+    def _send_to_config(self, config: Configuration):
         print(f"ABBRealtimeMimicHandler: [{self.robot_name}] Executing motion: {config.joint_values}")
         
         # Convert radians to degrees for ABB

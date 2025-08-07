@@ -3,22 +3,28 @@ import time
 from compas.data import json_dump, json_load
 from compas_fab.backends import PyBulletClient
 from compas_robots import Configuration
+from compas_fab.robots import JointTrajectory, JointTrajectoryPoint
+
 from compas.geometry import Frame
 import compas_fab
 import compas_rrc as rrc
 
 from compas_xr.mqtt import RealtimeMimicRequestMessage
 
-from ..control import fabrication as rtde #TODO: CHECK IF THIS IMPORT WORKS.
+from ..control import fabrication as rtde
+from ..control.joint_value_streamer import RTDEStateStreamer
+from ..control.joint_value_streamer import ABBStateStreamer
 import pybullet as pb
 
-#TODO: JOSEPH WORK SO HARD ON ME....
-#TODO: ALSO YOU SHOULD KEEP PybulletHandlers, and Check with RTDE for UR
+import time
+from typing import List
+
 
 class RealtimeMimicPyBulletHandler:
 
     def __init__(self, robot_name, urdf_path, tool_info_fp, additional_static_collision_meshes_fp=None, srdf_path=None):
         self.robot_name = robot_name
+
         self.urdf_path = os.path.normpath(urdf_path)
         if srdf_path:
             self.srdf_path = os.path.normpath(srdf_path)
@@ -36,10 +42,9 @@ class RealtimeMimicPyBulletHandler:
         else:
             self.additional_static_collison_meshes = None
 
-        self.ik_solutions = []
+        self.realtime_mimic_ik_solutions = []
         self._got_initial_config = False
         print(f"RealtimeMimicPyBulletHandler: [{robot_name}] Handler initialized")
-
 
     ####################################################################################################
     # LOAD ROBOT AND SEMANTICS
@@ -189,21 +194,38 @@ class RealtimeMimicPyBulletHandler:
         return sum(diffs) if return_sum else diffs
     
     ####################################################################################################
-    # METHODS FOR CHILD CLASSES.
+    # EMPTY METHODS FOR CHILD CLASSES.
     ####################################################################################################
 
     def _get_current_configuration(self):
-        if not self.ik_solutions:
+        if not self.realtime_mimic_ik_solutions:
             return self.robot.zero_configuration()
         else:
             "using last configuration as start configuration"
-        return self.ik_solutions[-1]
+        return self.realtime_mimic_ik_solutions[-1]
     
-    def _execute_motion_target(self, frame: Frame):
+    def _send_to_target(self, frame: Frame):
         print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] (Sim) Executing motion to target frame: {frame}")
 
-    def _execute_motion(self, config: Configuration):
+    def _send_to_configuration(self, config: Configuration):
         print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] (Sim) Executing: {config.joint_values}")
+
+    def _get_latest_joint_values_from_stream(self):
+        """
+        This method should be implemented to get the latest joint values from the RTDE or other streaming source.
+        For example, using RTDEStateStreamer or ABBStateStreamer.
+        """
+        raise NotImplementedError("This method should be implemented on the child classes.")
+
+    def _get_latest_joint_values_from_stream_as_configuration(self):
+        raise NotImplementedError("This method should be implemented on the child classes.")
+
+    def _get_latest_tcp_from_stream(self):
+        """
+        This method should be implemented to get the latest joint values from the RTDE or other streaming source.
+        For example, using RTDEStateStreamer or ABBStateStreamer.
+        """
+        raise NotImplementedError("This method should be implemented on the child classes.")
 
     def shutdown(self):
         self.client.__exit__(None, None, None)
@@ -212,7 +234,7 @@ class RealtimeMimicPyBulletHandler:
     # MESSAGE HANDLERS
     ####################################################################################################
 
-    def handle_msg_request_recursive_solver(self, msg: RealtimeMimicRequestMessage) -> Configuration: #TODO: test run on the robot.
+    def handle_realtime_msg_request_recursive_solver(self, msg: RealtimeMimicRequestMessage) -> Configuration: #TODO: test run on the robot.
         """
         Checks recursively until it findes a valid IK that is collision free and returns it, but has a max attempt of 8. It returns the first solution without collision.
         """
@@ -221,13 +243,17 @@ class RealtimeMimicPyBulletHandler:
 
         if msg.initial_request:
             print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Initial request received. Resetting IK solutions.")
-            self.ik_solutions = []
-            start_config = self._get_current_configuration()
+            self.realtime_mimic_ik_solutions = []
+            # start_config = self._get_current_configuration()
+            start_config = self._get_latest_joint_values_from_stream_as_configuration()
+
         else:
-            if len(self.ik_solutions) == 0:
-                start_config = self._get_current_configuration()
+            if len(self.realtime_mimic_ik_solutions) == 0:
+                # start_config = self._get_current_configuration()
+                start_config = self._get_latest_joint_values_from_stream_as_configuration()
+
             else:
-                start_config = self.ik_solutions[-1]
+                start_config = self.realtime_mimic_ik_solutions[-1]
 
         try:
             options = {"link_name": "tool0"}
@@ -239,16 +265,16 @@ class RealtimeMimicPyBulletHandler:
                 print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] No valid IK solution found after {max_attempts} attempts.")
                 return None
 
-            self.ik_solutions.append(ik_config)
-            self._execute_motion(ik_config)
+            self.realtime_mimic_ik_solutions.append(ik_config)
+            self._send_to_configuration(ik_config)
             fp = os.path.join(os.path.dirname(__file__), "ik_configurations_pybullet.json")
-            json_dump(self.ik_solutions, fp=fp, pretty=True)
+            json_dump(self.realtime_mimic_ik_solutions, fp=fp, pretty=True)
             return ik_config
         except Exception as e:
             print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] IK computation failed: {e}")
             return None
 
-    def handle_msg_request_compas_fab_itter(self, msg: RealtimeMimicRequestMessage) -> Configuration: #TODO: test run on the robot.
+    def handle_realtime_msg_request_compas_fab_itter(self, msg: RealtimeMimicRequestMessage) -> Configuration: #TODO: test run on the robot.
         """
         Checks recursively until it findes a valid IK that is collision free and returns it, but has a max attempt of 8. It returns the first solution without collision.
         """
@@ -257,13 +283,15 @@ class RealtimeMimicPyBulletHandler:
 
         if msg.initial_request:
             print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Initial request received. Resetting IK solutions.")
-            self.ik_solutions = []
-            start_config = self._get_current_configuration()
+            self.realtime_mimic_ik_solutions = []
+            # start_config = self._get_current_configuration()
+            start_config = self._get_latest_joint_values_from_stream_as_configuration()
         else:
-            if len(self.ik_solutions) == 0:
-                start_config = self._get_current_configuration()
+            if len(self.realtime_mimic_ik_solutions) == 0:
+                # start_config = self._get_current_configuration()
+                start_config = self._get_latest_joint_values_from_stream_as_configuration()
             else:
-                start_config = self.ik_solutions[-1]
+                start_config = self.realtime_mimic_ik_solutions[-1]
 
         try:
             options = dict(
@@ -278,28 +306,30 @@ class RealtimeMimicPyBulletHandler:
                 self.client.step_simulation()
                 return None
 
-            self.ik_solutions.append(ik_config)
-            self._execute_motion(ik_config)
+            self.realtime_mimic_ik_solutions.append(ik_config)
+            self._send_to_configuration(ik_config)
             fp = os.path.join(os.path.dirname(__file__), "ik_configurations_pybullet.json")
-            json_dump(self.ik_solutions, fp=fp, pretty=True)
+            json_dump(self.realtime_mimic_ik_solutions, fp=fp, pretty=True)
             return ik_config
         except Exception as e:
             print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] IK computation failed: {e}")
             return None
 
-    def handle_msg_request(self, msg: RealtimeMimicRequestMessage) -> Configuration: #TODO: Using this one, and check the visualization, but run on the robot.
+    def handle_realtime_msg_request(self, msg: RealtimeMimicRequestMessage) -> Configuration: #TODO: Using this one, and check the visualization, but run on the robot.
         print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Handling request: {msg.message} from {msg.header.device_id}")
         frame = msg.requested_robot_frame
 
         if msg.initial_request:
             print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Initial request received. Resetting IK solutions.")
-            self.ik_solutions = []
-            start_config = self._get_current_configuration()
+            self.realtime_mimic_ik_solutions = []
+            # start_config = self._get_current_configuration()
+            start_config = self._get_latest_joint_values_from_stream_as_configuration()
         else:
-            if len(self.ik_solutions) == 0:
-                start_config = self._get_current_configuration()
+            if len(self.realtime_mimic_ik_solutions) == 0:
+                # start_config = self._get_current_configuration()
+                start_config = self._get_latest_joint_values_from_stream_as_configuration()
             else:
-                start_config = self.ik_solutions[-1]
+                start_config = self.realtime_mimic_ik_solutions[-1]
 
         try:
             ik_config = self.robot.inverse_kinematics(frame_WCF=frame, start_configuration=start_config, options={"link_name": "tool0"}) #TODO: This tool0 param is hard coded for the UR20, it should be checked with the UR3 and ABB. Or passed as a paramater for the tool frame as well.
@@ -309,32 +339,33 @@ class RealtimeMimicPyBulletHandler:
             if is_collision:
                 print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] IK solution is in collision. Logging details:")
                 self.log_self_collisions()
-                if self.ik_solutions:
-                    self.client.set_robot_configuration(self.robot, self.ik_solutions[-1])
+                if self.realtime_mimic_ik_solutions:
+                    self.client.set_robot_configuration(self.robot, self.realtime_mimic_ik_solutions[-1])
                     self.client.step_simulation()
                 else:
                     self.client.set_robot_configuration(self.robot, self.robot.zero_configuration())
                     self.client.step_simulation()
                 return None
-            self.ik_solutions.append(ik_config)
+            self.realtime_mimic_ik_solutions.append(ik_config)
 
-            self._execute_motion(ik_config)
+            self._send_to_configuration(ik_config)
             fp = os.path.join(os.path.dirname(__file__), "ik_configurations_pybullet.json")
-            json_dump(self.ik_solutions, fp=fp, pretty=True)
+            json_dump(self.realtime_mimic_ik_solutions, fp=fp, pretty=True)
             return ik_config
         except Exception as e:
             print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] IK computation failed: {e}")
             return None
 
-    def handle_msg_request_ik_target(self, msg: RealtimeMimicRequestMessage) -> Configuration: #TODO: Using this one, and check the visualization, but run on the robot.
+    def handle_realtime_msg_request_ik_target(self, msg: RealtimeMimicRequestMessage) -> Configuration: #TODO: Using this one, and check the visualization, but run on the robot.
         print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Handling request: {msg.message} from {msg.header.device_id}")
         frame = msg.requested_robot_frame
 
         try:
             if msg.initial_request:
                 print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Initial request received. Resetting IK solutions.")
-                self.ik_solutions = []
-                start_config = self._get_current_configuration()
+                self.realtime_mimic_ik_solutions = []
+                # start_config = self._get_current_configuration()
+                start_config = self._get_latest_joint_values_from_stream_as_configuration()
                 options = dict(
                     link_name="tool0",
                     high_accuracy_threshold=1e-6,
@@ -347,27 +378,41 @@ class RealtimeMimicPyBulletHandler:
                     self.client.step_simulation()
                     return None
 
-                self.ik_solutions.append(ik_config)
-                self._execute_motion(frame)
+                self.realtime_mimic_ik_solutions.append(ik_config)
+                self._send_to_configuration(frame)
             else:
                 print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Non-initial request received. Executing motion to target frame.")
-                self._execute_motion_target(frame)
+                self._send_to_target(frame)
                 return frame
         except Exception as e:
             print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] IK computation failed: {e}")
             return None
+
+    def handle_user_defined_msg_request(self, msg: RealtimeMimicRequestMessage) -> List[JointTrajectory]:
+        """
+        This method can be overridden by child classes to handle custom message requests.
+        """
+        print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Handling user-defined request: {msg.message} from {msg.header.device_id}")
+        raise NotImplementedError("This method should be implemented in child classes.")
 
 class URRealtimeMimicHandlerPyB(RealtimeMimicPyBulletHandler):
 
 
     def __init__(self, robot_name, robot_ip, urdf_path, tool_info_fp, additional_static_collision_meshes_fp=None, srdf_path=None, speed=0.6, acceleration=0.1, radius=0.006, nowait=False):
         super().__init__(robot_name, urdf_path, tool_info_fp, additional_static_collision_meshes_fp, srdf_path=srdf_path)
+
+        self.robot_state_streamer = RTDEStateStreamer(robot_ip=robot_ip, poll_delay=0.001)
+
         self.robot_ip = robot_ip
         self.speed = speed
         self.acceleration = acceleration
         self.radius = radius
-        self.nowait = nowait        
+        self.nowait = nowait     
         print(f"URRealtimeMimicHandlerPyB: [{robot_name}] UR handler initialized")
+
+    ####################################################################################################
+    # Implemented through standard RTDE functions in fabrication.py
+    ####################################################################################################
 
     def _get_current_configuration(self):
         # config = rtde.get_config_TEST(self.robot_ip)
@@ -376,18 +421,52 @@ class URRealtimeMimicHandlerPyB(RealtimeMimicPyBulletHandler):
         # config_zero = self.robot.zero_configuration()
         # return config_zero
 
-    def _execute_motion(self, config: Configuration):
+    def _send_to_configuration(self, config: Configuration):
         print(f"URRealtimeMimicHandlerPyB: [{self.robot_name}] (Sim) Executing UR motion: {config.joint_values}")
         # rtde.move_to_joints(config, self.speed, self.acceleration, nowait=self.nowait, ip=self.robot_ip)
-        rtde.move_to_joints_blend(config, self.speed, self.acceleration, blend=self.radius, nowait=self.nowait, ip=self.robot_ip)
+        # rtde.move_to_joints_blend(config, self.speed, self.acceleration, blend=self.radius, nowait=self.nowait, ip=self.robot_ip)
         
-        # rtde.move_to_joints_TEST(config, self.speed, self.acceleration, nowait=self.nowait, ip=self.robot_ip)
+        rtde.move_to_joints_TEST(config, self.speed, self.acceleration, nowait=self.nowait, ip=self.robot_ip)
 
-    def _execute_motion_target(self, frame: Frame):
+    def _send_to_target(self, frame: Frame):
         print(f"URRealtimeMimicHandlerPyB: [{self.robot_name}] (Sim) Executing UR motion to target frame: {frame}")
         # rtde.move_to_target(frame, self.speed, self.acceleration, nowait=self.nowait, ip=self.robot_ip)
-        rtde.move_to_target(frame, self.speed, self.acceleration, nowait=True, ip=self.robot_ip)
+        # rtde.move_to_target(frame, self.speed, self.acceleration, nowait=True, ip=self.robot_ip)
+        rtde.move_to_target_TEST(frame, self.speed, self.acceleration, nowait=self.nowait, ip=self.robot_ip)
 
+    ####################################################################################################
+    # Implemented through Streamer Class Interface
+    ####################################################################################################
+    
+    def _get_latest_joint_values_from_stream(self):
+        state = self.robot_state_streamer.get_latest()
+        if state:
+            q, tcp = state
+            return q
+        else:
+            print(f"[{self.robot_name}] No JOINTVALUE state data available yet.")
+            return None
+
+    def _get_latest_joint_values_from_stream_as_configuration(self):
+        q = self._get_latest_joint_values_from_stream()
+        if q:
+            joint_names = self.robot.get_configurable_joint_names()
+            joint_types = self.robot.get_configurable_joint_types()
+            if len(q) != len(joint_names):
+                raise ValueError(f"Length of joint values ({len(q)}) does not match number of configurable joints ({len(joint_names)}).")
+            return Configuration(joint_names=joint_names, joint_types=joint_types, joint_values=q)
+        else:
+            print(f"[{self.robot_name}] No JOINTVALUE state data available yet.")
+            return None
+
+    def _get_latest_tcp_from_stream(self):
+        state = self.robot_state_streamer.get_latest()
+        if state:
+            q, tcp = state
+            return tcp
+        else:
+            print(f"[{self.robot_name}] No TCP state data available yet.")
+            return None
 
 
 
@@ -397,6 +476,9 @@ class ABBRealtimeMimicHandlerPyB(RealtimeMimicPyBulletHandler):
     
     def __init__(self, robot_name, robot_ip, abb_client_name, ros_ip='127.0.0.1', ros_port=9090, speed=100, nowait=False):
         super().__init__(robot_name, robot_ip, ros_ip, ros_port)
+
+        self.robot_state_streamer = ABBStateStreamer(robot_ip=robot_ip, poll_delay=0.001)
+
         self.speed = speed
         self.nowait = nowait
 
@@ -412,7 +494,7 @@ class ABBRealtimeMimicHandlerPyB(RealtimeMimicPyBulletHandler):
         print(f"[{self.robot_name}] Current joints from controller: {robot_joints}")
         return self.robot.zero_configuration()
 
-    def _execute_motion(self, config: Configuration):
+    def _send_to_configuration(self, config: Configuration):
         print(f"ABBRealtimeMimicHandler: [{self.robot_name}] Executing motion: {config.joint_values}")
         
         # Convert radians to degrees for ABB
@@ -422,6 +504,10 @@ class ABBRealtimeMimicHandlerPyB(RealtimeMimicPyBulletHandler):
 
         result = self.abb.send_and_wait(rrc.MoveToJoints(rax, ext_axes, self.speed, rrc.Zone.FINE))
         print(f"[{self.robot_name}] Motion complete: {result}")
+
+    def _send_to_target(self, frame: Frame):
+        raise NotImplementedError("ABBRealtimeMimicHandlerPyB : WIP - Target frame motion not implemented yet.")
+        print(f"URRealtimeMimicHandlerPyB: [{self.robot_name}] (Sim) Executing UR motion to target frame: {frame}")
 
     def close(self):
         self.ros_rrc.close()

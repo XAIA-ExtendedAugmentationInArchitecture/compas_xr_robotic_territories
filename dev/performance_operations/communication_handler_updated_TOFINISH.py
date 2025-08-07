@@ -4,13 +4,10 @@ from compas_xr.mqtt import RealtimeMimicRequestMessage, RealtimeMimicResultMessa
 
 # from robots.com_handlers.realtime_mimic_roshandler import URRealtimeMimicHandler
 from robots.com_handlers.realtime_mimic_pbhandler import URRealtimeMimicHandlerPyB, ABBRealtimeMimicHandlerPyB #TODO: This needs to be wrapped into one handler for both Mimics
-from robots.com_handlers.realtime_mimic_roshandler import URRealtimeMimicHandlerROS, ABBRealtimeMimicHandlerROS #TODO: This needs to be wrapped into one handler for both Mimics
+from robots.com_handlers.realtime_mimic_roshandler import URMimicHandlerROS, ABBMimicHandlerROS #TODO: This needs to be wrapped into one handler for both Mimics
 
 from compas.data import json_load, json_dump
 import os
-
-#TODO: Tranfromation is still comming from GH explort load... it should be from streaming the .py data
-#TODO: Update to work for planning other requests for Mimic and Relatime Mimic
 
 #TODO: FIX ME JOSEPH.
 
@@ -21,34 +18,33 @@ class CommunicationManager:
         self.project_name = project_name
         self.robot_name = robot_name
 
-        # self.script_dir = os.path.dirname(os.path.abspath(__file__))
-        # self.project_fp_config = os.path.join(self.script_dir, "project_config.json")
-        # self._project_config_dict = json_load(self.project_fp_config)
-
+        #Robot Loading & Handleing
         _urdf_filepath = project_config_dict["urdf_fps"][robot_name]["urdf"]
         _srdf_filepath = project_config_dict["urdf_fps"][robot_name]["srdf"]
         _robot_hardware_info = project_config_dict["robot_hardware_info"][robot_name]
         self.handler = self._load_handler(robot_name, _urdf_filepath, _srdf_filepath, _robot_hardware_info, backend_type=backend_type)
 
         #Realtime Mimic Request and Result Handlers
-        realtime_mimic_result_topic = Topic(f"robotic_territories/real_time_mimic_result/{project_name}", RealtimeMimicResultMessage) # TODO: Pull project name from config dir
+        realtime_mimic_result_topic = Topic(f"robotic_territories/real_time_mimic_result/{project_name}", RealtimeMimicResultMessage)
         self.realtime_publisher = Publisher(realtime_mimic_result_topic, transport=self.mqtt)
 
-        realtime_mimic_request_topic = Topic(f"robotic_territories/real_time_mimic_request/{project_name}", RealtimeMimicRequestMessage) # TODO: Pull project name from config dir
+        realtime_mimic_request_topic = Topic(f"robotic_territories/real_time_mimic_request/{project_name}", RealtimeMimicRequestMessage)
         self.realtime_subscriber = Subscriber(realtime_mimic_request_topic, callback=self._on_message_realtime_mimic, transport=self.mqtt)
         self.realtime_subscriber.subscribe()
 
         #User Initiated Mimic Request and Result Handlers
-        user_initiated_mimic_result_topic = Topic(f"robotic_territories/mimic_result/{project_name}", MimicTrajectoryResultMessage) # TODO: Pull project name from config dir
+        user_initiated_mimic_result_topic = Topic(f"robotic_territories/mimic_result/{project_name}", MimicTrajectoryResultMessage)
         self.user_initiated_publisher = Publisher(user_initiated_mimic_result_topic, transport=self.mqtt)
 
-        user_initiated_mimic_request_topic = Topic(f"robotic_territories/mimic_request/{project_name}", MimicTrajectoryRequestMessage) # TODO: Pull project name from config dir
+        user_initiated_mimic_request_topic = Topic(f"robotic_territories/mimic_request/{project_name}", MimicTrajectoryRequestMessage)
         self.user_initiated_subscriber = Subscriber(user_initiated_mimic_request_topic, callback=self._on_message_user_initiated_mimic, transport=self.mqtt)
         self.user_initiated_subscriber.subscribe()
 
-        print(f"RobotManager : [RobotManager] Subscribed to: robotic_territories mimic topics for project '{project_name}' and robot '{robot_name}'")
-
-    #TODO: ADD THE CORRECT TOOL AS AN ACM...
+        _transformations_file_path = project_config_dict["robot_transformations_fp"]
+        if not _transformations_file_path:
+            raise ValueError("Transformations file path is required in the project configuration.")
+        self.transformation_ar_space_to_robot_space, self.transformations_robot_space_to_ar_space = self._load_transformations_from_file(_transformations_file_path, robot_name)
+        print(f"CommunicationManager : [CommunicationManager] Subscribed to: robotic_territories mimic topics for project '{project_name}' and robot '{robot_name}'")
 
     def _load_handler(self, robot_name, urdf_filepath, srdf_filepath, robot_hardware_info_dict, backend_type='PyBullet'):
         if robot_name == "UR20" or robot_name == "UR31" or robot_name == "UR32":
@@ -64,7 +60,7 @@ class CommunicationManager:
                                                  tool_info_fp=robot_hardware_info_dict.get("tool_info_fp"),
                                                  additional_static_collision_meshes_fp=robot_hardware_info_dict.get("additional_collison_meshes_fp"))
             elif backend_type == 'ROS':
-                return URRealtimeMimicHandlerROS(robot_name, 
+                return URMimicHandlerROS(robot_name, 
                                                  robot_ip=robot_hardware_info_dict["robot_ip"], 
                                                  ros_ip=robot_hardware_info_dict["ros_ip"],
                                                  ros_port=robot_hardware_info_dict["ros_port"],
@@ -87,7 +83,7 @@ class CommunicationManager:
                                                   tool_info_fp=robot_hardware_info_dict.get("tool_info_fp"),
                                                   additional_static_collision_meshes_fp=robot_hardware_info_dict.get("additional_attached_collison_meshes_fp"))
             elif backend_type == 'ROS':
-                return ABBRealtimeMimicHandlerROS(robot_name, 
+                return ABBMimicHandlerROS(robot_name, 
                                                   robot_ip=robot_hardware_info_dict["robot_ip"], 
                                                   abb_client=robot_hardware_info_dict["robot_ip"],
                                                   ros_ip=robot_hardware_info_dict["ros_ip"],
@@ -100,50 +96,91 @@ class CommunicationManager:
             else:
                 raise ValueError(f"Unsupported backend type: {backend_type} for robot {robot_name}")
         else:
-            #Load the information & Handler for ABB robots
+            raise ValueError(f"Unsupported robot name: {robot_name}")
             pass
 
-    # TODO: Adjust code below ###########################################################################################################
-
-    def _load_transformations_from_file(self, file_path): #TODO: Fix Transformation file path
+    def _load_transformations_from_file(self, file_path, robot_name): #TODO: Fix Transformation file path
         # Load the transformations from the JSON file
-        transform_dict = json_load(file_path)
-        inverse_transform = transform_dict["inverse"]
-        transform = transform_dict["transform"]
+        all_robot_transforms = json_load(file_path)
+        if robot_name not in all_robot_transforms:
+            raise ValueError(f"Robot name '{robot_name}' not found in transformations file.")
+        
+        robot_transformation = all_robot_transforms[robot_name]["observed"] #TODO: CHECK THIS
+        if "inverse_transform_to_observed" not in robot_transformation or "transformation_to_urdf" not in robot_transformation:
+            raise ValueError(f"Transformations for robot '{robot_name}' are incomplete in the file.")
+
+        inverse_transform = robot_transformation["inverse_transform_to_observed"]
+        transform = robot_transformation["transformation_to_urdf"]
+        print (f"CommunicationManager : [CommunicationManager] Loaded transformations for robot '{robot_name}' from {file_path}, types: {type(inverse_transform)}, {type(transform)}")
         return inverse_transform, transform
 
-    def _transform_incoming_requested_frame(self, frame): #TODO: Fix Transformation file path
+    ######################################################################################################
+    # Frame Transformations to Robot Space & AR Space
+    ####################################################################################################
 
-        TX_FILEPATH = r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\fabrication\python\mqtt_transformations.json"
-        inverse_transform, transform = self._load_transformations_from_file(TX_FILEPATH)
-        inverse_frame = frame.transformed(inverse_transform)
-        return inverse_frame
+    # IN TRANSFORMATIONS ##################################################################################
 
-    def _transform_out_robot_baseframe(self, frame): #TODO: Fix Transformation file path
-        TX_FILEPATH = r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\fabrication\python\mqtt_transformations.json"
-        inverse_transform, transform = self._load_transformations_from_file(TX_FILEPATH)
-        tx_frame = frame.transformed(transform)
+    def _transform_requested_frame_from_ar_space_to_robot_space(self, frame):
+        tx_frame = frame.transformed(self.transformation_ar_space_to_robot_space)
         return tx_frame
-
-    def _save_requested_frame(self, msg: RealtimeMimicRequestMessage):
-        global requested_frames
-
-        if msg.initial_request:
-            requested_frames = []
-            print("RobotManager : [RobotManager] Initial request received, cleared requested_frames.")
-        else:
-            requested_frames.append(msg.requested_robot_frame)
-            print("RobotManager : [RobotManager] Appended requested frame to global list.")
-
-        file_path = os.path.join(
-            os.path.dirname(__file__),
-            "requested_frames_pybullet.json"
-        )
-        json_dump(requested_frames, file_path)
-        print(f"RobotManager : [RobotManager] Dumped requested_frames to {file_path}")
     
+    def _transform_requested_frames_list_from_robot_space_to_ar_space(self, frames_list):
+        transformed_frames = []
+        for frame in frames_list:
+            transformed_frame = self._transform_requested_frame_from_ar_space_to_robot_space(frame)
+            transformed_frames.append(transformed_frame)
+        return transformed_frames
+
+    # OUT TRANSFORMATIONS ##################################################################################
+
+    def _transform_result_frame_from_robot_space_to_ar_space(self, frame):
+        tx_frame = frame.transformed(self.transformations_robot_space_to_ar_space)
+        return tx_frame
+    
+    def _transform_result_frames_list_from_robot_space_to_ar_space(self, frames_list):
+        transformed_frames = []
+        for frame in frames_list:
+            transformed_frame = self._transform_result_frame_from_robot_space_to_ar_space(frame)
+            transformed_frames.append(transformed_frame)
+        return transformed_frames
+
+    #TODO : SAVED FOR REFERENCE ############################################################################################################
+
+    # def _transform_incoming_requested_frame(self, frame): #TODO: Fix Transformation file path
+
+    #     TX_FILEPATH = r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\fabrication\python\mqtt_transformations.json"
+    #     inverse_transform, transform = self._load_transformations_from_file(TX_FILEPATH)
+    #     inverse_frame = frame.transformed(inverse_transform)
+    #     return inverse_frame
+
+    # def _transform_out_robot_baseframe(self, frame): #TODO: Fix Transformation file path
+    #     TX_FILEPATH = r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\fabrication\python\mqtt_transformations.json"
+    #     inverse_transform, transform = self._load_transformations_from_file(TX_FILEPATH)
+    #     tx_frame = frame.transformed(transform)
+    #     return tx_frame
+
+    # def _save_requested_frame(self, msg: RealtimeMimicRequestMessage):
+    #     global requested_frames
+
+    #     if msg.initial_request:
+    #         requested_frames = []
+    #         print("RobotManager : [RobotManager] Initial request received, cleared requested_frames.")
+    #     else:
+    #         requested_frames.append(msg.requested_robot_frame)
+    #         print("RobotManager : [RobotManager] Appended requested frame to global list.")
+
+    #     file_path = os.path.join(
+    #         os.path.dirname(__file__),
+    #         "requested_frames_pybullet.json"
+    #     )
+    #     json_dump(requested_frames, file_path)
+    #     print(f"RobotManager : [RobotManager] Dumped requested_frames to {file_path}")
+
+    # TODO: FIX THE CODE BELOW ###########################################################################################################
+
     def _on_message_realtime_mimic(self, msg: RealtimeMimicRequestMessage):
         robot_name = msg.robot_name
+
         print(f"RobotManager : [RobotManager] Received mimic request for robot '{robot_name}': {msg}")
         # if robot_name not in self.handlers:
         #     print(f"RobotManager : [RobotManager] No handler found for robot '{robot_name}'")
@@ -153,10 +190,10 @@ class CommunicationManager:
         # self._save_requested_frame(msg)
 
         # msg.requested_robot_frame = self._transform_incoming_requested_frame(msg.requested_robot_frame)
-        # ik_config = handler.handle_msg_request_ik_target(msg)
-        # # ik_config = handler.handle_msg_request_compas_fab_itter(msg)
-        # # ik_config = handler.handle_msg_request_recursive_solver(msg)
-        # # ik_config = handler.handle_msg_request(msg)
+        # ik_config = self.handler.handle_realtime_msg_request_ik_target(msg)
+        # ik_config = self.handler.handle_realtime_msg_request_compas_fab_itter(msg)
+        # ik_config = self.handler.handle_realtime_msg_request_recursive_solver(msg)
+        # ik_config = self.handler.handle_realtime_msg_request(msg)
 
         # #TODO: NEED TO TRANSFORM BACK TO ROBOT BASEFRAME, BUT JUST SEE IF IT PRINTS FIRST....
 
@@ -195,9 +232,9 @@ requested_frames = []
 
 if __name__ == "__main__":
     manager = CommunicationManager(project_name=PROJECT_NAME, robot_name=ROBOT_NAME, project_config_dict=PROJECT_CONFIG_DICT, broker=BROKER, mqtt_port=MQTT_PORT, backend_type=BACKEND_TYPE)
-    print("[RobotManager] Listening for mimic requests... (Press Ctrl+C to exit)")
+    print("[CommunicationManager] Listening for mimic requests... (Press Ctrl+C to exit)")
     try:
         while True:
             pass  # Keep the process alive
     except KeyboardInterrupt:
-        print("[RobotManager] Shutdown requested.")
+        print("[CommunicationManager] Shutdown requested.")
