@@ -39,6 +39,7 @@ import simpleaudio as sa
 
 #Custom Package Imports
 from robots.transformations.robot_transformations import RobotTransformationsFromObserved
+from scipy.spatial.transform import Rotation as R
 
 
 # Information Storage and Settings
@@ -91,16 +92,10 @@ SESION_DIR_NAME = "2025_anchor_block_test"
 """
 GeometryManager needs to make Init blocks based on the rigid body names and sizes.
 - It should also store a current geometry locations by name
-- Track the AnchorCube
+# - Track the AnchorCube
 - Upload changes to the Realtime Database.
-- Also store the transformatoins below.
+# - Also store the transformatoins below.
 """
-# GEO_TRANSFORMATIONS_DICT = PROJECT_CONFIG_DICT.get("geometry_transformations", {}) 
-# RHINO_TRANSFORMATIONS_DICT = PROJECT_CONFIG_DICT.get("rhino_transformations", {})
-# ACTIVE_MARKER_GEO_TRANSFORMATION_DATA = GEO_TRANSFORMATIONS_DICT.get("active_marker", {})
-# PASSIVE_MARKER_GEO_TRANSFORMATION_DATA = GEO_TRANSFORMATIONS_DICT.get("passive_marker", {})
-# ACTIVE_MARKER_TRANSFORMATION = Transformation.__from_data__(ACTIVE_MARKER_GEO_TRANSFORMATION_DATA)
-# PASSIVE_MARKER_GEO_TRANSFORMATION = Transformation.__from_data__(PASSIVE_MARKER_GEO_TRANSFORMATION_DATA)
 # 1) Navigate into your nested dict
 
 geo_all   = PROJECT_CONFIG_DICT.get("geometry_transformations", {})
@@ -128,6 +123,10 @@ try:
 except Exception:
     print("Failed to load 'geometry_transformations.rhino.active_marker' data—using identity transform")
     PASSIVE_MARKER_GEO_TRANSFORMATION = Transformation()
+
+PASSIVE_MARKER_CUBE_CENTER_OFFSET_MOTIVE = [-0.08, -0.16,  0.07]
+ACTIVE_MARKER_CUBE_CENTER_OFFSET_MOTIVE  = [-0.10, -0.17,  0.12]
+
 #TODO: THIS SHOULD BE IMPROVED FOR A GEOMETRY MANAGER
 
 # Storage Directories file names and paths
@@ -177,7 +176,12 @@ def receive_rigid_body_frame_TEST_Individual_writes(new_id, position, rotation):
     model_name = rigid_body_names.get(str(new_id), f"Unknown_{new_id}")
     marker_type = marker_types.get(str(new_id), "unknown")
 
+    if marker_type == "unknown":
+        print(f"Warning: Unknown marker type for rigid body ID {new_id}. Defaulting to 'unknown'.")
+        marker_type = "unknown"
+
     frame_info = {
+        "streaming_id": new_id,
         "model_name": model_name,
         "marker_type": marker_type,
         "timestamp": current_time,
@@ -195,7 +199,7 @@ def receive_rigid_body_frame_TEST_Individual_writes(new_id, position, rotation):
         }
     }
 
-    update_rigid_body_location_if_changed(model_name, frame_info["position"], frame_info["rotation"], marker_type, play_sound=PLAY_SOUND)
+    update_rigid_body_location_if_changed(model_name, new_id, frame_info["position"], frame_info["rotation"], marker_type, play_sound=PLAY_SOUND)
 
     # Write this frame to file immediately
     try:
@@ -208,7 +212,7 @@ def receive_rigid_body_frame_TEST_Individual_writes(new_id, position, rotation):
     except Exception as e:
         print(f"Error appending frame to file: {e}")
 
-def update_rigid_body_location_if_changed(model_name, current_position, current_rotation, marker_type, play_sound=False):
+def update_rigid_body_location_if_changed(model_name, streaming_id, current_position, current_rotation, marker_type, play_sound=False):
     global current_rigid_body_locations
 
     previous = current_rigid_body_locations.get(model_name)
@@ -232,10 +236,15 @@ def update_rigid_body_location_if_changed(model_name, current_position, current_
         current_rigid_body_locations[model_name] = {
             "position": current_position,
             "rotation": current_rotation,
-            "motive_frame": motive_frame.__data__,
-            "rhino_frame": rhino_frame.__data__,
-            "marker_type": marker_type
+            "motive_info_frame": motive_frame.__data__,
+            "marker_rhino_frame": rhino_frame.__data__,
+            "marker_type": marker_type,
+            "streaming_id": streaming_id
         }
+
+        cube_center_point_motive = apply_local_offset_to_cube_center_for_motive_data(current_position, current_rotation, marker_type)
+        if cube_center_point_motive:
+            current_rigid_body_locations[model_name]["cube_center_motive"] = cube_center_point_motive
 
         #TODO: Double check the time of transformation, because it returns oddly in 
         if (model_name != "Origin") \
@@ -245,10 +254,8 @@ def update_rigid_body_location_if_changed(model_name, current_position, current_
             print(f"[{time.strftime('%H:%M:%S')}] {model_name} position changed: {current_position}, rotation: {current_rotation}, marker type: {marker_type}")
             if marker_type == "active":
                 geo_frame = rhino_frame.transformed(ACTIVE_MARKER_GEO_TRANSFORMATION)
-                print(f"Transformation for active marker: {ACTIVE_MARKER_GEO_TRANSFORMATION}")
                 current_rigid_body_locations[model_name]["geometry_frame"] = geo_frame.__data__
             elif marker_type == "passive":
-                print(f"Transformation for passive marker: {PASSIVE_MARKER_GEO_TRANSFORMATION}")
                 geo_frame = rhino_frame.transformed(PASSIVE_MARKER_GEO_TRANSFORMATION)
                 current_rigid_body_locations[model_name]["geometry_frame"] = geo_frame.__data__
             else:
@@ -296,20 +303,23 @@ def update_rigid_body_location_if_changed(model_name, current_position, current_
         and (model_name != "UR20"):
             output_by_timestamp_data[model_name].append({
                 "timestamp": timestamp,
-                "position": current_position,
-                "rotation": current_rotation,
-                "motive_frame": motive_frame.__data__,
-                "rhino_frame": rhino_frame.__data__,
+                "streaming_id": streaming_id,
+                "marker_position": current_position,
+                "marker_rotation": current_rotation,
+                "motive_info_frame": motive_frame.__data__,
+                "marker_rhino_frame": rhino_frame.__data__,
                 "marker_type": marker_type,
-                "geometry_frame": geo_frame.__data__
+                "geometry_rhino_frame": geo_frame.__data__,
+                "cube_center_point_motive": cube_center_point_motive,
             })
         else:
             output_by_timestamp_data[model_name].append({
                 "timestamp": timestamp,
-                "position": current_position,
-                "rotation": current_rotation,
-                "motive_frame": motive_frame.__data__,
-                "rhino_frame": rhino_frame.__data__,
+                "streaming_id": streaming_id,
+                "marker_position": current_position,
+                "marker_rotation": current_rotation,
+                "motive_info_frame": motive_frame.__data__,
+                "marker_rhino_frame": rhino_frame.__data__,
                 "marker_type": marker_type
             })
 
@@ -343,6 +353,35 @@ def rotation_changed(rot1, rot2, angle_threshold_deg=1.0):
     angle_rad = 2 * math.acos(abs(dot))
     angle_deg = math.degrees(angle_rad)
     return angle_deg > angle_threshold_deg
+
+#TODO: Move to GeometryManager
+def apply_local_offset_to_cube_center_for_motive_data(raw_point, raw_rot, marker_type):
+    """
+    raw_point: dict {"x":…, "y":…, "z":…}
+    raw_rot:   dict {"x":…, "y":…, "z":…, "w":…}
+    """
+    if marker_type == "unique":
+        return None
+
+    q = Quaternion(raw_rot["w"], raw_rot["x"], raw_rot["y"], raw_rot["z"])
+
+    if marker_type == "active":
+        local_off = ACTIVE_MARKER_CUBE_CENTER_OFFSET_MOTIVE
+    elif marker_type == "passive":
+        local_off = PASSIVE_MARKER_CUBE_CENTER_OFFSET_MOTIVE
+    else:
+        raise ValueError(f"Unknown marker type: {marker_type}")
+
+    # rotate into world-space (using scipy as before)
+    rot = R.from_quat([q.x, q.y, q.z, q.w])
+    world_off = rot.apply(local_off)
+
+    # extract x,y,z from the input dict and add:
+    return {
+        "x": raw_point["x"] + world_off[0],
+        "y": raw_point["y"] + world_off[1],
+        "z": raw_point["z"] + world_off[2],
+    }
 
 #TODO : BELOW IS THE FUNCTIONS FOR CONVERTING TO RHINO FRAME FROM MOTIVE OUTPUT #######################################################################################################################################
 
