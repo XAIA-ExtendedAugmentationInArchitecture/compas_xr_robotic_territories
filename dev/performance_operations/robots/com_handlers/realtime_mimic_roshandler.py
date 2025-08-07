@@ -3,13 +3,15 @@ from compas_robots import Configuration
 from compas_fab.backends import RosClient
 from compas_xr.mqtt import RealtimeMimicRequestMessage
 from compas_xr.mqtt import RealtimeMimicResultMessage
-from control import fabrication as rtde #TODO: CHECK IF THIS IMPORT WORKS
+
+from ..control import fabrication as rtde
+
 import compas_rrc as rrc
 from compas.data import json_load, json_dump
 
 class RealtimeMimicROSHandler:
 
-    def __init__(self, robot_name, robot_ip, ros_ip='127.0.0.1', ros_port=9090):
+    def __init__(self, robot_name, robot_ip, tool_info_fp, additional_static_collision_meshes_fp=None, ros_ip='127.0.0.1', ros_port=9090):
         self.robot_name = robot_name
         self.robot_ip = robot_ip
         self.ros_client = RosClient(ros_ip, ros_port)
@@ -19,19 +21,59 @@ class RealtimeMimicROSHandler:
             raise ConnectionError(f"RealtimeMimicROSHandler: [{robot_name}] Could not connect to ROS at {ros_ip}:{ros_port}")
 
         self.robot = self._load_robot()
+        self._load_and_attach_tool(tool_info_fp)
+        if additional_static_collision_meshes_fp:
+            self.additional_static_collison_meshes = self._load_additional_static_collision_meshes(additional_static_collision_meshes_fp)
+        else:
+            self.additional_static_collison_meshes = None
+
         self.ik_solutions = []
         self._got_initial_config = False
         print(f"RealtimeMimicROSHandler : [{robot_name}] Handler initialized")
+
+    ####################################################################################################
+    # LOAD ROBOT
+    ####################################################################################################
 
     def _load_robot(self):
         robot = self.ros_client.load_robot(load_geometry=False, precision=12)
         robot.client = self.ros_client
         return robot
 
+    ####################################################################################################
+    # Attaching TOOLS and COLLION MESHES
+    ####################################################################################################
+
+    def _load_and_attach_tool(self, tool_info_fp):
+        if not tool_info_fp:
+            raise ValueError("Tool information file path is required.")
+
+        tool_info = json_load(tool_info_fp)
+        print(f"MIMICROSHANDLER: [{self.robot_name}] Loading tool from {tool_info}")
+
+    def _load_additional_static_collision_meshes(self, additional_static_collision_meshes_fp):
+        if not additional_static_collision_meshes_fp:
+            raise ValueError("Additional collision meshes file path is required.")
+        additional_meshes = json_load(additional_static_collision_meshes_fp)
+        print(f"MIMICROSHANDLER: [{self.robot_name}] Loading additional collision meshes from {additional_meshes}")
+        #TODO: Return static collision meshes.
+
+    ####################################################################################################
+    # METHODS FOR CHILD CLASSES.
+    ####################################################################################################    
+
     def _get_current_configuration(self):
         # This method should be implemented to get the current configuration of the robot
         # For example, using RTDE or another method to get the joint values
         raise NotImplementedError("This method should be implemented to get the current configuration of the robot.")
+
+    def _execute_motion(self, config: Configuration):
+        # print(f" RealtimeMimicROSHandler : [{self.robot_name}] (Sim) Executing: {config.joint_values}")
+        raise NotImplementedError("This method should be implemented to get the current configuration of the robot.")
+
+    ####################################################################################################
+    # MESSAGE HANDLERS
+    ####################################################################################################
 
     def handle_msg_request(self, msg: RealtimeMimicRequestMessage) -> Configuration:
         print(f"RealtimeMimicROSHandler : [{self.robot_name}] Handling request: {msg.message} from {msg.header.device_id}")
@@ -52,14 +94,11 @@ class RealtimeMimicROSHandler:
             print(f"RealtimeMimicROSHandler : [{self.robot_name}] IK computation failed: {e}")
             return None
 
-    def _execute_motion(self, config: Configuration):
-        print(f" RealtimeMimicROSHandler : [{self.robot_name}] (Sim) Executing: {config.joint_values}")
 
-
-class URRealtimeMimicHandler(RealtimeMimicROSHandler):
+class URRealtimeMimicHandlerROS(RealtimeMimicROSHandler):
     
-    def __init__(self, robot_name, robot_ip, ros_ip='127.0.0.1', ros_port=9090, speed=0.6, acceleration=0.1, radius=0.006, nowait=False):
-        super().__init__(robot_name, robot_ip, ros_ip, ros_port)
+    def __init__(self, robot_name, robot_ip,  tool_info_fp, additional_static_collision_meshes_fp=None, ros_ip='127.0.0.1', ros_port=9090, speed=0.6, acceleration=0.1, radius=0.006, nowait=False):
+        super().__init__(robot_name=robot_name, robot_ip=robot_ip,  tool_info_fp=tool_info_fp, additional_static_collision_meshes_fp=additional_static_collision_meshes_fp, ros_ip=ros_ip, ros_port=ros_port)
         self.speed = speed
         self.acceleration = acceleration
         self.radius = radius
@@ -78,7 +117,7 @@ class URRealtimeMimicHandler(RealtimeMimicROSHandler):
         # rtde.move_to_joints(config, self.speed, self.acceleration, nowait=self.nowait, ip=self.robot_ip)
         rtde.move_to_joints_TEST(config, self.speed, self.acceleration, nowait=self.nowait, ip=self.robot_ip)
 
-class ABBRealtimeMimicHandler(RealtimeMimicROSHandler):
+class ABBRealtimeMimicHandlerROS(RealtimeMimicROSHandler):
     
     def __init__(self, robot_name, robot_ip, abb_client, ros_ip='127.0.0.1', ros_port=9090, speed=100, nowait=False):
         super().__init__(robot_name, robot_ip, ros_ip, ros_port)

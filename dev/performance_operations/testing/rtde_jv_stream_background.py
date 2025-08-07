@@ -2,7 +2,7 @@ import threading
 import time
 import rtde_receive
 
-class JointCache:
+class RTDEJointValueStreamer:
     def __init__(self, robot_ip, poll_delay=0.001):
         self._rtde = rtde_receive.RTDEReceiveInterface(robot_ip)
         self._lock = threading.Lock()
@@ -37,7 +37,7 @@ if __name__ == "__main__":
     # Example usage
     # Make sure to replace "
 
-    cache = JointCache("192.168.1.10")
+    cache = RTDEJointValueStreamer("192.168.1.10")
     cache.start()
 
     # … elsewhere in your code …

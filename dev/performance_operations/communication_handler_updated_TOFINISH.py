@@ -3,7 +3,9 @@ from compas_eve.mqtt import MqttTransport
 from compas_xr.mqtt import RealtimeMimicRequestMessage, RealtimeMimicResultMessage, MimicTrajectoryRequestMessage, MimicTrajectoryResultMessage
 
 # from robots.com_handlers.realtime_mimic_roshandler import URRealtimeMimicHandler
-from robots.com_handlers.realtime_mimic_pbhandler import URRealtimeMimicHandlerPyB
+from robots.com_handlers.realtime_mimic_pbhandler import URRealtimeMimicHandlerPyB, ABBRealtimeMimicHandlerPyB #TODO: This needs to be wrapped into one handler for both Mimics
+from robots.com_handlers.realtime_mimic_roshandler import URRealtimeMimicHandlerROS, ABBRealtimeMimicHandlerROS #TODO: This needs to be wrapped into one handler for both Mimics
+
 from compas.data import json_load, json_dump
 import os
 
@@ -14,34 +16,33 @@ import os
 
 class CommunicationManager:
 
-    def __init__(self, project_name, robot_name, broker='localhost', mqtt_port=1883):
+    def __init__(self, project_name, robot_name, project_config_dict, broker='localhost', mqtt_port=1883, backend_type='PyBullet'):
         self.mqtt = MqttTransport(broker, mqtt_port)
         self.project_name = project_name
         self.robot_name = robot_name
 
-        self.script_dir = os.path.dirname(os.path.abspath(__file__))
-        self.project_fp_config = os.path.join(self.script_dir, "project_config.json")
-        self._project_config_dict = json_load(self.project_fp_config)
+        # self.script_dir = os.path.dirname(os.path.abspath(__file__))
+        # self.project_fp_config = os.path.join(self.script_dir, "project_config.json")
+        # self._project_config_dict = json_load(self.project_fp_config)
 
-        self._urdf_filepath = self._project_config_dict["urdf_fps"][robot_name]["urdf"]
-        self._srdf_filepath = self._project_config_dict["urdf_fps"][robot_name]["srdf"]
-
-        self.handler = self._load_handler(robot_name, self._urdf_filepath, self._srdf_filepath)
-
+        _urdf_filepath = project_config_dict["urdf_fps"][robot_name]["urdf"]
+        _srdf_filepath = project_config_dict["urdf_fps"][robot_name]["srdf"]
+        _robot_hardware_info = project_config_dict["robot_hardware_info"][robot_name]
+        self.handler = self._load_handler(robot_name, _urdf_filepath, _srdf_filepath, _robot_hardware_info, backend_type=backend_type)
 
         #Realtime Mimic Request and Result Handlers
-        realtime_mimic_result_topic = Topic(f"robotic_territories/real_time_mimic_result/{project_name}/{robot_name}", RealtimeMimicResultMessage) # TODO: Pull project name from config dir
+        realtime_mimic_result_topic = Topic(f"robotic_territories/real_time_mimic_result/{project_name}", RealtimeMimicResultMessage) # TODO: Pull project name from config dir
         self.realtime_publisher = Publisher(realtime_mimic_result_topic, transport=self.mqtt)
 
-        realtime_mimic_request_topic = Topic(f"robotic_territories/real_time_mimic_request/{project_name}/{robot_name}", RealtimeMimicRequestMessage) # TODO: Pull project name from config dir
+        realtime_mimic_request_topic = Topic(f"robotic_territories/real_time_mimic_request/{project_name}", RealtimeMimicRequestMessage) # TODO: Pull project name from config dir
         self.realtime_subscriber = Subscriber(realtime_mimic_request_topic, callback=self._on_message_realtime_mimic, transport=self.mqtt)
         self.realtime_subscriber.subscribe()
 
         #User Initiated Mimic Request and Result Handlers
-        user_initiated_mimic_result_topic = Topic(f"robotic_territories/mimic_result/{project_name}/{robot_name}", MimicTrajectoryResultMessage) # TODO: Pull project name from config dir
+        user_initiated_mimic_result_topic = Topic(f"robotic_territories/mimic_result/{project_name}", MimicTrajectoryResultMessage) # TODO: Pull project name from config dir
         self.user_initiated_publisher = Publisher(user_initiated_mimic_result_topic, transport=self.mqtt)
 
-        user_initiated_mimic_request_topic = Topic(f"robotic_territories/mimic_request/{project_name}/{robot_name}", MimicTrajectoryResultMessage) # TODO: Pull project name from config dir
+        user_initiated_mimic_request_topic = Topic(f"robotic_territories/mimic_request/{project_name}", MimicTrajectoryRequestMessage) # TODO: Pull project name from config dir
         self.user_initiated_subscriber = Subscriber(user_initiated_mimic_request_topic, callback=self._on_message_user_initiated_mimic, transport=self.mqtt)
         self.user_initiated_subscriber.subscribe()
 
@@ -49,10 +50,55 @@ class CommunicationManager:
 
     #TODO: ADD THE CORRECT TOOL AS AN ACM...
 
-    def _load_handler(self, robot_name, urdf_filepath, srdf_filepath):
+    def _load_handler(self, robot_name, urdf_filepath, srdf_filepath, robot_hardware_info_dict, backend_type='PyBullet'):
         if robot_name == "UR20" or robot_name == "UR31" or robot_name == "UR32":
-            #Load the information & Handler for UR robots
-            pass
+            if backend_type == 'PyBullet':
+                return URRealtimeMimicHandlerPyB(robot_name, 
+                                                 robot_ip=robot_hardware_info_dict["robot_ip"], 
+                                                 urdf_path=urdf_filepath, 
+                                                 srdf_path=srdf_filepath,
+                                                 speed=robot_hardware_info_dict["speed"],
+                                                 acceleration=robot_hardware_info_dict["acceleration"],
+                                                 radius=robot_hardware_info_dict["radius"],
+                                                 nowait=robot_hardware_info_dict["nowait"],
+                                                 tool_info_fp=robot_hardware_info_dict.get("tool_info_fp"),
+                                                 additional_static_collision_meshes_fp=robot_hardware_info_dict.get("additional_collison_meshes_fp"))
+            elif backend_type == 'ROS':
+                return URRealtimeMimicHandlerROS(robot_name, 
+                                                 robot_ip=robot_hardware_info_dict["robot_ip"], 
+                                                 ros_ip=robot_hardware_info_dict["ros_ip"],
+                                                 ros_port=robot_hardware_info_dict["ros_port"],
+                                                 speed=robot_hardware_info_dict["speed"],
+                                                 acceleration=robot_hardware_info_dict["acceleration"],
+                                                 radius=robot_hardware_info_dict["radius"],
+                                                 nowait=robot_hardware_info_dict["nowait"],
+                                                 tool_info_fp=robot_hardware_info_dict.get("tool_info_fp"),
+                                                 additional_static_collision_meshes_fp=robot_hardware_info_dict.get("additional_collison_meshes_fp"))
+            else:
+                raise ValueError(f"Unsupported backend type: {backend_type} for robot {robot_name}")
+        elif robot_name == "ABB1" or robot_name == "ABB2" or robot_name == "ABB_IRB4600LL" or robot_name == "ABB_IRB4600LL":
+            if backend_type == 'PyBullet':
+                return ABBRealtimeMimicHandlerPyB(robot_name, 
+                                                  robot_ip=robot_hardware_info_dict["robot_ip"], 
+                                                  urdf_path=urdf_filepath, 
+                                                  srdf_path=srdf_filepath,
+                                                  speed=robot_hardware_info_dict["speed"],
+                                                  nowait=robot_hardware_info_dict["nowait"],
+                                                  tool_info_fp=robot_hardware_info_dict.get("tool_info_fp"),
+                                                  additional_static_collision_meshes_fp=robot_hardware_info_dict.get("additional_attached_collison_meshes_fp"))
+            elif backend_type == 'ROS':
+                return ABBRealtimeMimicHandlerROS(robot_name, 
+                                                  robot_ip=robot_hardware_info_dict["robot_ip"], 
+                                                  abb_client=robot_hardware_info_dict["robot_ip"],
+                                                  ros_ip=robot_hardware_info_dict["ros_ip"],
+                                                  ros_port=robot_hardware_info_dict["ros_port"],
+                                                  speed=robot_hardware_info_dict["speed"],
+                                                  nowait=robot_hardware_info_dict["nowait"],
+                                                  tool_info_fp=robot_hardware_info_dict.get("tool_info_fp"),
+                                                  additional_static_collision_meshes_fp=robot_hardware_info_dict.get("additional_attached_collison_meshes_fp"))
+
+            else:
+                raise ValueError(f"Unsupported backend type: {backend_type} for robot {robot_name}")
         else:
             #Load the information & Handler for ABB robots
             pass
@@ -98,45 +144,57 @@ class CommunicationManager:
     
     def _on_message_realtime_mimic(self, msg: RealtimeMimicRequestMessage):
         robot_name = msg.robot_name
-        if robot_name not in self.handlers:
-            print(f"RobotManager : [RobotManager] No handler found for robot '{robot_name}'")
-            return
+        print(f"RobotManager : [RobotManager] Received mimic request for robot '{robot_name}': {msg}")
+        # if robot_name not in self.handlers:
+        #     print(f"RobotManager : [RobotManager] No handler found for robot '{robot_name}'")
+        #     return
 
-        handler = self.handlers[robot_name]
-        self._save_requested_frame(msg)
+        # handler = self.handlers[robot_name]
+        # self._save_requested_frame(msg)
 
-        msg.requested_robot_frame = self._transform_incoming_requested_frame(msg.requested_robot_frame)
-        ik_config = handler.handle_msg_request_ik_target(msg)
-        # ik_config = handler.handle_msg_request_compas_fab_itter(msg)
-        # ik_config = handler.handle_msg_request_recursive_solver(msg)
-        # ik_config = handler.handle_msg_request(msg)
+        # msg.requested_robot_frame = self._transform_incoming_requested_frame(msg.requested_robot_frame)
+        # ik_config = handler.handle_msg_request_ik_target(msg)
+        # # ik_config = handler.handle_msg_request_compas_fab_itter(msg)
+        # # ik_config = handler.handle_msg_request_recursive_solver(msg)
+        # # ik_config = handler.handle_msg_request(msg)
 
-        #TODO: NEED TO TRANSFORM BACK TO ROBOT BASEFRAME, BUT JUST SEE IF IT PRINTS FIRST....
+        # #TODO: NEED TO TRANSFORM BACK TO ROBOT BASEFRAME, BUT JUST SEE IF IT PRINTS FIRST....
 
-        if ik_config:
-            #TODO: UPDATE THE KEEPING TRACK OF THE MESSAGES
-            result = RealtimeMimicResultMessage(
-                robot_name=robot_name,
-                return_message=f"IK computed for {msg.message} with {robot_name} and an ik solution of {ik_config}",
-            )
-            self.publisher.publish(result)
-            print(f"RobotManager : [RobotManager] Published IK result for robot {robot_name}")
-        else:
-            print(f" RobotManager : [RobotManager] No result to publish for robot {robot_name}")
+        # if ik_config:
+        #     #TODO: UPDATE THE KEEPING TRACK OF THE MESSAGES
+        #     result = RealtimeMimicResultMessage(
+        #         robot_name=robot_name,
+        #         return_message=f"IK computed for {msg.message} with {robot_name} and an ik solution of {ik_config}",
+        #     )
+        #     self.publisher.publish(result)
+        #     print(f"RobotManager : [RobotManager] Published IK result for robot {robot_name}")
+        # else:
+        #     print(f" RobotManager : [RobotManager] No result to publish for robot {robot_name}")
 
-    def _on_message_user_initiated_mimic(self, msg: RealtimeMimicRequestMessage):
+    def _on_message_user_initiated_mimic(self, msg: MimicTrajectoryRequestMessage):
         print(f"RobotManager : [RobotManager] Received user-initiated mimic request: {msg}")
         return  #TODO: Implement user-initiated mimic request handling
 
     #TODO: Adjust code above ###########################################################################################################
 
-PROJECT_NAME = "robotic_territories_testing_base_frame" #TODO: Pull from config dir
-BROKER = "broker.hivemq.com" #TODO: Pull from config dir
-# BROKER = "localhost"
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_CONFIG_FP = os.path.join(SCRIPT_DIR, "project_config.json")
+PROJECT_CONFIG_DICT = json_load(PROJECT_CONFIG_FP)
+
+ROBOT_NAME = "UR20"
+
+MQTT_CONFIG = PROJECT_CONFIG_DICT["mqtt_config"]
+BROKER = MQTT_CONFIG["broker"]
+MQTT_PORT = MQTT_CONFIG["port"]
+
+PROJECT_NAME = PROJECT_CONFIG_DICT["project_name"]
+
+# BACKEND_TYPE = "PyBullet"  # or "ROS", depending on the backend you want to use
+BACKEND_TYPE = "ROS"
 requested_frames = []
 
 if __name__ == "__main__":
-    manager = CommunicationManager(PROJECT_NAME, broker=BROKER)
+    manager = CommunicationManager(project_name=PROJECT_NAME, robot_name=ROBOT_NAME, project_config_dict=PROJECT_CONFIG_DICT, broker=BROKER, mqtt_port=MQTT_PORT, backend_type=BACKEND_TYPE)
     print("[RobotManager] Listening for mimic requests... (Press Ctrl+C to exit)")
     try:
         while True:
