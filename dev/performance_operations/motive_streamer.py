@@ -20,8 +20,6 @@
 import sys
 import time
 from opti_track_dependencies.samples.NatNetClient import NatNetClient
-import opti_track_dependencies.samples.DataDescriptions
-import opti_track_dependencies.samples.MoCapData
 
 import time
 import json
@@ -36,10 +34,11 @@ from compas.geometry import Point, Quaternion, Frame, Transformation
 from compas.data import json_load, json_dump
 from scipy.spatial.transform import Rotation as R
 import simpleaudio as sa
+from scipy.spatial.transform import Rotation as R
 
 #Custom Package Imports
 from robots.transformations.robot_transformations import RobotTransformationsFromObserved
-from scipy.spatial.transform import Rotation as R
+from geometry.geometry_manager import GeometryManager
 
 
 # Information Storage and Settings
@@ -88,46 +87,15 @@ PROJECT_CONFIG_DICT = json_load(PROJECT_CONFIG_FP)
 OPTITRACK_INFO_DICT = PROJECT_CONFIG_DICT.get("optitrack_info", {})
 SESION_DIR_NAME = "2025_anchor_block_test"
 
-#TODO: THIS SHOULD BE IMPROVED FOR A GEOMETRY MANAGER
-"""
-GeometryManager needs to make Init blocks based on the rigid body names and sizes.
-- It should also store a current geometry locations by name
-# - Track the AnchorCube
-- Upload changes to the Realtime Database.
-# - Also store the transformatoins below.
-"""
-# 1) Navigate into your nested dict
-
-geo_all   = PROJECT_CONFIG_DICT.get("geometry_transformations", {})
-rhino_all = geo_all.get("rhino", {})
-
-# 2) Pull out the raw JSON data for each marker type
-active_data  = rhino_all.get("active_marker", {})
-passive_data = rhino_all.get("passive_marker", {})
-
-# 3) Warn if either is missing entirely
-if not active_data:
-    print("No 'geometry_transformations.rhino.active_marker' data—using identity transform")
-if not passive_data:
-    print("No 'geometry_transformations.rhino.passive_marker' data—using identity transform")
-
-# 4) Load via COMPAS’s Data API, or default to identity
-try:
-    ACTIVE_MARKER_GEO_TRANSFORMATION = Transformation.__from_data__(active_data)
-except Exception:
-    print("Failed to load 'geometry_transformations.rhino.active_marker' data—using identity transform")
-    ACTIVE_MARKER_GEO_TRANSFORMATION = Transformation()
-
-try:
-    PASSIVE_MARKER_GEO_TRANSFORMATION = Transformation.__from_data__(passive_data)
-except Exception:
-    print("Failed to load 'geometry_transformations.rhino.active_marker' data—using identity transform")
-    PASSIVE_MARKER_GEO_TRANSFORMATION = Transformation()
-
-PASSIVE_MARKER_CUBE_CENTER_OFFSET_MOTIVE = [-0.08, -0.16,  0.07]
-ACTIVE_MARKER_CUBE_CENTER_OFFSET_MOTIVE  = [-0.10, -0.17,  0.12]
-
-#TODO: THIS SHOULD BE IMPROVED FOR A GEOMETRY MANAGER
+#Geometry Manger Information
+BOX_SIZE = (0.3, 0.3, 0.3)  # Size of the boxes in meters
+geometry_manager = GeometryManager(
+    rigid_body_names,
+    marker_types,
+    BOX_SIZE[0],
+    BOX_SIZE[1],
+    BOX_SIZE[2]
+)
 
 # Storage Directories file names and paths
 BASE_DIR = os.path.join(SCRIPT_DIR, "recordings", "motive_recordings")
@@ -242,25 +210,14 @@ def update_rigid_body_location_if_changed(model_name, streaming_id, current_posi
             "streaming_id": streaming_id
         }
 
-        cube_center_point_motive = apply_local_offset_to_cube_center_for_motive_data(current_position, current_rotation, marker_type)
+        cube_center_point_motive = geometry_manager.apply_local_offset_to_cube_center_for_motive_data(current_position, current_rotation, marker_type)
         if cube_center_point_motive:
             current_rigid_body_locations[model_name]["cube_center_motive"] = cube_center_point_motive
 
-        #TODO: Double check the time of transformation, because it returns oddly in 
-        if (model_name != "Origin") \
-        and (model_name != "UR3Table") \
-        and (model_name != "ABBTable") \
-        and (model_name != "UR20"):
-            print(f"[{time.strftime('%H:%M:%S')}] {model_name} position changed: {current_position}, rotation: {current_rotation}, marker type: {marker_type}")
-            if marker_type == "active":
-                geo_frame = rhino_frame.transformed(ACTIVE_MARKER_GEO_TRANSFORMATION)
-                current_rigid_body_locations[model_name]["geometry_frame"] = geo_frame.__data__
-            elif marker_type == "passive":
-                geo_frame = rhino_frame.transformed(PASSIVE_MARKER_GEO_TRANSFORMATION)
-                current_rigid_body_locations[model_name]["geometry_frame"] = geo_frame.__data__
-            else:
-                print(f"[{time.strftime('%H:%M:%S')}] UNKNOWN MARKER TYPE for {model_name}: {marker_type}. No geometry update performed.")
-                return
+        #TODO: I think this transformation should work, but if we want to change it maybe think about how it is done for the Rhino Orientation of the Cube. 
+        geo_frame = geometry_manager.apply_transformation_for_rhino_geometry(model_name, rhino_frame, marker_type)
+        if geo_frame:
+            current_rigid_body_locations[model_name]["geometry_frame"] = geo_frame.__data__
 
         if (model_name == "UR20") or (model_name == "UR3Table") or (model_name == "ABBTable"):
             print(f"[{time.strftime('%H:%M:%S')}] Robot Position Changed: Robot {model_name} : current pos : {current_position}, current rotation : {current_rotation}")
@@ -288,7 +245,6 @@ def update_rigid_body_location_if_changed(model_name, streaming_id, current_posi
                         pass
                     wave_obj = sa.WaveObject.from_wave_file(robot_sound_path)
                     play_obj = wave_obj.play()
-                    # play_obj.wait_done() #todo: don't know if I need this see if it plays to the end without blocking.
                 except Exception as e:
                     print(f"Error playing sound: {e}")
 
@@ -296,11 +252,8 @@ def update_rigid_body_location_if_changed(model_name, streaming_id, current_posi
         if model_name not in output_by_timestamp_data:
             output_by_timestamp_data[model_name] = []
 
-        #TODO: Ugly, but should work I think... TEST ME PLEASE JOSEPH.
-        if (model_name != "Origin") \
-        and (model_name != "UR3Table") \
-        and (model_name != "ABBTable") \
-        and (model_name != "UR20"):
+        #TODO: Ugly, but works.
+        if (geo_frame is not None) and (cube_center_point_motive is not None):
             output_by_timestamp_data[model_name].append({
                 "timestamp": timestamp,
                 "streaming_id": streaming_id,
