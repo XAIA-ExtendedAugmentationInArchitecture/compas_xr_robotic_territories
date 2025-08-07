@@ -10,6 +10,9 @@ from compas_xr.mqtt import RealtimeMimicRequestMessage
 from ..control import fabrication as rtde #TODO: CHECK IF THIS IMPORT WORKS.
 import pybullet as pb
 
+#TODO: JOSEPH WORK SO HARD ON ME....
+#TODO: ALSO YOU SHOULD KEEP PybulletHandlers, and Check with RTDE for UR
+
 class RealtimeMimicPyBulletHandler:
 
     def __init__(self, robot_name, urdf_path, srdf_path=None):
