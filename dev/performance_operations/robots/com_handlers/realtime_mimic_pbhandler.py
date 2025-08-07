@@ -88,6 +88,9 @@ class RealtimeMimicPyBulletHandler:
         if not printed:
             print("No self-collisions detected.")
 
+
+    #TODO: SOLVER METHODS #########################################################################################################
+
     def handle_msg_request_recursive_solver(self, msg: RealtimeMimicRequestMessage) -> Configuration: #TODO: test run on the robot.
         """
         Checks recursively until it findes a valid IK that is collision free and returns it, but has a max attempt of 8. It returns the first solution without collision.
@@ -233,6 +236,7 @@ class RealtimeMimicPyBulletHandler:
             print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] IK computation failed: {e}")
             return None
 
+    #TODO: SOLVER METHODS ^^^^^^^^^^^^^^^^^ ########################################################################################
 
     def find_minimum_movement_config(self, start_config, candidate_configs):
         def joint_distance(c):
