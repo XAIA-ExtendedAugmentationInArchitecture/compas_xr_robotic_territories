@@ -25,6 +25,8 @@ import pybullet as pb
 import time
 from typing import List
 
+from compas_fab.robots import Tool, CollisionMesh
+
 class MimicPyBulletHandler:
 
     def __init__(self, robot_name, urdf_path, tool_info_fp, additional_static_collision_meshes_fp=None, srdf_path=None):
@@ -41,7 +43,7 @@ class MimicPyBulletHandler:
         self.robot = self._load_robot()
         self.semantics = self._load_semantics()
 
-        self._load_and_attach_tool(tool_info_fp)
+        self._load_and_attach_tool(tool_info_fp, self.robot)
         if additional_static_collision_meshes_fp:
             self.additional_static_collison_meshes = self._load_additional_static_collision_meshes(additional_static_collision_meshes_fp)
         else:
@@ -77,11 +79,20 @@ class MimicPyBulletHandler:
     # Attaching TOOLS and COLLION MESHES
     ####################################################################################################
 
-    def _load_and_attach_tool(self, tool_info_fp):
+    def _load_and_attach_tool(self, tool_info_fp, robot):
         if not tool_info_fp:
             raise ValueError("Tool information file path is required.")
 
         tool_info = json_load(tool_info_fp)
+        visual_mesh = tool_info.get("visual_mesh", None)
+        collision_mesh = tool_info.get("collision_mesh", None)
+        tcf_frame = tool_info.get("tcf", None)
+        if not visual_mesh or not collision_mesh or not tcf_frame:
+            raise ValueError("Tool information must contain 'visual_mesh' and 'collision_mesh' and 'tcf'.")
+
+        # collision_mesh = CollisionMesh(collision_mesh, "tool_cm")
+        tool = Tool(visual=visual_mesh, collision=collision_mesh, frame_in_tool0_frame=tcf_frame, connected_to="tool0")
+        robot.attach_tool(tool)
         print(f"MIMICPYBULLETHANDLER: [{self.robot_name}] Loading tool from {tool_info}")
 
     def _load_additional_static_collision_meshes(self, additional_attached_collision_meshes_fp):
@@ -312,7 +323,7 @@ class MimicPyBulletHandler:
         self.client.__exit__(None, None, None)
 
     ####################################################################################################
-    # MESSAGE HANDLERS
+    # MESSAGE HANDLERS RealtimeMimicResquestMessage
     ####################################################################################################
 
     def handle_realtime_msg_request_recursive_solver(self, msg: RealtimeMimicRequestMessage) -> Configuration: #TODO: test run on the robot.
@@ -499,7 +510,7 @@ class MimicPyBulletHandler:
         # remember and command (no servoj)
         self.realtime_mimic_ik_solutions.append(ik)
         # self._send_to_configuration(ik)   # uses your RTDE move_to_joints path
-        self._send_to_configuration_through_gate(ik)   # uses your RTDE move_to_joints path
+        #TODO: Comment me in if you want to run.... # self._send_to_configuration_through_gate(ik)   # uses your RTDE move_to_joints path
         return ik
 
     def handle_user_defined_msg_request(self, msg: RealtimeMimicRequestMessage) -> List[JointTrajectory]:
@@ -511,6 +522,11 @@ class MimicPyBulletHandler:
 
     # def handle_realtime_msg_request_servoj_gate(self, msg: RealtimeMimicRequestMessage) -> Configuration:
     #     raise NotImplementedError("This method should be implemented in child classes.")
+
+    ####################################################################################################
+    # MESSAGE HANDLERS MimicResquestMessage
+    ####################################################################################################
+
 
 
 
