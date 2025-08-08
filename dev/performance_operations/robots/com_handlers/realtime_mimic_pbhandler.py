@@ -4,6 +4,10 @@ from compas.data import json_dump, json_load
 from compas_fab.backends import PyBulletClient
 from compas_robots import Configuration
 from compas_fab.robots import JointTrajectory, JointTrajectoryPoint
+from compas_fab.backends.pybullet.exceptions import CollisionError
+
+from rtde_control import RTDEControlInterface as RTDEControl
+from rtde_receive import RTDEReceiveInterface as RTDEReceive
 
 from compas.geometry import Frame
 import compas_fab
@@ -14,11 +18,12 @@ from compas_xr.mqtt import RealtimeMimicRequestMessage
 from ..control import fabrication as rtde
 from ..control.joint_value_streamer import RTDEStateStreamer
 from ..control.joint_value_streamer import ABBStateStreamer
+from ..control.move_j_gate import MoveJGate
+from ..control.servo_gate import ServoJGate
 import pybullet as pb
 
 import time
 from typing import List
-
 
 class MimicPyBulletHandler:
 
@@ -44,6 +49,10 @@ class MimicPyBulletHandler:
 
         self.realtime_mimic_ik_solutions = []
         self._got_initial_config = False
+
+        self._prev_cfg_cache = None      # last safe Configuration to restore sim to
+        self._last_visual_step_t = 0.0   # throttle timestamp for sim stepping
+
         print(f"RealtimeMimicPyBulletHandler: [{robot_name}] Handler initialized")
 
     ####################################################################################################
@@ -146,6 +155,72 @@ class MimicPyBulletHandler:
 
         return self.find_minimum_movement_config(start_config, valid_configs)
 
+    def try_fast_ik(self, frame, start_config=None, do_collision_check=True, extra_seed=False, visual_hz=30):
+        """
+        Fast IK (single seed + optional last_good). On success, optionally mirror to sim,
+        throttled to `visual_hz` (default 30 Hz).
+        """
+        if start_config is None:
+            start_config = self._get_latest_joint_values_from_stream_as_configuration()
+
+        options = {"link_name": "tool0"}
+
+        def solve_once(seed):
+            if seed is None:
+                return None
+            try:
+                return self.robot.inverse_kinematics(
+                    frame_WCF=frame, start_configuration=seed, options=options
+                )
+            except StopIteration:
+                return None
+            except Exception:
+                return None
+
+        def collision_free(cfg):
+            if cfg is None or not do_collision_check:
+                return cfg is not None
+
+            restore_cfg = (self._get_latest_joint_values_from_stream_as_configuration()
+                        or getattr(self, "_prev_cfg_cache", None)
+                        or self.robot.zero_configuration())
+            try:
+                self.client.set_robot_configuration(self.robot, cfg)
+                try:
+                    self.client.check_robot_self_collision(self.robot)  # raises on collision
+                    collides = False
+                except Exception as e:
+                    collides = (e.__class__.__name__ == "CollisionError") or True
+            finally:
+                self.client.set_robot_configuration(self.robot, restore_cfg)
+                self._prev_cfg_cache = restore_cfg
+            return not collides
+
+        def maybe_visualize(cfg):
+            # throttle sim updates to avoid slowdown
+            now = time.perf_counter()
+            last = getattr(self, "_last_visual_step_t", 0.0)
+            if now - last >= 1.0 / max(1, visual_hz):
+                self.client.set_robot_configuration(self.robot, cfg)  # commit accepted IK to sim
+                self.client.step_simulation()                         # single step
+                self._last_visual_step_t = now
+
+        # Attempt 1: current joints seed
+        ik = solve_once(start_config)
+        if ik and collision_free(ik):
+            maybe_visualize(ik)
+            return ik
+
+        # Optional tiny fallback: last good IK seed
+        if extra_seed and self.realtime_mimic_ik_solutions:
+            ik = solve_once(self.realtime_mimic_ik_solutions[-1])
+            if ik and collision_free(ik):
+                maybe_visualize(ik)
+                return ik
+
+        print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] IK failed.")
+        return None
+
     def log_self_collisions(self, ignored_pairs=None, threshold=0.001):
         """Log all robot self-collisions within a given distance threshold,
         ignoring specific link pairs if provided.
@@ -225,6 +300,9 @@ class MimicPyBulletHandler:
         This method should be implemented to get the latest joint values from the RTDE or other streaming source.
         For example, using RTDEStateStreamer or ABBStateStreamer.
         """
+        raise NotImplementedError("This method should be implemented on the child classes.")
+
+    def _send_to_configuration_through_gate(self, config: Configuration):
         raise NotImplementedError("This method should be implemented on the child classes.")
 
     def shutdown(self):
@@ -388,6 +466,39 @@ class MimicPyBulletHandler:
             print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] IK computation failed: {e}")
             return None
 
+    def handle_realtime_msg_request_fastest_ik(self, msg: RealtimeMimicRequestMessage):
+        # pull the requested frame
+        frame = msg.requested_robot_frame
+
+        # choose a seed
+        if msg.initial_request:
+            # reset history on first call (optional)
+            self.realtime_mimic_ik_solutions = []
+
+        if msg.initial_request or not self.realtime_mimic_ik_solutions:
+            start_cfg = self._get_latest_joint_values_from_stream_as_configuration()
+            if start_cfg is None:
+                # rare fallback if stream isn't ready yet
+                start_cfg = self.robot.zero_configuration()
+        else:
+            start_cfg = self.realtime_mimic_ik_solutions[-1]
+
+        # fast IK: current-joints seed, optional single fallback (last good)
+        ik = self.try_fast_ik(
+            frame,
+            start_config=start_cfg,
+            do_collision_check=True,
+            extra_seed=True   # set False if you truly want only one seed
+        )
+        if ik is None:
+            return None  # try_fast_ik printed the single failure line
+
+        # remember and command (no servoj)
+        self.realtime_mimic_ik_solutions.append(ik)
+        # self._send_to_configuration(ik)   # uses your RTDE move_to_joints path
+        self._send_to_configuration_through_gate(ik)   # uses your RTDE move_to_joints path
+        return ik
+
     def handle_user_defined_msg_request(self, msg: RealtimeMimicRequestMessage) -> List[JointTrajectory]:
         """
         This method can be overridden by child classes to handle custom message requests.
@@ -407,7 +518,61 @@ class URMimicHandlerPyB(MimicPyBulletHandler):
         self.speed = speed
         self.acceleration = acceleration
         self.radius = radius
-        self.nowait = nowait     
+        self.nowait = nowait 
+
+        # persist RTDE connections once
+        self.rtde_ctrl = RTDEControl(self.robot_ip)
+        self.rtde_recv = RTDEReceive(self.robot_ip)
+
+        # # create one gate instance using your JSON speed/accel
+        # self.movej_gate = MoveJGate(
+        #     self.rtde_ctrl,
+        #     speed=self.speed,
+        #     accel=self.acceleration,
+        #     nowait=True,          # async so your loop doesn’t block
+        #     min_dt=0.18,          # ~5–6 Hz max send rate
+        #     min_dq=0.015          # ~0.86° deadband
+        # )
+    
+        # self.movej_gate = MoveJGate(
+        #     self.rtde_ctrl,
+        #     speed=self.speed,
+        #     accel=self.acceleration,
+        #     nowait=True,
+        #     min_dt=0.18,     # still used when blending can't flush yet
+        #     min_dq=0.015,
+        #     blend_radius=0.01,   # 10 mm is a good start
+        #     blend_batch=4,       # 3–5 points works well
+        #     blend_every=0.35     # flush ~3×/s
+        # )
+
+        #TODO: THIS WAS THE BEST......
+        self.movej_gate = MoveJGate(self.rtde_ctrl,
+            speed=self.speed, accel=0.9,
+            min_dt=999,            # disable single sends
+            min_dq=1e9,            # disable single sends
+            blend_radius=0.012,    # 12 mm blend
+            blend_batch=4,         # 3–5 points
+            blend_every=0.40       # ~2.5 Hz flush
+        )
+
+        # self.servo_gate = ServoJGate(
+        #     self.rtde_ctrl,
+        #     self.rtde_recv,
+        #     speed_cap=0.8,      # try 0.6–0.9
+        #     accel_cap=1.5,      # try 1.0–1.8
+        #     dt_nominal=1/125.0,
+        #     lookahead=0.10,
+        #     gain=280,
+        #     target_alpha=0.25,  # 0.2–0.35
+        #     k_speed=1.6,
+        #     tau=0.30,
+        #     cmd_alpha=0.35,
+        #     min_dt_send=0.010,  # ~100 Hz max; okay if your loop is slower
+        #     min_dq=0.0,
+        #     verbose=False
+        # )
+
         print(f"URRealtimeMimicHandlerPyB: [{robot_name}] UR handler initialized")
 
     ####################################################################################################
@@ -447,13 +612,18 @@ class URMimicHandlerPyB(MimicPyBulletHandler):
     def _send_to_target(self, frame: Frame):
         print(f"URRealtimeMimicHandlerPyB: [{self.robot_name}] (Sim) Executing UR motion to target frame: {frame}")
         # rtde.move_to_target(frame, self.speed, self.acceleration, nowait=self.nowait, ip=self.robot_ip)
-        # rtde.move_to_target(frame, self.speed, self.acceleration, nowait=True, ip=self.robot_ip)
-        rtde.move_to_target_TEST(frame, self.speed, self.acceleration, nowait=self.nowait, ip=self.robot_ip)
+        rtde.move_to_target(frame, self.speed, self.acceleration, nowait=True, ip=self.robot_ip)
+        # rtde.move_to_target_TEST(frame, self.speed, self.acceleration, nowait=self.nowait, ip=self.robot_ip)
 
     ####################################################################################################
     # Implemented through Streamer Class Interface
     ####################################################################################################
-    
+
+    def _send_to_configuration_through_gate(self, config: Configuration):
+        sent = self.movej_gate.maybe_send(config.joint_values)
+        if sent:
+            print(f"URRealtimeMimicHandlerPyB: [{self.robot_name}] moveJ sent (speed={self.speed}, accel={self.acceleration})")
+
     def _get_latest_joint_values_from_stream(self):
         state = self.robot_state_streamer.get_latest()
         if state:

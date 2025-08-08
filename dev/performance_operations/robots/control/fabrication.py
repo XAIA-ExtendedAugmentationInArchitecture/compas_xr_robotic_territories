@@ -10,7 +10,6 @@ from compas_fab.robots import to_degrees
 import math
 from compas_fab.robots import JointTrajectory
 
-
 def get_config(ip="127.0.0.1"):
     ur_r = RTDEReceive(ip)
     robot_joints = ur_r.getActualQ()

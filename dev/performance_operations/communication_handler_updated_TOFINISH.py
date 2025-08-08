@@ -99,7 +99,7 @@ class CommunicationManager:
             raise ValueError(f"Unsupported robot name: {robot_name}")
             pass
 
-    def _load_transformations_from_file(self, file_path, robot_name): #TODO: CHECK THESE TRANSFORMATOINS
+    def _load_transformations_from_file(self, file_path, robot_name):
         # Load the transformations from the JSON file
         all_robot_transforms = json_load(file_path)
         if robot_name not in all_robot_transforms:
@@ -189,8 +189,9 @@ class CommunicationManager:
         msg.requested_robot_frame = self._transform_requested_frame_from_ar_space_to_robot_space(msg.requested_robot_frame)
         # ik_config = self.handler.handle_realtime_msg_request_ik_target(msg)
         # ik_config = self.handler.handle_realtime_msg_request_compas_fab_itter(msg)
-        ik_config = self.handler.handle_realtime_msg_request_recursive_solver(msg)
+        # ik_config = self.handler.handle_realtime_msg_request_recursive_solver(msg)
         # ik_config = self.handler.handle_realtime_msg_request(msg)
+        ik_config = handler.handle_realtime_msg_request_fastest_ik(msg)
 
         #TODO: NEED TO TRANSFORM BACK TO ROBOT BASEFRAME, BUT JUST SEE IF IT PRINTS FIRST....
 
