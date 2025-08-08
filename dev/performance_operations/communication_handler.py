@@ -3,7 +3,7 @@ from compas_eve.mqtt import MqttTransport
 from compas_xr.mqtt import RealtimeMimicRequestMessage, RealtimeMimicResultMessage
 
 # from robots.com_handlers.realtime_mimic_roshandler import URRealtimeMimicHandler
-from robots.com_handlers.realtime_mimic_pbhandler import URRealtimeMimicHandlerPyB
+from robots.com_handlers.realtime_mimic_pbhandler import URMimicHandlerPyB
 from compas.data import json_load, json_dump
 import os
 
@@ -34,7 +34,7 @@ class RobotManager:
             # ),
             #TODO: TESTING BASE SLOW SPEED
             #TODO: update FP to the new relative path located to this.
-            "UR20": URRealtimeMimicHandlerPyB("UR20", "192.168.1.10", 
+            "UR20": URMimicHandlerPyB("UR20", "192.168.1.10", 
                                                 r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\scripts\urdf\ur_description\urdf\ur20.urdf",
                                                 r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\scripts\urdf\ur_description\urdf\ur20.srdf",
                                                 radius=0.015,

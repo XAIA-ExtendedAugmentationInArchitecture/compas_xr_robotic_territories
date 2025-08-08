@@ -20,7 +20,7 @@ import time
 from typing import List
 
 
-class RealtimeMimicPyBulletHandler:
+class MimicPyBulletHandler:
 
     def __init__(self, robot_name, urdf_path, tool_info_fp, additional_static_collision_meshes_fp=None, srdf_path=None):
         self.robot_name = robot_name
@@ -395,13 +395,13 @@ class RealtimeMimicPyBulletHandler:
         print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Handling user-defined request: {msg.message} from {msg.header.device_id}")
         raise NotImplementedError("This method should be implemented in child classes.")
 
-class URRealtimeMimicHandlerPyB(RealtimeMimicPyBulletHandler):
-
+class URMimicHandlerPyB(MimicPyBulletHandler):
 
     def __init__(self, robot_name, robot_ip, urdf_path, tool_info_fp, additional_static_collision_meshes_fp=None, srdf_path=None, speed=0.6, acceleration=0.1, radius=0.006, nowait=False):
         super().__init__(robot_name, urdf_path, tool_info_fp, additional_static_collision_meshes_fp, srdf_path=srdf_path)
 
         self.robot_state_streamer = RTDEStateStreamer(robot_ip=robot_ip, poll_delay=0.001)
+        self.robot_state_streamer.start()
 
         self.robot_ip = robot_ip
         self.speed = speed
@@ -409,6 +409,22 @@ class URRealtimeMimicHandlerPyB(RealtimeMimicPyBulletHandler):
         self.radius = radius
         self.nowait = nowait     
         print(f"URRealtimeMimicHandlerPyB: [{robot_name}] UR handler initialized")
+
+    ####################################################################################################
+    # Killing the streamer and closing the connection
+    ####################################################################################################
+
+    def __enter__(self): return self
+    def __exit__(self, exc_type, exc, tb): self.close()
+    def __del__(self):
+        try: self.close()
+        except: pass
+
+    def close(self):
+        try:
+            self.robot_state_streamer.stop()
+        finally:
+            print(f"URRealtimeMimicHandlerPyB: [{self.robot_name}] closed")
 
     ####################################################################################################
     # Implemented through standard RTDE functions in fabrication.py
@@ -472,12 +488,13 @@ class URRealtimeMimicHandlerPyB(RealtimeMimicPyBulletHandler):
 
 
 #TODO: FIX later (need to compute IK in PyBullet and send to ABB using ROSClient in RRC)
-class ABBRealtimeMimicHandlerPyB(RealtimeMimicPyBulletHandler):
+class ABBMimicHandlerPyB(MimicPyBulletHandler):
     
     def __init__(self, robot_name, robot_ip, abb_client_name, ros_ip='127.0.0.1', ros_port=9090, speed=100, nowait=False):
         super().__init__(robot_name, robot_ip, ros_ip, ros_port)
 
         self.robot_state_streamer = ABBStateStreamer(robot_ip=robot_ip, poll_delay=0.001)
+        self.robot_state_streamer.start()
 
         self.speed = speed
         self.nowait = nowait
@@ -488,6 +505,28 @@ class ABBRealtimeMimicHandlerPyB(RealtimeMimicPyBulletHandler):
         #TODO: CHECK NAME '/robLL_track' IS CORRECT
         self.abb = rrc.AbbClient(self.ros_rrc, abb_client_name)
         print(f"ABBRealtimeMimicHandler: [{robot_name}] Connected to ABB controller via RRC")
+
+    ####################################################################################################
+    # Killing the streamer and closing the connection
+    ####################################################################################################
+
+    def __enter__(self): return self
+    def __exit__(self, exc_type, exc, tb): self.close()
+    def __del__(self):
+        try: self.close()
+        except: pass
+
+    def close(self):
+        try:
+            self.robot_state_streamer.stop()
+            self.ros_rrc.close()
+            self.ros_rrc.terminate()
+        finally:
+            print(f"ABBRealtimeMimicHandler: [{self.robot_name}] closed")
+
+    ####################################################################################################
+    # Execution
+    ####################################################################################################
 
     def _get_current_configuration(self):
         robot_joints, _ = self.abb.send_and_wait(rrc.GetJoints())
@@ -508,9 +547,4 @@ class ABBRealtimeMimicHandlerPyB(RealtimeMimicPyBulletHandler):
     def _send_to_target(self, frame: Frame):
         raise NotImplementedError("ABBRealtimeMimicHandlerPyB : WIP - Target frame motion not implemented yet.")
         print(f"URRealtimeMimicHandlerPyB: [{self.robot_name}] (Sim) Executing UR motion to target frame: {frame}")
-
-    def close(self):
-        self.ros_rrc.close()
-        self.ros_rrc.terminate()
-        print(f"[{self.robot_name}] ABB RRC connection closed")
 

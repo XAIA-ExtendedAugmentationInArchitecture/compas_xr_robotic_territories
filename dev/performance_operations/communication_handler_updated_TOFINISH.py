@@ -3,13 +3,13 @@ from compas_eve.mqtt import MqttTransport
 from compas_xr.mqtt import RealtimeMimicRequestMessage, RealtimeMimicResultMessage, MimicTrajectoryRequestMessage, MimicTrajectoryResultMessage
 
 # from robots.com_handlers.realtime_mimic_roshandler import URRealtimeMimicHandler
-from robots.com_handlers.realtime_mimic_pbhandler import URRealtimeMimicHandlerPyB, ABBRealtimeMimicHandlerPyB #TODO: This needs to be wrapped into one handler for both Mimics
+from robots.com_handlers.realtime_mimic_pbhandler import URMimicHandlerPyB, ABBMimicHandlerPyB #TODO: This needs to be wrapped into one handler for both Mimics
 from robots.com_handlers.realtime_mimic_roshandler import URMimicHandlerROS, ABBMimicHandlerROS #TODO: This needs to be wrapped into one handler for both Mimics
 
 from compas.data import json_load, json_dump
 import os
 
-#TODO: FIX ME JOSEPH.
+#TODO: FIX ME JOSEPH. START PLANNING....
 
 class CommunicationManager:
 
@@ -49,7 +49,7 @@ class CommunicationManager:
     def _load_handler(self, robot_name, urdf_filepath, srdf_filepath, robot_hardware_info_dict, backend_type='PyBullet'):
         if robot_name == "UR20" or robot_name == "UR31" or robot_name == "UR32":
             if backend_type == 'PyBullet':
-                return URRealtimeMimicHandlerPyB(robot_name, 
+                return URMimicHandlerPyB(robot_name, 
                                                  robot_ip=robot_hardware_info_dict["robot_ip"], 
                                                  urdf_path=urdf_filepath, 
                                                  srdf_path=srdf_filepath,
@@ -74,7 +74,7 @@ class CommunicationManager:
                 raise ValueError(f"Unsupported backend type: {backend_type} for robot {robot_name}")
         elif robot_name == "ABB1" or robot_name == "ABB2" or robot_name == "ABB_IRB4600LL" or robot_name == "ABB_IRB4600LL":
             if backend_type == 'PyBullet':
-                return ABBRealtimeMimicHandlerPyB(robot_name, 
+                return ABBMimicHandlerPyB(robot_name, 
                                                   robot_ip=robot_hardware_info_dict["robot_ip"], 
                                                   urdf_path=urdf_filepath, 
                                                   srdf_path=srdf_filepath,
@@ -99,7 +99,7 @@ class CommunicationManager:
             raise ValueError(f"Unsupported robot name: {robot_name}")
             pass
 
-    def _load_transformations_from_file(self, file_path, robot_name): #TODO: Fix Transformation file path
+    def _load_transformations_from_file(self, file_path, robot_name): #TODO: CHECK THESE TRANSFORMATOINS
         # Load the transformations from the JSON file
         all_robot_transforms = json_load(file_path)
         if robot_name not in all_robot_transforms:
@@ -182,31 +182,28 @@ class CommunicationManager:
         robot_name = msg.robot_name
 
         print(f"RobotManager : [RobotManager] Received mimic request for robot '{robot_name}': {msg}")
-        # if robot_name not in self.handlers:
-        #     print(f"RobotManager : [RobotManager] No handler found for robot '{robot_name}'")
-        #     return
 
-        # handler = self.handlers[robot_name]
+        handler = self.handler
         # self._save_requested_frame(msg)
 
-        # msg.requested_robot_frame = self._transform_incoming_requested_frame(msg.requested_robot_frame)
+        msg.requested_robot_frame = self._transform_requested_frame_from_ar_space_to_robot_space(msg.requested_robot_frame)
         # ik_config = self.handler.handle_realtime_msg_request_ik_target(msg)
         # ik_config = self.handler.handle_realtime_msg_request_compas_fab_itter(msg)
-        # ik_config = self.handler.handle_realtime_msg_request_recursive_solver(msg)
+        ik_config = self.handler.handle_realtime_msg_request_recursive_solver(msg)
         # ik_config = self.handler.handle_realtime_msg_request(msg)
 
-        # #TODO: NEED TO TRANSFORM BACK TO ROBOT BASEFRAME, BUT JUST SEE IF IT PRINTS FIRST....
+        #TODO: NEED TO TRANSFORM BACK TO ROBOT BASEFRAME, BUT JUST SEE IF IT PRINTS FIRST....
 
-        # if ik_config:
-        #     #TODO: UPDATE THE KEEPING TRACK OF THE MESSAGES
-        #     result = RealtimeMimicResultMessage(
-        #         robot_name=robot_name,
-        #         return_message=f"IK computed for {msg.message} with {robot_name} and an ik solution of {ik_config}",
-        #     )
-        #     self.publisher.publish(result)
-        #     print(f"RobotManager : [RobotManager] Published IK result for robot {robot_name}")
-        # else:
-        #     print(f" RobotManager : [RobotManager] No result to publish for robot {robot_name}")
+        if ik_config:
+            #TODO: UPDATE THE KEEPING TRACK OF THE MESSAGES
+            result = RealtimeMimicResultMessage(
+                robot_name=robot_name,
+                return_message=f"IK computed for {msg.message} with {robot_name} and an ik solution of {ik_config}",
+            )
+            self.realtime_publisher.publish(result)
+            print(f"RobotManager : [RobotManager] Published IK result for robot {robot_name}")
+        else:
+            print(f" RobotManager : [RobotManager] No result to publish for robot {robot_name}")
 
     def _on_message_user_initiated_mimic(self, msg: MimicTrajectoryRequestMessage):
         print(f"RobotManager : [RobotManager] Received user-initiated mimic request: {msg}")
@@ -226,8 +223,8 @@ MQTT_PORT = MQTT_CONFIG["port"]
 
 PROJECT_NAME = PROJECT_CONFIG_DICT["project_name"]
 
-# BACKEND_TYPE = "PyBullet"  # or "ROS", depending on the backend you want to use
-BACKEND_TYPE = "ROS"
+BACKEND_TYPE = "PyBullet"  # or "ROS", depending on the backend you want to use
+# BACKEND_TYPE = "ROS"
 requested_frames = []
 
 if __name__ == "__main__":

@@ -85,7 +85,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_CONFIG_FP = os.path.join(SCRIPT_DIR, "project_config.json")
 PROJECT_CONFIG_DICT = json_load(PROJECT_CONFIG_FP)
 OPTITRACK_INFO_DICT = PROJECT_CONFIG_DICT.get("optitrack_info", {})
-SESION_DIR_NAME = "2025_anchor_block_test"
+SESION_DIR_NAME = "2025_scripted_policy_rl_test"
 
 #Geometry Manger Information
 BOX_SIZE = (0.3, 0.3, 0.3)  # Size of the boxes in meters
