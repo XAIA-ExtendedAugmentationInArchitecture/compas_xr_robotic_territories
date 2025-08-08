@@ -302,6 +302,9 @@ class MimicPyBulletHandler:
         """
         raise NotImplementedError("This method should be implemented on the child classes.")
 
+    # def  _send_to_configuration_through_servoj_gate(self, config: Configuration):
+    #     raise NotImplementedError("This method should be implemented on the child classes.")
+
     def _send_to_configuration_through_gate(self, config: Configuration):
         raise NotImplementedError("This method should be implemented on the child classes.")
 
@@ -506,6 +509,11 @@ class MimicPyBulletHandler:
         print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Handling user-defined request: {msg.message} from {msg.header.device_id}")
         raise NotImplementedError("This method should be implemented in child classes.")
 
+    # def handle_realtime_msg_request_servoj_gate(self, msg: RealtimeMimicRequestMessage) -> Configuration:
+    #     raise NotImplementedError("This method should be implemented in child classes.")
+
+
+
 class URMimicHandlerPyB(MimicPyBulletHandler):
 
     def __init__(self, robot_name, robot_ip, urdf_path, tool_info_fp, additional_static_collision_meshes_fp=None, srdf_path=None, speed=0.6, acceleration=0.1, radius=0.006, nowait=False):
@@ -547,31 +555,31 @@ class URMimicHandlerPyB(MimicPyBulletHandler):
         # )
 
         #TODO: THIS WAS THE BEST......
-        self.movej_gate = MoveJGate(self.rtde_ctrl,
-            speed=self.speed, accel=0.9,
-            min_dt=999,            # disable single sends
-            min_dq=1e9,            # disable single sends
-            blend_radius=0.012,    # 12 mm blend
-            blend_batch=4,         # 3–5 points
-            blend_every=0.40       # ~2.5 Hz flush
-        )
-
-        # self.servo_gate = ServoJGate(
-        #     self.rtde_ctrl,
-        #     self.rtde_recv,
-        #     speed_cap=0.8,      # try 0.6–0.9
-        #     accel_cap=1.5,      # try 1.0–1.8
-        #     dt_nominal=1/125.0,
-        #     lookahead=0.10,
-        #     gain=280,
-        #     target_alpha=0.25,  # 0.2–0.35
-        #     k_speed=1.6,
-        #     tau=0.30,
-        #     cmd_alpha=0.35,
-        #     min_dt_send=0.010,  # ~100 Hz max; okay if your loop is slower
-        #     min_dq=0.0,
-        #     verbose=False
+        # self.movej_gate = MoveJGate(self.rtde_ctrl,
+        #     speed=self.speed, accel=0.9,
+        #     min_dt=999,            # disable single sends
+        #     min_dq=1e9,            # disable single sends
+        #     blend_radius=0.012,    # 12 mm blend
+        #     blend_batch=4,         # 3–5 points
+        #     blend_every=0.40       # ~2.5 Hz flush
         # )
+
+        self.servo_gate = ServoJGate(
+            rtde_ctrl=self.rtde_ctrl,
+            rtde_recv=self.rtde_recv,
+            speed_cap=max(0.4, min(0.9, self.speed if self.speed else 0.8)),  # rad/s
+            accel_cap=max(0.8, min(1.8, self.acceleration if self.acceleration else 1.5)),  # rad/s^2
+            dt_nominal=1/125.0,
+            lookahead=0.10,
+            gain=280,
+            target_alpha=0.25,   # smoothing on targets
+            k_speed=1.6,         # adaptive speed scaling
+            tau=0.30,            # accel ≈ speed / tau
+            cmd_alpha=0.35,      # smoothing on caps
+            min_dt_send=0.010,   # don’t spam faster than 100 Hz
+            min_dq=0.0,
+            verbose=False
+        )
 
         print(f"URRealtimeMimicHandlerPyB: [{robot_name}] UR handler initialized")
 
@@ -619,10 +627,56 @@ class URMimicHandlerPyB(MimicPyBulletHandler):
     # Implemented through Streamer Class Interface
     ####################################################################################################
 
+    #TODO: TESTING BIG TIME
+    def handle_realtime_msg_request_servoj_gate(self, msg: RealtimeMimicRequestMessage):
+        """Compute IK fast and stream joints via servoj (no threads)."""
+        frame = msg.requested_robot_frame
+
+        # reset history on first call
+        if msg.initial_request:
+            self.realtime_mimic_ik_solutions = []
+
+        # choose seed: current joints if no history, else last good
+        if msg.initial_request or not self.realtime_mimic_ik_solutions:
+            start_cfg = self._get_latest_joint_values_from_stream_as_configuration()
+            if start_cfg is None:
+                start_cfg = self.robot.zero_configuration()
+        else:
+            start_cfg = self.realtime_mimic_ik_solutions[-1]
+
+        # fast IK (single seed + optional fallback); 30 Hz sim mirror inside
+        ik = self.try_fast_ik(frame,
+                            start_config=start_cfg,
+                            do_collision_check=True,
+                            extra_seed=True,
+                            visual_hz=30)
+
+        if ik:
+            # remember and command through servoj
+            self.realtime_mimic_ik_solutions.append(ik)
+            self.servo_gate.set_target(ik.joint_values)
+            self.servo_gate.tick()
+            return ik
+
+        # IK failed: keep feeding servo with last known good (or current measured)
+        if self.realtime_mimic_ik_solutions:
+            self.servo_gate.set_target(self.realtime_mimic_ik_solutions[-1].joint_values)
+        else:
+            q = self._get_latest_joint_values_from_stream()
+            if q is not None:
+                self.servo_gate.set_target(q)
+        self.servo_gate.tick()
+        return None
+
     def _send_to_configuration_through_gate(self, config: Configuration):
         sent = self.movej_gate.maybe_send(config.joint_values)
         if sent:
             print(f"URRealtimeMimicHandlerPyB: [{self.robot_name}] moveJ sent (speed={self.speed}, accel={self.acceleration})")
+
+    def _send_to_configuration_through_servoj_gate(self, config: Configuration):
+        # Stream smoothed joints via servoj, no threads, non-blocking
+        self.servo_gate.set_target(config.joint_values)
+        self.servo_gate.tick()
 
     def _get_latest_joint_values_from_stream(self):
         state = self.robot_state_streamer.get_latest()

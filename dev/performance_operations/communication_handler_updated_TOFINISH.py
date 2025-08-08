@@ -191,7 +191,8 @@ class CommunicationManager:
         # ik_config = self.handler.handle_realtime_msg_request_compas_fab_itter(msg)
         # ik_config = self.handler.handle_realtime_msg_request_recursive_solver(msg)
         # ik_config = self.handler.handle_realtime_msg_request(msg)
-        ik_config = handler.handle_realtime_msg_request_fastest_ik(msg)
+        # ik_config = handler.handle_realtime_msg_request_fastest_ik(msg)
+        ik_config = handler.handle_realtime_msg_request_servoj_gate(msg)
 
         #TODO: NEED TO TRANSFORM BACK TO ROBOT BASEFRAME, BUT JUST SEE IF IT PRINTS FIRST....
 
