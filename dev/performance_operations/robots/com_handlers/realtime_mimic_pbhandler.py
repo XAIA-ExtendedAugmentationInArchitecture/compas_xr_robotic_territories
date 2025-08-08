@@ -594,10 +594,16 @@ class URMimicHandlerPyB(MimicPyBulletHandler):
         except: pass
 
     def close(self):
-        try:
-            self.robot_state_streamer.stop()
-        finally:
-            print(f"URRealtimeMimicHandlerPyB: [{self.robot_name}] closed")
+        # stop streamer
+        try: self.robot_state_streamer.stop()
+        except: pass
+        # stop servoj cleanly
+        try: self.servo_gate.stop()
+        except: pass
+        # stop any running script on controller (safe to call)
+        try: self.rtde_ctrl.stopScript()
+        except: pass
+        print(f"URRealtimeMimicHandlerPyB: [{self.robot_name}] closed")
 
     ####################################################################################################
     # Implemented through standard RTDE functions in fabrication.py
