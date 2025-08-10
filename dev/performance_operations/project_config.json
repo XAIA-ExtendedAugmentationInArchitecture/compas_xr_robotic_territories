@@ -36,8 +36,10 @@
         "UR20": {
             "robot_name": "UR20",
             "robot_ip" : "192.168.1.10",
+            "group": "manipulator",
             "speed": 0.9,
             "acceleration":1.2,
+            "vacum_io": "0",
             "radius":0.006,
             "nowait": true,
             "ros_ip": "127.0.0.1",

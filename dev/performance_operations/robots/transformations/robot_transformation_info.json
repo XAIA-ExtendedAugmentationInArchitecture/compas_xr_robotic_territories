@@ -112,25 +112,25 @@
         },
         "static": {
             "urdf_base_frame": {
+                "dtype": "compas.geometry/Frame",
+                "guid": "fca6cdc5-beac-4e42-a9ff-9764b5b4f3fa",
                 "data": {
-                    "point": [
-                        0.0,
-                        0.0,
-                        0.0
-                    ],
-                    "xaxis": [
+                    "yaxis": [
                         0.0,
                         1.0,
                         0.0
                     ],
-                    "yaxis": [
-                        -1.0,
+                    "xaxis": [
+                        1.0,
+                        0.0,
+                        0.0
+                    ],
+                    "point": [
+                        0.0,
                         0.0,
                         0.0
                     ]
-                },
-                "dtype": "compas.geometry/Frame",
-                "guid": "62498933-4a95-4f8f-bce8-6070ffa8353c"
+                }
             }
         }
     },

@@ -9,11 +9,11 @@ from compas_fab.backends.pybullet.exceptions import CollisionError
 from rtde_control import RTDEControlInterface as RTDEControl
 from rtde_receive import RTDEReceiveInterface as RTDEReceive
 
-from compas.geometry import Frame
+from compas.geometry import Frame, Quaternion
 import compas_fab
 import compas_rrc as rrc
 
-from compas_xr.mqtt import RealtimeMimicRequestMessage, MimicTrajectoryRequestMessage
+from compas_xr.mqtt import RealtimeMimicRequestMessage, MimicTrajectoryRequestMessage, ExecuteMimicTrajectoryRequestMessage
 
 from ..control import fabrication as rtde
 from ..control.joint_value_streamer import RTDEStateStreamer
@@ -23,15 +23,20 @@ from ..control.servo_gate import ServoJGate
 import pybullet as pb
 
 import time
-from typing import List
+from typing import List, Optional
+import math
+import numpy as np
 
 from compas_fab.robots import Tool, CollisionMesh
+from compas_fab.backends.pybullet.planner import PyBulletPlanner
+
+from pybullet_planning import plan_joint_motion, set_joint_positions
 
 class MimicPyBulletHandler:
 
-    def __init__(self, robot_name, urdf_path, tool_info_fp, additional_static_collision_meshes_fp=None, srdf_path=None):
+    def __init__(self, robot_name, urdf_path, tool_info_fp, additional_static_collision_meshes_fp=None, group="manipulator", srdf_path=None):
         self.robot_name = robot_name
-
+        
         self.urdf_path = os.path.normpath(urdf_path)
         if srdf_path:
             self.srdf_path = os.path.normpath(srdf_path)
@@ -48,6 +53,8 @@ class MimicPyBulletHandler:
             self.additional_static_collison_meshes = self._load_additional_static_collision_meshes(additional_static_collision_meshes_fp)
         else:
             self.additional_static_collison_meshes = None
+
+        self.group = group
 
         self.realtime_mimic_ik_solutions = []
         self._got_initial_config = False
@@ -364,8 +371,268 @@ class MimicPyBulletHandler:
                 print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Error finding IK for frame {idx}: {e}")
                 return None
         return configurations
-        
 
+    def _plan_trajectories_for_user_initiated_request(self, configurations: List[Configuration]) -> List[JointTrajectory]:
+
+        if not configurations:
+            print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] No configurations provided.")
+            return []
+
+        # Start from current robot state
+        start_config = self._get_latest_joint_values_from_stream_as_configuration()
+        if start_config is None:
+            print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Could not read current joint state.")
+            return []
+
+        trajectories: List[JointTrajectory] = []
+        prev = start_config
+
+        for i, goal in enumerate(configurations):
+            try:
+                traj = self._plan_free_motion_trajectory_pybullet_planning_test(prev, goal)
+            except Exception as e:
+                print(
+                    f"RealtimeMimicPyBulletHandler: [{self.robot_name}] "
+                    f"Error planning trajectory leg {i} from {prev} to {goal}: {e}"
+                )
+                return []  # keep return type consistent
+
+            if not traj:
+                print(
+                    f"RealtimeMimicPyBulletHandler: [{self.robot_name}] "
+                    f"Planner returned None for leg {i} ({prev} -> {goal})."
+                )
+                return []
+
+            trajectories.append(traj)
+            prev = goal  # next leg starts where this one ends
+
+        #TODO: TESTING THIS FOR NOW....
+        json_dump(trajectories, fp=r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\performance_operations\testing\random_data_saves\test_trajectory_pybullet_planning.json", pretty=True)
+        return trajectories
+
+    def _plan_free_motion_trajectory_old(self, start_config: Configuration, goal_config: Configuration, num_steps=10) -> JointTrajectory:
+        
+        if start_config is None or goal_config is None:
+            raise ValueError("Start and end configurations must be provided.")
+        
+        # Best-practice: build constraints from a Configuration
+        goal_constraints = self.robot.constraints_from_configuration(
+            goal_config, group=self.group,
+            tolerances_above= self._generate_default_tolerances(self.robot.get_configurable_joints(self.group)),
+            tolerances_below=self._generate_default_tolerances(self.robot.get_configurable_joints(self.group))
+        )
+
+        options = dict(
+            max_planning_time=5.0,  # seconds
+            # Optional (PyBullet usually supports these):
+            resolution=0.01,        # joint-space interpolation resolution (rad)
+            smooth_iterations=50,   # post-smoothing in pybullet_planning
+        )
+
+        traj = self.robot.plan_motion(
+            goal_constraints,
+            start_configuration=start_config,
+            group=self.group
+        )
+        #     options=options
+        # )
+        return traj
+
+    def _plan_free_motion_trajectory_pybullet_planning_test(self, start_config, goal_config, num_steps=10):
+        if start_config is None or goal_config is None:
+            raise ValueError("Start and end configurations must be provided.")
+
+        # --- 1) pick the robot body (simplest heuristic: body with most joints)
+        if pb.getNumBodies() == 0:
+            print(f"[{self.robot_name}] No bodies in PyBullet world.")
+            return None
+        body_id = max(range(pb.getNumBodies()), key=lambda i: pb.getNumJoints(i))
+
+        # --- 2) joint names -> indices (fresh each call; tiny overhead, very simple)
+        name_to_idx = {pb.getJointInfo(body_id, j)[1].decode(): j
+                    for j in range(pb.getNumJoints(body_id))}
+        group_joint_names = self.robot.get_configurable_joint_names(self.group)
+        try:
+            joint_ids = [name_to_idx[n] for n in group_joint_names]
+        except KeyError as e:
+            missing = str(e).strip("'")
+            print(f"[{self.robot_name}] Joint '{missing}' not found in PyBullet. "
+                f"Available: {list(name_to_idx.keys())}")
+            return None
+
+        # --- 3) (optional) quick limits sanity
+        if not self._is_valid(start_config):
+            print(f"[{self.robot_name}] Start configuration violates limits.")
+            return None
+        if not self._is_valid(goal_config):
+            print(f"[{self.robot_name}] Goal configuration violates limits.")
+            return None
+
+        # --- 4) mirror start state into sim (helps collision queries & planning)
+        set_joint_positions(body_id, joint_ids, list(start_config.joint_values))
+
+        # --- 5) plan with pybullet_planning (RRT-Connect style)
+        path = plan_joint_motion(
+            body=body_id,
+            joints=joint_ids,
+            end_conf=list(goal_config.joint_values),   # radians, same order as group_joint_names
+            restarts=2,
+            iterations=4000,
+            obstacles=[],                              # todo: ADD COLLISION OBJECTS IF YOU WANT....
+        )
+        if path is None:
+            print(f"[{self.robot_name}] RRT failed: no path.")
+            return None
+
+        # --- 6) wrap as compas_fab JointTrajectory (so your calling code stays the same)
+        traj_points = []
+        t = 0.0
+        for q in path:
+            traj_points.append(JointTrajectoryPoint(joint_values=list(q), joint_types=self.robot.get_configurable_joint_types(), joint_names=self.robot.get_configurable_joint_names()))
+            t += 0.02
+        traj = JointTrajectory(traj_points, self.robot.get_configurable_joint_names(), start_config) #TODO: ADD ATTACHED COLLISION MESH HERE.
+        return traj
+
+    ####################################################################################################
+    # Testing for creating cartesian motion with TryIK fast.
+    ####################################################################################################
+
+    def slerp_quat(self, q0: Quaternion, q1: Quaternion, t: float) -> Quaternion:
+        # compas Quaternion supports slerp via classmethod in newer versions; do manual if needed
+        dot = q0.w*q1.w + q0.x*q1.x + q0.y*q1.y + q0.z*q1.z
+        if dot < 0.0:
+            q1 = Quaternion(-q1.w, -q1.x, -q1.y, -q1.z)
+            dot = -dot
+        if dot > 0.9995:
+            # linear approx
+            w = q0.w + t*(q1.w - q0.w)
+            x = q0.x + t*(q1.x - q0.x)
+            y = q0.y + t*(q1.y - q0.y)
+            z = q0.z + t*(q1.z - q0.z)
+            qq = Quaternion(w, x, y, z)
+            qq.unitize()
+            return qq
+        theta_0 = math.acos(dot)
+        sin_theta_0 = math.sin(theta_0)
+        theta = theta_0 * t
+        sin_theta = math.sin(theta)
+        s0 = math.sin(theta_0 - theta) / sin_theta_0
+        s1 = sin_theta / sin_theta_0
+        return Quaternion(
+            s0*q0.w + s1*q1.w,
+            s0*q0.x + s1*q1.x,
+            s0*q0.y + s1*q1.y,
+            s0*q0.z + s1*q1.z,
+        )
+
+    def frame_to_quat(self, frame: Frame) -> Quaternion:
+        return Quaternion.from_frame(frame)
+
+    def interpolate_frames(self, f0: Frame, f1: Frame, n: int) -> List[Frame]:
+        # n segments => n+1 frames
+        pts = []
+        p0 = np.array([f0.point.x, f0.point.y, f0.point.z], dtype=float)
+        p1 = np.array([f1.point.x, f1.point.y, f1.point.z], dtype=float)
+        q0 = self.frame_to_quat(f0)
+        q1 = self.frame_to_quat(f1)
+        frames = []
+        for i in range(n+1):
+            t = i / float(n)
+            p = (1-t)*p0 + t*p1
+            q = self.slerp_quat(q0, q1, t)
+            R = q.to_rotation_matrix()
+            # rebuild x/y axes from rotation matrix
+            from compas.geometry import Vector
+            xaxis = Vector(*R[0])
+            yaxis = Vector(*R[1])
+            frames.append(Frame(p, xaxis, yaxis))
+        return frames
+
+    def max_joint_jump(self, prev_vals: List[float], new_vals: List[float]) -> float:
+        return max(abs(a-b) for a, b in zip(prev_vals, new_vals))
+
+    def plan_cartesian_with_ikfast(self,
+        robot,                          # callable: (Frame, seed_cfg) -> Optional[Configuration]
+        start_cfg: Configuration,
+        start_frame: Frame,
+        goal_frame: Frame,
+        group: str = "manipulator",
+        num_steps: int = 50,                    # user‑controlled subdivision
+        dt: float = 0.02,
+        jump_threshold: float = 1.5,            # rad; max per-step joint jump
+        collision_check: bool = True,
+        fallback_compas_ik: bool = True,        # try robot.inverse_kinematics if IKFast fails
+        bisect_on_failure: bool = True,         # adaptive refine around failures
+    ) -> Optional[JointTrajectory]:
+
+        # Pre-check: start_cfg valid
+        if not self._is_valid(start_cfg):
+            print("[cartesian] start_cfg violates limits")
+            return None
+
+        frames = self.interpolate_frames(start_frame, goal_frame, num_steps)
+        traj = JointTrajectory(robot.model, group)
+        t = 0.0
+        seed = start_cfg
+        prev_vals = list(seed.values)
+
+        i = 0
+        while i < len(frames):
+            f = frames[i]
+
+            cfg = self.try_fast_ik(f, seed)  # primary solver
+            if cfg is None and fallback_compas_ik:
+                cfg = self.robot.inverse_kinematics(f, start_configuration=seed, group=group)
+
+            if cfg is None:
+                if bisect_on_failure and num_steps < 800:
+                    # insert midpoint between frames[i-1] and frames[i], retry
+                    if i == 0:
+                        # fail at first step → cannot bisect
+                        print(f"[cartesian] IK failed at first step {i}")
+                        return None
+                    # insert extra waypoint between frames[i-1] and frames[i]
+                    mid = self.interpolate_frames(frames[i-1], frames[i], 2)[1]
+                    frames.insert(i, mid)
+                    num_steps += 1
+                    continue
+                print(f"[cartesian] IK failed at step {i}")
+                return None
+
+            # limits + optional collision
+            if not self._is_valid(cfg):
+                if bisect_on_failure and num_steps < 800:
+                    if i == 0:
+                        print(f"[cartesian] invalid/colliding at first step {i}")
+                        return None
+                    mid = self.interpolate_frames(frames[i-1], frames[i], 2)[1]
+                    frames.insert(i, mid)
+                    num_steps += 1
+                    continue
+                print(f"[cartesian] invalid/colliding at step {i}")
+                return None
+
+            # jump detection for continuity
+            step_jump = self.max_joint_jump(prev_vals, cfg.joint_values)
+            if step_jump > jump_threshold:
+                if bisect_on_failure and num_steps < 800:
+                    mid = self.interpolate_frames(frames[i-1], frames[i], 2)[1] if i > 0 else None
+                    if mid is not None:
+                        frames.insert(i, mid)
+                        num_steps += 1
+                        continue
+                print(f"[cartesian] joint jump {step_jump:.3f} > {jump_threshold:.3f} at step {i}")
+                return None
+
+            # accept waypoint
+            traj.points.append(JointTrajectoryPoint(values=cfg.joint_values, time_from_start=t))
+            t += dt
+            seed = cfg
+            prev_vals = list(cfg.joint_values)
+            i += 1
+
+        return traj
 
     ####################################################################################################
     # Configuration HELPERS
@@ -379,7 +646,17 @@ class MimicPyBulletHandler:
     def configuration_difference(self, config1, config2, return_sum=False):
         diffs = [abs(a - b) for a, b in zip(config1.joint_values, config2.joint_values)]
         return sum(diffs) if return_sum else diffs
-    
+
+    def _generate_default_tolerances(self, joints):
+        DEFAULT_TOLERANCE_METERS = .001
+        DEFAULT_TOLERANCE_RADIANS = math.radians(1)
+
+        return [
+            DEFAULT_TOLERANCE_METERS if j.is_scalable()
+            else DEFAULT_TOLERANCE_RADIANS
+            for j in joints
+        ]    
+
     ####################################################################################################
     # EMPTY METHODS FOR CHILD CLASSES.
     ####################################################################################################
@@ -412,6 +689,9 @@ class MimicPyBulletHandler:
         This method should be implemented to get the latest joint values from the RTDE or other streaming source.
         For example, using RTDEStateStreamer or ABBStateStreamer.
         """
+        raise NotImplementedError("This method should be implemented on the child classes.")
+
+    def _send_to_trajectory_RT(self, trajectory: JointTrajectory, io_begining_end_none):
         raise NotImplementedError("This method should be implemented on the child classes.")
 
     # def  _send_to_configuration_through_servoj_gate(self, config: Configuration):
@@ -629,6 +909,7 @@ class MimicPyBulletHandler:
                 high_accuracy_threshold=1e-6,
                 high_accuracy_max_iter=8
             )
+
         if start_config is None:
             print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] No valid start configuration found. Returning empty trajectory.")
         configs_for_planning = self.plan_ik_for_frames_list_compas_fab_itter(msg.robot_frames, start_config, options=options, max_results=20)
@@ -636,16 +917,41 @@ class MimicPyBulletHandler:
             print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] No valid configurations found for planning. Returning empty trajectory.")
         else:
             print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Valid configurations found for planning. Found {len(configs_for_planning)} configs for planning.")        
+
+        trajectories = self._plan_trajectories_for_user_initiated_request(configurations=configs_for_planning)
+        if len(trajectories) < 1:
+            print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] No valid trajectories found for planning. Returning empty trajectory.")
+            return None
         
+        print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Valid trajectories found for planning. Found {len(trajectories)} trajectories for planning.")
+        return trajectories
 
+    def handle_user_initiated_mimic_execution(self, msg: ExecuteMimicTrajectoryRequestMessage, trajectory_list: List[JointTrajectory]):
+        """
+        This method should be overridden by child classes to handle custom mimic execution requests.
+        """
+        print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Handling user-defined mimic execution request: {msg} from {msg.header.device_id}")
+        #TODO: MESSAGE NEEDS TO BE EXTENDED TO HANDLE AN IO ON OFF LIST OF THINGS
+        if not trajectory_list:
+            print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] No trajectories to execute.")
+            return False
 
+        for traj in trajectory_list:
+            try:
+                #TODO: The IO Beginning, End, None needs to be controled by the message or planning (when to turn on and off the IO).
+                self._send_to_trajectory_RT(trajectory=traj, io_begining_end_none=0)
+                print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Successfully executed trajectory.")
+            except Exception as e:
+                print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Failed to execute trajectory: {e}")
+                return False
+        return True
 
 
 
 class URMimicHandlerPyB(MimicPyBulletHandler):
 
-    def __init__(self, robot_name, robot_ip, urdf_path, tool_info_fp, additional_static_collision_meshes_fp=None, srdf_path=None, speed=0.6, acceleration=0.1, radius=0.006, nowait=False):
-        super().__init__(robot_name, urdf_path, tool_info_fp, additional_static_collision_meshes_fp, srdf_path=srdf_path)
+    def __init__(self, robot_name, robot_ip, urdf_path, tool_info_fp, additional_static_collision_meshes_fp=None, group="manipulator", srdf_path=None, io=0, speed=0.6, acceleration=0.1, radius=0.006, nowait=False):
+        super().__init__(robot_name, urdf_path, tool_info_fp, additional_static_collision_meshes_fp, group=group, srdf_path=srdf_path)
 
         self.robot_state_streamer = RTDEStateStreamer(robot_ip=robot_ip, poll_delay=0.001)
         self.robot_state_streamer.start()
@@ -655,6 +961,7 @@ class URMimicHandlerPyB(MimicPyBulletHandler):
         self.acceleration = acceleration
         self.radius = radius
         self.nowait = nowait 
+        self.io = io
 
         # persist RTDE connections once
         self.rtde_ctrl = RTDEControl(self.robot_ip)
@@ -783,6 +1090,11 @@ class URMimicHandlerPyB(MimicPyBulletHandler):
         rtde.move_to_target(frame, self.speed, self.acceleration, nowait=True, ip=self.robot_ip)
         # rtde.move_to_target_TEST(frame, self.speed, self.acceleration, nowait=self.nowait, ip=self.robot_ip)
 
+    def _send_to_trajectory_RT(self, trajectory: JointTrajectory, io_begining_end_none):
+        print(f"URRealtimeMimicHandlerPyB: [{self.robot_name}] (Sim) Executing UR trajectory: {trajectory}")
+        rtde.send_to_single_trajectory_robotic_territories_TEST(trajectory, self.speed, self.acceleration, self.radius, self.robot_ip, io_begining_end_none, vaccum_io=self.io)
+        # rtde.send_to_single_trajectory_robotic_territories(trajectory, self.speed, self.acceleration, nowait=self.nowait, ip=self.robot_ip)
+
     ####################################################################################################
     # Implemented through Streamer Class Interface
     ####################################################################################################
@@ -871,7 +1183,7 @@ class URMimicHandlerPyB(MimicPyBulletHandler):
 
 
 
-#TODO: FIX later (need to compute IK in PyBullet and send to ABB using ROSClient in RRC)
+#TODO: FIX later (need to compute IK in PyBullet and send to ABB using ROSClient in RRC) #TODO: REALLY FIX INPUTS LATER.
 class ABBMimicHandlerPyB(MimicPyBulletHandler):
     
     def __init__(self, robot_name, robot_ip, abb_client_name, ros_ip='127.0.0.1', ros_port=9090, speed=100, nowait=False):

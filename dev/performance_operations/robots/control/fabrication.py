@@ -372,7 +372,6 @@ def pick_and_place_jk(pick_trajectory_configs, move_trajectory_configs, place_tr
 def send_to_single_trajectory(trajectory_configs, speed, accel, radius, nowait, ip, vaccum_io=None):
 
     ur_c = RTDEControl(ip)
-    nowait = True
 
     try:
         if vaccum_io != None:
@@ -386,6 +385,45 @@ def send_to_single_trajectory(trajectory_configs, speed, accel, radius, nowait, 
     except Exception as e:
         print(e)
         raise
+
+def send_to_single_trajectory_robotic_territories_TEST(trajectory_configs, speed, accel, radius, ip, io_begining_end_none, vaccum_io=None):
+    print(f"URRealtimeMimicHandlerPyB: [{ip}] (Sim) Executing UR trajectory: {trajectory_configs} THIS SHOULD BE A TEST")
+
+def send_to_single_trajectory_robotic_territories(trajectory_configs, speed, accel, radius, ip, io_begining_end_none, vaccum_io=None):
+
+    ur_c = RTDEControl(ip)
+    time_sleep_delay = 1.5
+
+    #TODO: This means there is no IO connected...
+    if io_begining_end_none == 0:
+        #Send to trajectoy without any IO controls.
+        send_trajectory_path(trajectory_configs, speed, accel, radius,ur_c)
+    
+    #TODO: This means that the IO needs to be turned on at the begining of the trajectory.
+    elif io_begining_end_none == 1:
+        try:
+            if vaccum_io != None:
+                #Turn on io to turn on the vaccum.
+                set_tool_digital_io(vaccum_io,True,ip=ip)
+                time.sleep(time_sleep_delay)
+            send_trajectory_path(trajectory_configs, speed, accel, radius,ur_c)
+        
+        except Exception as e:
+            print(e)
+            raise
+
+    #TODO: This means that the IO needs to be turned off at the end of the movement.
+    elif io_begining_end_none == 2:
+        try:
+            send_trajectory_path(trajectory_configs, speed, accel, radius,ur_c)
+            if vaccum_io != None:
+                #Turn off io to turn off the vaccum.
+                set_tool_digital_io(vaccum_io,False,ip=ip)
+                time.sleep(time_sleep_delay)
+        
+        except Exception as e:
+            print(e)
+            raise
 
 def send_to_single_trajectory_only_joint_values(trajectory_configs, speed, accel, radius, nowait, ip, vaccum_io=None):
 
