@@ -10,6 +10,10 @@ class EMA:
         self.y = x if self.y is None else (1.0 - self.a) * self.y + self.a * x
         return self.y
 
+
+#TODO: TRY TO LOWER THE GAIN CHECK VALUES
+# https://sdurobotics.gitlab.io/ur_rtde/examples/examples.html#speedj-example
+
 class ServoJGate:
     def __init__(self, rtde_ctrl, rtde_recv=None,
                  speed_cap=0.8, accel_cap=1.5,

@@ -144,6 +144,7 @@ class CommunicationManager:
             transformed_frames.append(transformed_frame)
         return transformed_frames
 
+    """
     #TODO : SAVED FOR REFERENCE ############################################################################################################
 
     # def _transform_incoming_requested_frame(self, frame): #TODO: Fix Transformation file path
@@ -175,13 +176,13 @@ class CommunicationManager:
     #     )
     #     json_dump(requested_frames, file_path)
     #     print(f"RobotManager : [RobotManager] Dumped requested_frames to {file_path}")
-
+    """
     # TODO: FIX THE CODE BELOW ###########################################################################################################
 
     def _on_message_realtime_mimic(self, msg: RealtimeMimicRequestMessage):
         robot_name = msg.robot_name
 
-        print(f"RobotManager : [RobotManager] Received mimic request for robot '{robot_name}': {msg}")
+        print(f"RobotManager : [RobotManager] Received Relatime Mimic request for robot '{robot_name}': {msg}")
 
         handler = self.handler
         # self._save_requested_frame(msg)
@@ -208,8 +209,25 @@ class CommunicationManager:
             print(f" RobotManager : [RobotManager] No result to publish for robot {robot_name}")
 
     def _on_message_user_initiated_mimic(self, msg: MimicTrajectoryRequestMessage):
-        print(f"RobotManager : [RobotManager] Received user-initiated mimic request: {msg}")
-        return  #TODO: Implement user-initiated mimic request handling
+        robot_name = msg.robot_name
+        requested_human_frames = msg.human_frames
+        requested_robot_frames = msg.robot_frames
+
+        print(f"RobotManager : [RobotManager] Received User Controled Mimic request for robot '{robot_name}': Requesting : {len(requested_robot_frames)} frames")
+        # print(f"RobotManager : [RobotManager] Received User Controled Mimic request for robot '{robot_name}': Requesting : {len(requested_robot_frames)} frames : msg : {msg}")
+
+        #Transform the frames and reassign them to the message.
+        transformed_requested_robot_frames = self._transform_requested_frames_list_from_robot_space_to_ar_space(requested_robot_frames)
+        msg.robot_frames = transformed_requested_robot_frames
+
+        handler = self.handler
+        trajectories_list = handler.handle_user_iniated_msg_request(msg)
+
+        if trajectories_list:
+            #TODO : Publish the trajectories
+            print(f"RobotManager : [RobotManager] Received trajectories for robot '{robot_name}': {trajectories_list}")
+        else:
+            print(f"RobotManager : [RobotManager] No trajectories received for robot '{robot_name}'.")
 
     #TODO: Adjust code above ###########################################################################################################
 
@@ -220,6 +238,7 @@ PROJECT_CONFIG_DICT = json_load(PROJECT_CONFIG_FP)
 ROBOT_NAME = "UR20"
 
 MQTT_CONFIG = PROJECT_CONFIG_DICT["mqtt_config"]
+# MQTT_CONFIG = PROJECT_CONFIG_DICT["mqtt_config_local"]  # Use local MQTT config for testing
 BROKER = MQTT_CONFIG["broker"]
 MQTT_PORT = MQTT_CONFIG["port"]
 

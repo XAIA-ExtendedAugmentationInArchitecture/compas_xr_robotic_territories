@@ -13,7 +13,7 @@ from compas.geometry import Frame
 import compas_fab
 import compas_rrc as rrc
 
-from compas_xr.mqtt import RealtimeMimicRequestMessage
+from compas_xr.mqtt import RealtimeMimicRequestMessage, MimicTrajectoryRequestMessage
 
 from ..control import fabrication as rtde
 from ..control.joint_value_streamer import RTDEStateStreamer
@@ -55,6 +55,7 @@ class MimicPyBulletHandler:
         self._prev_cfg_cache = None      # last safe Configuration to restore sim to
         self._last_visual_step_t = 0.0   # throttle timestamp for sim stepping
 
+
         print(f"RealtimeMimicPyBulletHandler: [{robot_name}] Handler initialized")
 
     ####################################################################################################
@@ -90,7 +91,7 @@ class MimicPyBulletHandler:
         if not visual_mesh or not collision_mesh or not tcf_frame:
             raise ValueError("Tool information must contain 'visual_mesh' and 'collision_mesh' and 'tcf'.")
 
-        # collision_mesh = CollisionMesh(collision_mesh, "tool_cm")
+        # collision_mesh = CollisionMesh(collision_mesh, "tool_cm") #TODO: GIVE ME A NAME. AND PLAN TO THAT NAME.
         tool = Tool(visual=visual_mesh, collision=collision_mesh, frame_in_tool0_frame=tcf_frame, connected_to="tool0")
         robot.attach_tool(tool)
         print(f"MIMICPYBULLETHANDLER: [{self.robot_name}] Loading tool from {tool_info}")
@@ -149,6 +150,11 @@ class MimicPyBulletHandler:
         options["max_results"] = max_results
         valid_configs = []
 
+        #TODO: Maybe Remove this...
+        self.client.set_robot_configuration(self.robot, start_config)
+        self.client.step_simulation()
+
+
         for candidate in self.robot.iter_inverse_kinematics(
             frame_WCF=frame,
             start_configuration=start_config,
@@ -165,6 +171,54 @@ class MimicPyBulletHandler:
             return None
 
         return self.find_minimum_movement_config(start_config, valid_configs)
+
+    def find_best_valid_ik_compas_fab_itter_ik_improved(self, frame, start_config, options=None, max_results=20):
+        options = {} if options is None else dict(options)
+        link = options.get("link_name", "tool0")
+
+        # Phase A: coarse to get a feasible point (deterministic)
+        coarse = dict(options)
+        coarse.setdefault("high_accuracy_threshold", 1e-3)
+        coarse.setdefault("high_accuracy_max_iter", 64)
+
+        feasible = None
+        tried = 0
+        for cfg in self.robot.iter_inverse_kinematics(
+            frame_WCF=frame,
+            start_configuration=start_config,
+            options=coarse
+        ):
+            tried += 1
+            if self._is_valid(cfg):
+                feasible = cfg
+                break
+            if tried >= max_results:
+                break
+
+        if feasible is None:
+            print(f"[{self.robot_name}] No valid collision-free IK (coarse).")
+            return None
+
+        # Phase B: refine accurately from feasible cfg (deterministic, strict)
+        strict = dict(options)
+        strict.setdefault("high_accuracy_threshold", 1e-6)
+        strict.setdefault("high_accuracy_max_iter", 128)
+
+        refined = self.robot.inverse_kinematics(
+            frame_WCF=frame,
+            start_configuration=feasible,
+            options=strict
+        )
+
+        if refined is None or not self._is_valid(refined):
+            # If refinement drove it into a collision or failed numerically, keep feasible.
+            return feasible if self._is_valid(feasible) else None
+
+        # # Optional: verify pose error explicitly
+        # ee = getattr(self.robot, "get_end_effector_link_name", lambda: link)()
+        # tcp_world = self.robot.forward_kinematics(refined, link_name=ee) * getattr(self.robot, "tool", None).frame if getattr(self.robot, "tool", None) else self.robot.forward_kinematics(refined, link_name=ee)
+        # pos_err = (tcp_world.point - frame.point).length
+        return refined
 
     def try_fast_ik(self, frame, start_config=None, do_collision_check=True, extra_seed=False, visual_hz=30):
         """
@@ -265,6 +319,53 @@ class MimicPyBulletHandler:
 
         if not printed:
             print("No self-collisions detected.")
+
+    def _is_valid(self, cfg):
+        """Check if a configuration is collision-free in the current PyBullet scene."""
+        self.client.set_robot_configuration(self.robot, cfg)
+        self.client.step_simulation()
+        return not self.client.check_robot_self_collision(self.robot)
+
+    ####################################################################################################
+    # Planning and Multi-Configuration Solving
+    ####################################################################################################
+
+    def plan_ik_for_frames_list_compas_fab_itter(self, frames_for_ik, start_config, options=None, max_results=20) -> List[Configuration]:
+        """
+        Plans a joint trajectory for a list of target frames using iterative IK search.
+
+        Parameters
+        ----------
+        frames_for_ik : list of compas.geometry.Frame
+            The target frames for the IK.
+        start_config : Configuration
+            The starting configuration to compare against.
+        options : dict, optional
+            Additional options to pass to the IK solver.
+        max_results : int, optional
+            Max number of solutions to evaluate per frame.
+
+        Returns
+        -------
+        List[Configuration] or None
+            The planned joint trajectory.
+        """
+        configurations = []
+        current_config = start_config
+
+        for idx, frame in enumerate(frames_for_ik):
+            try:
+                ik_config = self.find_best_valid_ik_compas_fab_itter_ik_improved(frame, current_config, options, max_results)
+                if ik_config is None:
+                    print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] No valid IK for frame {idx}. Aborting trajectory planning.")
+                    return None
+                configurations.append(ik_config)
+            except Exception as e:
+                print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Error finding IK for frame {idx}: {e}")
+                return None
+        return configurations
+        
+
 
     ####################################################################################################
     # Configuration HELPERS
@@ -513,19 +614,30 @@ class MimicPyBulletHandler:
         #TODO: Comment me in if you want to run.... # self._send_to_configuration_through_gate(ik)   # uses your RTDE move_to_joints path
         return ik
 
-    def handle_user_defined_msg_request(self, msg: RealtimeMimicRequestMessage) -> List[JointTrajectory]:
-        """
-        This method can be overridden by child classes to handle custom message requests.
-        """
-        print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Handling user-defined request: {msg.message} from {msg.header.device_id}")
-        raise NotImplementedError("This method should be implemented in child classes.")
-
-    # def handle_realtime_msg_request_servoj_gate(self, msg: RealtimeMimicRequestMessage) -> Configuration:
-    #     raise NotImplementedError("This method should be implemented in child classes.")
-
     ####################################################################################################
     # MESSAGE HANDLERS MimicResquestMessage
     ####################################################################################################
+
+    def handle_user_iniated_msg_request(self, msg: RealtimeMimicRequestMessage) -> List[JointTrajectory]:
+        """
+        This method can be overridden by child classes to handle custom message requests.
+        """
+        print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Handling user-defined request: {msg} from {msg.header.device_id}")
+        start_config = self._get_latest_joint_values_from_stream_as_configuration()
+        options = dict(
+                link_name="tool0",
+                high_accuracy_threshold=1e-6,
+                high_accuracy_max_iter=8
+            )
+        if start_config is None:
+            print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] No valid start configuration found. Returning empty trajectory.")
+        configs_for_planning = self.plan_ik_for_frames_list_compas_fab_itter(msg.robot_frames, start_config, options=options, max_results=20)
+        if configs_for_planning is None:
+            print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] No valid configurations found for planning. Returning empty trajectory.")
+        else:
+            print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Valid configurations found for planning. Found {len(configs_for_planning)} configs for planning.")        
+        
+
 
 
 
@@ -571,29 +683,55 @@ class URMimicHandlerPyB(MimicPyBulletHandler):
         # )
 
         #TODO: THIS WAS THE BEST......
-        # self.movej_gate = MoveJGate(self.rtde_ctrl,
-        #     speed=self.speed, accel=0.9,
-        #     min_dt=999,            # disable single sends
-        #     min_dq=1e9,            # disable single sends
-        #     blend_radius=0.012,    # 12 mm blend
-        #     blend_batch=4,         # 3–5 points
-        #     blend_every=0.40       # ~2.5 Hz flush
+        self.movej_gate = MoveJGate(self.rtde_ctrl,
+            speed=self.speed, accel=0.9,
+            min_dt=999,            # disable single sends
+            min_dq=1e9,            # disable single sends
+            blend_radius=0.012,    # 12 mm blend
+            blend_batch=4,         # 3–5 points
+            blend_every=0.40       # ~2.5 Hz flush
+        )
+
+        # self.servo_gate = ServoJGate(
+        #     rtde_ctrl=self.rtde_ctrl,
+        #     rtde_recv=self.rtde_recv,
+        #     speed_cap=max(0.4, min(0.9, self.speed if self.speed else 0.8)),  # rad/s
+        #     accel_cap=max(0.8, min(1.8, self.acceleration if self.acceleration else 1.5)),  # rad/s^2
+        #     dt_nominal=1/125.0,
+        #     lookahead=0.10,
+        #     gain=280,
+        #     target_alpha=0.25,   # smoothing on targets
+        #     k_speed=1.6,         # adaptive speed scaling
+        #     tau=0.30,            # accel ≈ speed / tau
+        #     cmd_alpha=0.35,      # smoothing on caps
+        #     min_dt_send=0.010,   # don’t spam faster than 100 Hz
+        #     min_dq=0.0,
+        #     verbose=False
         # )
 
+
+        # last attempt to make it smoother.
         self.servo_gate = ServoJGate(
             rtde_ctrl=self.rtde_ctrl,
             rtde_recv=self.rtde_recv,
-            speed_cap=max(0.4, min(0.9, self.speed if self.speed else 0.8)),  # rad/s
-            accel_cap=max(0.8, min(1.8, self.acceleration if self.acceleration else 1.5)),  # rad/s^2
+            # caps a bit lower → smoother
+            speed_cap=0.65,          # was 0.8
+            accel_cap=1.10,          # was 1.5
+
+            # UR controller
             dt_nominal=1/125.0,
-            lookahead=0.10,
-            gain=280,
-            target_alpha=0.25,   # smoothing on targets
-            k_speed=1.6,         # adaptive speed scaling
-            tau=0.30,            # accel ≈ speed / tau
-            cmd_alpha=0.35,      # smoothing on caps
-            min_dt_send=0.010,   # don’t spam faster than 100 Hz
-            min_dq=0.0,
+            lookahead=0.12,          # was 0.10
+            gain=240,                # was 280
+
+            # filtering + adaptive scaling
+            target_alpha=0.18,       # LOWER = more smoothing (was 0.25)
+            k_speed=1.2,             # was 1.6
+            tau=0.38,                # accel = speed/tau (bigger tau = softer accel), was 0.30
+            cmd_alpha=0.55,          # smoother speed/acc commands (was 0.35)
+
+            # sending cadence + deadband
+            min_dt_send=0.012,       # was 0.010
+            min_dq=0.01,             # ~0.57° joint deadband to avoid chatter
             verbose=False
         )
 
