@@ -3,7 +3,7 @@
 #TODO: This should connect to the REALTIME DATABASE
 
 import os
-from compas.data import json_load, json_dump
+from compas.data import json_load, json_dump, json_dumps
 from compas.geometry import Frame, Box, Transformation, Quaternion
 from scipy.spatial.transform import Rotation as R
 
@@ -20,7 +20,10 @@ class GeometryManager:
         self.ACTIVE_MARKER_RHINO_TRANSFORMATION, self.PASSIVE_MARKER_RHINO_TRANSFORMATION = self._load_rhino_transformatons_from_project_config_dict(self.project_config_dict)
         self.ACTIVE_MARKER_CUBE_CENTER_OFFSET_MOTIVE, self.PASSIVE_MARKER_CUBE_CENTER_OFFSET_MOTIVE = self._load_motive_cube_center_offsets_from_project_config_dict(self.project_config_dict)
 
+        #Construct Geometry Reference for RTDB
         self.realtime_database, self.project_name = self._setup_realtime_database(self.project_config_dict)
+        self.observed_geometry_db_reference_list = [self.project_name, "geometry", "observed_geometries"]
+        self.goal_geometry_reference_list = [self.project_name, "geometry", "goal_geometries"]
 
     def _load_project_config_dict(self):
         dir_path = os.path.dirname(__file__)
@@ -90,7 +93,8 @@ class GeometryManager:
             raise ValueError("No 'firebase_config_fp' found in project_config.json")
             return None, None
         rt_db = RealtimeDatabase(rt_db_config_fp)
-        project_name = project_config_dict.get("project_name", None)
+        project_name = project_config_dict["project_name"]
+        goal_geometry_reference_list = [project_name, "geometry", "goals_list"] 
         if not project_name:
             raise ValueError("No 'project_name' found in project_config.json")
             return None, None
@@ -133,6 +137,9 @@ class GeometryManager:
             box = self.active_geometry_dict[model_name]['box']
             box.frame = geo_frame
             self.active_geometry_dict[model_name]['box'] = box
+            print(f"GeometryManager: [GeometryManager] Updated geometry for '{model_name}' with frame {geo_frame}")
+            print(f"GeometryManager: [GeometryDict] Current keys: {list(self.active_geometry_dict.keys())}")
+            self.upload_current_geometry_to_realtime_database(self.active_geometry_dict)
         else:
             print(f"GeometryManager: [GeometryManager] Warning: model_name '{model_name}' not found in active_geometry_dict.")
             print(f"YOU SHOULD THINK ABOUT IF YOU NEED TO ADD THIS TO THE DICT.... {model_name}")
@@ -150,46 +157,15 @@ class GeometryManager:
         
         self.update_geometry_dict(model_name, geo_frame)
         print(f"GeometryManager: [GeometryManager] Updated geometry for '{model_name}' with marker type '{marker_type}'")
-        print(self.active_geometry_dict)
         return geo_frame
 
     #TODO: This should upload the current geometry to the Realtime Database ONCE YOU SORT OUT THE STRUCTURE YOU WANT.
-    def upload_current_geometry_to_realtime_database(self):
+    def upload_current_geometry_to_realtime_database(self, data):
         if not self.realtime_database or not self.project_name:
             print("GeometryManager: [GeometryManager] Realtime database not set up correctly.")
             return
         else:
-            print("GeometryManager: [GeometryManager] Uploading current geometry to Realtime Database...COMMING SOON")
+            string_data = json_dumps(data)
+            self.realtime_database.upload_data_to_deep_reference(data=data, reference_list=self.observed_geometry_db_reference_list)
+            print(f"GeometryManager: [GeometryManager] Uploading current geometry to Realtime Database tracking {len(self.active_geometry_dict)}")
 
-
-#todo: This is just for testing and can be removed.
-# if __name__ == "__main__":
-    
-#     rigid_body_names = {
-#         "1" : "Origin",
-#         "2" : "UR20",
-#         "3" : "AnchorCube",
-#         "4" : "Cube01",
-#         "5" : "Cube02",
-#         "6" : "Cube03",
-#         "7" : "Cube04",
-#         "8" : "Cube05",
-#         "9" : "Cube06",
-#         "10": "Cube07",
-#         "11": "Cube08",
-#     } #TODO: This could be improved.
-
-#     marker_types = {
-#         "1": "unique",
-#         "2": "unique",
-#         "3": "passive",
-#         "4": "passive",
-#         "5": "passive",
-#         "6": "passive",
-#         "7": "passive",
-#         "8": "passive",
-#         "9": "passive",
-#         "10": "passive",
-#         "11": "passive",
-#     }
-#     gm = GeometryManager(rigid_body_names, marker_types, 0.3, 0.3, 0.3)
