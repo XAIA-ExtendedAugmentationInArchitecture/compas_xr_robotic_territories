@@ -13,7 +13,7 @@ from compas_xr.realtime_database import RealtimeDatabase
 
 class GeometryManager:
 
-    def __init__(self, rigid_body_names, marker_types, box_xsize, box_ysize, box_zsize):
+    def __init__(self, rigid_body_names, marker_types, box_xsize, box_ysize, box_zsize, firebase_upload=False):
         self.project_config_dict = self._load_project_config_dict() 
         self.active_geometry_dict = self._create_init_geometry_dict(rigid_body_names, marker_types, box_xsize, box_ysize, box_zsize)
     
@@ -21,6 +21,7 @@ class GeometryManager:
         self.ACTIVE_MARKER_CUBE_CENTER_OFFSET_MOTIVE, self.PASSIVE_MARKER_CUBE_CENTER_OFFSET_MOTIVE = self._load_motive_cube_center_offsets_from_project_config_dict(self.project_config_dict)
 
         #Construct Geometry Reference for RTDB
+        self._upload_to_firebase = firebase_upload
         self.realtime_database, self.project_name = self._setup_realtime_database(self.project_config_dict)
         self.observed_geometry_db_reference_list = [self.project_name, "geometry", "observed_geometries"]
         self.goal_geometry_reference_list = [self.project_name, "geometry", "goal_geometries"]
@@ -139,7 +140,11 @@ class GeometryManager:
             self.active_geometry_dict[model_name]['box'] = box
             print(f"GeometryManager: [GeometryManager] Updated geometry for '{model_name}' with frame {geo_frame}")
             print(f"GeometryManager: [GeometryDict] Current keys: {list(self.active_geometry_dict.keys())}")
-            self.upload_current_geometry_to_realtime_database(self.active_geometry_dict)
+
+            if self._upload_to_firebase:
+                self.upload_current_geometry_to_realtime_database(self.active_geometry_dict)
+            else:
+                print(f"GeometryManager: [GeometryManager] Not uploading to Firebase, upload_to_firebase is set to {self._upload_to_firebase}")
         else:
             print(f"GeometryManager: [GeometryManager] Warning: model_name '{model_name}' not found in active_geometry_dict.")
             print(f"YOU SHOULD THINK ABOUT IF YOU NEED TO ADD THIS TO THE DICT.... {model_name}")
@@ -168,4 +173,3 @@ class GeometryManager:
             string_data = json_dumps(data)
             self.realtime_database.upload_data_to_deep_reference(data=data, reference_list=self.observed_geometry_db_reference_list)
             print(f"GeometryManager: [GeometryManager] Uploading current geometry to Realtime Database tracking {len(self.active_geometry_dict)}")
-

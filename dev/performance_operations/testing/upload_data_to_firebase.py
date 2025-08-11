@@ -5,7 +5,7 @@ import os
 
 if __name__ == "__main__":
 
-    project_name = "robotic_territories_testing_base_frame_geo_tracking"
+    project_name = "robotic_territories_testing_base_frame"
     project_config_fp = r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\performance_operations\project_config.json"
     project_config_dict = json_load(project_config_fp)
     fb_db_config_fp = project_config_dict.get("firebase_config_fp", None)

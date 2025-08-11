@@ -85,9 +85,10 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_CONFIG_FP = os.path.join(SCRIPT_DIR, "project_config.json")
 PROJECT_CONFIG_DICT = json_load(PROJECT_CONFIG_FP)
 OPTITRACK_INFO_DICT = PROJECT_CONFIG_DICT.get("optitrack_info", {})
-SESION_DIR_NAME = "2025_scripted_policy_rl_test"
+SESION_DIR_NAME = "2025_optitrack_workcell_testing"
 
 #Geometry Manger Information
+UPLOAD_TO_FIREBASE = PROJECT_CONFIG_DICT.get("upload_geo_to_firebase", False)
 BOX_SIZE = (0.3, 0.3, 0.3)  # Size of the boxes in meters
 geometry_manager = GeometryManager(
     rigid_body_names,
