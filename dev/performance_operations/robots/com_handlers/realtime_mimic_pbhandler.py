@@ -13,7 +13,7 @@ from compas.geometry import Frame, Quaternion
 import compas_fab
 import compas_rrc as rrc
 
-from compas_xr.mqtt import RealtimeMimicRequestMessage, MimicTrajectoryRequestMessage, ExecuteMimicTrajectoryRequestMessage
+from compas_xr.mqtt import RealtimeMimicRequestMessage, MimicTrajectoryRequestMessage, ExecuteMimicTrajectoryRequestMessage, RealtimeMimicIOToggleRequestMessage
 
 from ..control import fabrication as rtde
 from ..control.joint_value_streamer import RTDEStateStreamer
@@ -703,6 +703,9 @@ class MimicPyBulletHandler:
     def shutdown(self):
         self.client.__exit__(None, None, None)
 
+    def _toggle_tool_io(self, signal: int, value: int):
+        raise NotImplementedError("This method should be implemented on the child classes.")
+    
     ####################################################################################################
     # MESSAGE HANDLERS RealtimeMimicResquestMessage
     ####################################################################################################
@@ -894,6 +897,15 @@ class MimicPyBulletHandler:
         #TODO: Comment me in if you want to run.... # self._send_to_configuration_through_gate(ik)   # uses your RTDE move_to_joints path
         return ik
 
+    def handle_realtime_mimic_io_toggle_request(self, msg: RealtimeMimicIOToggleRequestMessage):
+        print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Handling IO toggle request: {msg} from {msg.header.device_id}")
+        try:
+            self._toggle_tool_io(signal=msg.signal, value=msg.value)
+            print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Successfully toggled IO signal {msg.signal} to {msg.value}.")
+            return True
+        except Exception as e:
+            print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Failed to toggle IO signal: {e}")
+            return False
     ####################################################################################################
     # MESSAGE HANDLERS MimicResquestMessage
     ####################################################################################################
@@ -1094,6 +1106,10 @@ class URMimicHandlerPyB(MimicPyBulletHandler):
         print(f"URRealtimeMimicHandlerPyB: [{self.robot_name}] (Sim) Executing UR trajectory: {trajectory}")
         rtde.send_to_single_trajectory_robotic_territories_TEST(trajectory, self.speed, self.acceleration, self.radius, self.robot_ip, io_begining_end_none, vaccum_io=self.io)
         # rtde.send_to_single_trajectory_robotic_territories(trajectory, self.speed, self.acceleration, nowait=self.nowait, ip=self.robot_ip)
+
+    def _toggle_tool_io(self, signal: int, value: int):
+        rtde.set_tool_digital_io(signal, value, self.robot_ip)
+        print(f"URRealtimeMimicHandlerPyB: [{self.robot_name}] (Sim) Toggled tool IO signal {signal} to {value}.")
 
     ####################################################################################################
     # Implemented through Streamer Class Interface

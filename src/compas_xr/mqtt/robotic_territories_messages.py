@@ -272,3 +272,43 @@ class RealtimeMimicResultMessage(Message):
         robot_name = value["robot_name"]
         return_message = value["return_message"]
         return cls(robot_name, return_message, header)
+    
+class RealtimeMimicIOToggleRequestMessage(Message):
+    """
+    The RealtimeMimicRequestMessage class is responsible for requesting a robot to mimic a trajectory in real-time.
+
+    The RealtimeMimicRequestMessage class provides methods for parsing, updating, and accessing the fields of a message,
+    and provides a means of defining attributes of the message in order to accept or ignore specific messages.
+
+    Parameters
+    ----------
+    header : Header
+        The header of the message.
+    """
+
+    def __init__(self, signal, gripper_toggle_bool, header=None):
+        super(RealtimeMimicIOToggleRequestMessage, self).__init__()
+        self["header"] = header or Header()
+        self["signal"] = signal
+
+        if gripper_toggle_bool:
+            self["value"] = 1
+        else:
+            self["value"] = 0
+
+    @classmethod
+    def parse(cls, value):
+        """Parse the message information
+        from the input value
+        """
+        header = Header.parse(value["header"])
+        signal = value["signal"]
+        io_value = value["value"]
+        if io_value == 0:
+            gripper_toggle = False
+        elif io_value == 1:
+            gripper_toggle = True
+        else:
+            raise ValueError("Invalid value for IO toggle. Expected 0 or 1.")
+
+        return cls(signal, gripper_toggle, header)

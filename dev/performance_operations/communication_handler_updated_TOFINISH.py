@@ -1,6 +1,6 @@
 from compas_eve import Subscriber, Publisher, Topic
 from compas_eve.mqtt import MqttTransport
-from compas_xr.mqtt import RealtimeMimicRequestMessage, RealtimeMimicResultMessage, MimicTrajectoryRequestMessage, MimicTrajectoryResultMessage, ExecuteMimicTrajectoryRequestMessage
+from compas_xr.mqtt import RealtimeMimicRequestMessage, RealtimeMimicResultMessage, MimicTrajectoryRequestMessage, MimicTrajectoryResultMessage, ExecuteMimicTrajectoryRequestMessage, RealtimeMimicIOToggleRequestMessage
 
 # from robots.com_handlers.realtime_mimic_roshandler import URRealtimeMimicHandler
 from robots.com_handlers.realtime_mimic_pbhandler import URMimicHandlerPyB, ABBMimicHandlerPyB #TODO: This needs to be wrapped into one handler for both Mimics
@@ -31,6 +31,13 @@ class CommunicationManager:
         realtime_mimic_request_topic = Topic(f"robotic_territories/real_time_mimic_request/{project_name}", RealtimeMimicRequestMessage)
         self.realtime_subscriber = Subscriber(realtime_mimic_request_topic, callback=self._on_message_realtime_mimic, transport=self.mqtt)
         self.realtime_subscriber.subscribe()
+
+        # Adding IO toggle for Realtime Mimic
+        realtime_mimic_io_toggle_request = Topic(f"robotic_territories/real_time_mimic_io_toggle_request/{project_name}", RealtimeMimicIOToggleRequestMessage)
+        self.realtime_mimic_io_toggle_request = Subscriber(realtime_mimic_io_toggle_request, callback=self._on_message_realtime_mimic_io_toggle, transport=self.mqtt)
+        self.realtime_mimic_io_toggle_request.subscribe()
+
+
 
         #User Initiated Mimic Request and Result Handlers
         user_initiated_mimic_result_topic = Topic(f"robotic_territories/mimic_result/{project_name}", MimicTrajectoryResultMessage)
@@ -264,6 +271,14 @@ class CommunicationManager:
             print(f"CommunicationManager : [CommunicationManager] Successfully executed mimic trajectory for robot {robot_name}")
         else:
             print(f"CommunicationManager : [CommunicationManager] Failed to execute mimic trajectory for robot {robot_name}")
+
+    def _on_message_realtime_mimic_io_toggle(self, msg: RealtimeMimicIOToggleRequestMessage):
+        # robot_name = msg.robot_name
+        signal = msg.signal
+        value = msg.value
+        handler = self.handler
+        handler.handle_realtime_mimic_io_toggle_request(msg=msg)
+        print(f"CommunicationManager : [CommunicationManager] Processed IO toggle for signal '{signal}' with value '{value}'")
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_CONFIG_FP = os.path.join(SCRIPT_DIR, "project_config.json")
