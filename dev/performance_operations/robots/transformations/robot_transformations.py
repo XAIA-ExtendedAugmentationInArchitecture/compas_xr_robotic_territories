@@ -1,5 +1,5 @@
 import numpy as np
-from compas.geometry import Point, Quaternion, Frame
+from compas.geometry import Point, Quaternion, Frame, Vector
 from compas.data import json_load, json_dump
 from scipy.spatial.transform import Rotation as R
 from compas.geometry import Transformation
@@ -80,7 +80,7 @@ class RobotTransformationsFromObserved:
     # Update Tansformations for the UR20 Robots
     # ========================================================================================
 
-    def update_observed_transforms_for_ur20(self, robot_name, observed_frame, translation_dist = 0.517):
+    def update_observed_transforms_for_ur20(self, robot_name, observed_frame, translation_dist = 0.4577, vertical_z_translation = 0.0135):
         """
         Update the observed transformations for the UR20 robot.
         This includes a translation for the observed frame to the actual frame
@@ -95,7 +95,14 @@ class RobotTransformationsFromObserved:
 
         observed_base_frame = observed_frame.transformed(translation)
 
-        transformation_to_urdf_base = Transformation.from_frame_to_frame(urdf_base_frame, observed_base_frame)
+        #TODO: Testing I just added this based on the Rhino model, but should verify with real life
+        #TODO: Previous was just a ranslation in the XY axis by 0.517 m
+        translation_vector_z = Vector.Zaxis() * (-vertical_z_translation)
+        z_translation = Translation.from_vector(translation_vector_z)
+        observed_base_frame_z_translated = observed_base_frame.transformed(z_translation)
+        #TODO: Testing I just added this based on the Rhino model, but should verify with real life
+
+        transformation_to_urdf_base = Transformation.from_frame_to_frame(urdf_base_frame, observed_base_frame_z_translated)
         inverse_transformation_to_observed_base = transformation_to_urdf_base.inverse()
 
         self.transformations[robot_name]["observed"]["urdf_base_frame"] = observed_base_frame

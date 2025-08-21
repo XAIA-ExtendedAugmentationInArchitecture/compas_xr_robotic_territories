@@ -170,6 +170,6 @@ class GeometryManager:
             print("GeometryManager: [GeometryManager] Realtime database not set up correctly.")
             return
         else:
-            string_data = json_dumps(data)
+            print("HEREEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE")
             self.realtime_database.upload_data_to_deep_reference(data=data, reference_list=self.observed_geometry_db_reference_list)
             print(f"GeometryManager: [GeometryManager] Uploading current geometry to Realtime Database tracking {len(self.active_geometry_dict)}")
