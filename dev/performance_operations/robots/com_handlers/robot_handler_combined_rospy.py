@@ -32,11 +32,16 @@ from compas_fab.backends.pybullet.planner import PyBulletPlanner
 
 from pybullet_planning import plan_joint_motion, set_joint_positions
 
+from compas_fab.backends import RosClient
+
 class RobotHandlerCombinedBackends:
 
-    def __init__(self, robot_name, urdf_path, tool_info_fp, additional_static_collision_meshes_fp=None, group="manipulator", srdf_path=None):
+    def __init__(self, robot_name, urdf_path, tool_info_fp, ros_ip='127.0.0.1', ros_port=9090, additional_static_collision_meshes_fp=None, group="manipulator", srdf_path=None):
         self.robot_name = robot_name
         
+        #Things for both backends
+        self.tool = self._load_and_create_tool_for_backends(tool_info_fp)
+        self.group = group
 
         #Pybullet Inputs
         self.urdf_path = os.path.normpath(urdf_path)
@@ -50,18 +55,32 @@ class RobotHandlerCombinedBackends:
         self.pyb_robot = self._pyb_load_robot()
         self.pyb_semantics = self._pyb_load_semantics()
 
-        self._pyb_load_and_attach_tool(tool_info_fp, self.pyb_robot)
+        self._attach_tool_to_robot(tool=self.tool, robot=self.pyb_robot, backendname="PyBullet")
         if additional_static_collision_meshes_fp:
-            self.additional_static_collison_meshes = self._pyb_load_additional_static_collision_meshes(additional_static_collision_meshes_fp)
+            self.additional_static_collison_meshes = self._load_additional_static_collision_meshes(additional_static_collision_meshes_fp)
         else:
             self.additional_static_collison_meshes = None
 
 
         #ROS Inputs
+        #TODO: See if You need a PlanningScene for ROS
+        self.ros_client = RosClient(ros_ip, ros_port)
+        self.ros_client.run(5)
+        if not self.ros_client.is_connected:
+            raise ConnectionError(f"CombinedBackendHandler: [{robot_name}] Could not connect to ROS at {ros_ip}:{ros_port}")
+        else:
+            print(f"CombinedBackendHandler: [{robot_name}] Connected to ROS at {ros_ip}:{ros_port}")
+        self.ros_robot = self._ros_load_robot()
+        self._attach_tool_to_robot(tool=self.tool, robot=self.ros_robot, backendname="ROS")
 
+        #Post Processing Things for both Robots
+        if self.additional_static_collison_meshes:
+            self._pyb_add_additional_static_collision_meshes_to_scene(self.additional_static_collison_meshes)
+            self._ros_add_additional_static_collision_meshes_to_scene(self.additional_static_collison_meshes)
+        else:
+            print(f"CombinedBackendHandler: [{robot_name}] No additional static collision meshes to add to either backend")
 
         # Message handling attributes
-        self.group = group
         self.realtime_mimic_ik_solutions = []
         self._got_initial_config = False
         self._prev_cfg_cache = None      # last safe Configuration to restore sim to
@@ -88,11 +107,16 @@ class RobotHandlerCombinedBackends:
             semantics = None
         return semantics
 
+    def _ros_load_robot(self):
+        robot = self.ros_client.load_robot(load_geometry=False, precision=12)
+        robot.client = self.ros_client
+        return robot
+
     ####################################################################################################
     # Attaching TOOLS and COLLION MESHES
     ####################################################################################################
 
-    def _pyb_load_and_attach_tool(self, tool_info_fp, robot):
+    def _load_and_create_tool_for_backends(self, tool_info_fp):
         if not tool_info_fp:
             raise ValueError("Tool information file path is required.")
 
@@ -103,16 +127,42 @@ class RobotHandlerCombinedBackends:
         if not visual_mesh or not collision_mesh or not tcf_frame:
             raise ValueError("Tool information must contain 'visual_mesh' and 'collision_mesh' and 'tcf'.")
 
-        # collision_mesh = CollisionMesh(collision_mesh, "tool_cm") #TODO: GIVE ME A NAME. AND PLAN TO THAT NAME.
         tool = Tool(visual=visual_mesh, collision=collision_mesh, frame_in_tool0_frame=tcf_frame, connected_to="tool0")
-        robot.attach_tool(tool)
-        print(f"MIMICPYBULLETHANDLER: [{self.robot_name}] Loading tool from {tool_info}")
+        print(f"CombinedBackendHandler: [{self.robot_name}] Loading tool from {tool_info} for both backends")
+        return tool
 
-    def _pyb_load_additional_static_collision_meshes(self, additional_attached_collision_meshes_fp):
+    def _load_additional_static_collision_meshes(self, additional_attached_collision_meshes_fp):
         if not additional_attached_collision_meshes_fp:
             raise ValueError("Additional collision meshes file path is required.")
         additional_meshes = json_load(additional_attached_collision_meshes_fp)
         print(f"CombinedBackendHandler: [{self.robot_name}] Loading additional collision meshes from {additional_meshes}")
+
+    def _attach_tool_to_robot(self, tool, robot, backendname="PyBullet"):
+        robot.attach_tool(tool, self.group)
+        print(f"CombinedBackend: [{self.robot_name}] Attched Tool in Backend : {backendname}")
+
+    def _pyb_add_additional_static_collision_meshes_to_scene(self, additional_collision_meshes):
+        if not additional_collision_meshes:
+            return
+
+        print(f"CombinedBackend: [{self.robot_name}] Adding additional static collision meshes to PyBullet scene")
+
+        # for mesh_info in additional_collision_meshes:
+        #     mesh = CollisionMesh(mesh_info["mesh"], frame=mesh_info["frame"])
+        #     self.pyb_client.add_collision_mesh(mesh)
+        #     print(f"CombinedBackend: [{self.robot_name}] Added additional static collision mesh to PyBullet scene: {mesh_info['mesh']}")
+
+    def _ros_add_additional_static_collision_meshes_to_scene(self, additional_collision_meshes):
+        if not additional_collision_meshes:
+            return
+
+        print(f"CombinedBackend: [{self.robot_name}] Adding additional static collision meshes to ROS scene")
+
+        #TODO: I am not sure if I need to add as Scene for the collision objects this should be checked.
+        # for mesh_info in additional_collision_meshes:
+        #     mesh = CollisionMesh(mesh_info["mesh"], frame=mesh_info["frame"])
+        #     self.ros_client.add_collision_mesh(mesh)
+        #     print(f"CombinedBackend: [{self.robot_name}] Added additional static collision mesh to ROS scene: {mesh_info['mesh']}")
 
     ####################################################################################################
     # Configuration & IK Solvers
@@ -934,11 +984,10 @@ class RobotHandlerCombinedBackends:
         return True
 
 
-
 class URMimicHandlerCombined(RobotHandlerCombinedBackends):
 
-    def __init__(self, robot_name, robot_ip, urdf_path, tool_info_fp, additional_static_collision_meshes_fp=None, group="manipulator", srdf_path=None, io=0, speed=0.6, acceleration=0.1, radius=0.006, nowait=False):
-        super().__init__(robot_name, urdf_path, tool_info_fp, additional_static_collision_meshes_fp, group=group, srdf_path=srdf_path)
+    def __init__(self, robot_name, robot_ip, urdf_path, tool_info_fp, ros_ip='127.0.0.1', ros_port=9090, additional_static_collision_meshes_fp=None, group="manipulator", srdf_path=None, io=0, speed=0.6, acceleration=0.1, radius=0.006, nowait=False):
+        super().__init__(robot_name, urdf_path, tool_info_fp, ros_ip=ros_ip, ros_port=ros_port, additional_static_collision_meshes_fp=additional_static_collision_meshes_fp, group=group, srdf_path=srdf_path)
 
         self.robot_state_streamer = RTDEStateStreamer(robot_ip=robot_ip, poll_delay=0.001)
         self.robot_state_streamer.start()
