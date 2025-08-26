@@ -289,7 +289,7 @@ class RobotHandlerCombinedBackends:
         throttled to `visual_hz` (default 30 Hz).
         """
         if start_config is None:
-            start_config = self._get_latest_joint_values_from_stream_as_configuration()
+            start_config = self._get_latest_joint_values_from_stream_as_configuration(backend="Pybullet")
 
         options = {"link_name": "tool0"}
 
@@ -309,7 +309,7 @@ class RobotHandlerCombinedBackends:
             if cfg is None or not do_collision_check:
                 return cfg is not None
 
-            restore_cfg = (self._get_latest_joint_values_from_stream_as_configuration()
+            restore_cfg = (self._get_latest_joint_values_from_stream_as_configuration(backend="Pybullet")
                         or getattr(self, "_prev_cfg_cache", None)
                         or self.pyb_robot.zero_configuration())
             try:
@@ -393,7 +393,7 @@ class RobotHandlerCombinedBackends:
 
     def ros_find_ik(self, frame, start_config=None, options=None):
         if start_config is None:
-            start_config = self._get_latest_joint_values_from_stream_as_configuration()
+            start_config = self._get_latest_joint_values_from_stream_as_configuration(backend="ROS")
 
         ik_config = self.ros_robot.inverse_kinematics(frame_WCF=frame, start_configuration=start_config, options=options)
         if ik_config is None:
@@ -451,7 +451,7 @@ class RobotHandlerCombinedBackends:
             return []
 
         # Start from current robot state
-        start_config = self._get_latest_joint_values_from_stream_as_configuration()
+        start_config = self._get_latest_joint_values_from_stream_as_configuration(backend="Pybullet")
         if start_config is None:
             print(f"CombinedBackendHandler: [{self.robot_name}] Could not read current joint state.")
             return []
@@ -550,11 +550,94 @@ class RobotHandlerCombinedBackends:
                 if ik_config is None:
                     print(f"CombinedBackendHandler: [{self.robot_name}] No valid IK for frame {idx}. Aborting trajectory planning.")
                     return None
+                print (f"CombinedBackendHandler ROSSSSSSSSSSSSSSSSS : [{self.robot_name}] Found IK for frame {idx}: {ik_config}, with joint names: {ik_config.joint_names}")
                 configurations.append(ik_config)
             except Exception as e:
                 print(f"CombinedBackendHandler: [{self.robot_name}] Error finding IK for frame {idx}: {e}")
                 return None
         return configurations
+
+    #TODO: Needs to be updated for the target information (based on if it is suppose to get a cube or not)
+    def _ros_plan_trajectories_for_user_initiated_request(self, configurations: List[Configuration]) -> List[JointTrajectory]:
+        if not configurations:
+            print(f"CombinedBackendHandler: [{self.robot_name}] No configurations provided.")
+            return []
+
+        start_config = self._get_latest_joint_values_from_stream_as_configuration()
+        if start_config is None:
+            print(f"CombinedBackendHandler: [{self.robot_name}] Could not read current joint state.")
+            return []
+
+        ros_joint_names = self.ros_robot.get_configurable_joint_names(self.group)
+        ros_joint_types = self.ros_robot.get_configurable_joint_types(self.group)
+        if (not getattr(start_config, "joint_names", None)) or (list(start_config.joint_names) != list(ros_joint_names)):
+            start_config = Configuration(
+                joint_names=ros_joint_names,
+                joint_types=ros_joint_types,
+                joint_values=list(start_config.joint_values),
+            )
+
+        trajectories: List[JointTrajectory] = []
+        prev = start_config
+
+        tolerance_above = self._generate_default_tolerances(self.ros_robot.get_configurable_joints(self.group))
+        tolerance_below = self._generate_default_tolerances(self.ros_robot.get_configurable_joints(self.group))
+        # options_dict = dict(planne_id='TRRT', link_name="tool0", attached_collision_meshes=self.attached_collision_meshes) #TODO: UPDATE THIS.
+        options_dict = dict(planner_id='TRRT', link_name="tool0")
+
+        for i, goal in enumerate(configurations):
+            try:
+                if (not getattr(goal, "joint_names", None)) or (list(goal.joint_names) != list(ros_joint_names)):
+                    goal = Configuration(
+                        joint_names=ros_joint_names,
+                        joint_types=ros_joint_types,
+                        joint_values=list(goal.joint_values),
+                    )
+
+                start_cfg = prev if i == 0 else configurations[i-1]
+                if (not getattr(start_cfg, "joint_names", None)) or (list(start_cfg.joint_names) != list(ros_joint_names)):
+                    start_cfg = Configuration(
+                        joint_names=ros_joint_names,
+                        joint_types=ros_joint_types,
+                        joint_values=list(start_cfg.joint_values),
+                    )
+
+                goal_constraints = self.ros_robot.constraints_from_configuration(
+                    configuration=goal,
+                    tolerances_above=tolerance_above,
+                    tolerances_below=tolerance_below,
+                    group=self.group
+                )
+
+                trajectory = self.ros_robot.plan_motion(
+                    goal_constraints,
+                    start_configuration=start_cfg,
+                    group=self.group,
+                    options=options_dict
+                )
+
+                if trajectory is None:
+                    print(f"CombinedBackendHandler: [{self.robot_name}] Planner returned None for leg {i} ({prev} -> {goal}).")
+                    return []
+
+                # --- MINIMAL FIX 2: fill names/types if MoveIt/bridge omitted them ---
+                if not getattr(trajectory, "joint_names", None):
+                    trajectory.joint_names = list(ros_joint_names)
+                for pt in trajectory.points:
+                    if not getattr(pt, "joint_names", None):
+                        pt.joint_names = list(ros_joint_names)
+                    if not getattr(pt, "joint_types", None):
+                        pt.joint_types = list(ros_joint_types)
+
+                print(f"CombinedBackendHandler: [{self.robot_name}] Planned leg {i} with {len(trajectory.points)} points; joints={trajectory.joint_names}.")
+                trajectories.append(trajectory)
+                prev = goal
+
+            except Exception as e:
+                print(f"CombinedBackendHandler: [{self.robot_name}] Error planning trajectory leg {i} from {prev} to {goal}: {e}")
+                return []
+
+        return trajectories
 
     #######################################################################################################################
     # TODO: THESE ARE FOR PYBULLET BUT NEVER USED OR TESTED : Testing for creating cartesian motion with TryIK fast.
@@ -780,12 +863,12 @@ class RobotHandlerCombinedBackends:
             print(f"CombinedBackendHandler: [{self.robot_name}] Initial request received. Resetting IK solutions.")
             self.realtime_mimic_ik_solutions = []
             # start_config = self._get_current_configuration()
-            start_config = self._get_latest_joint_values_from_stream_as_configuration()
+            start_config = self._get_latest_joint_values_from_stream_as_configuration(backend="Pybullet")
 
         else:
             if len(self.realtime_mimic_ik_solutions) == 0:
                 # start_config = self._get_current_configuration()
-                start_config = self._get_latest_joint_values_from_stream_as_configuration()
+                start_config = self._get_latest_joint_values_from_stream_as_configuration(backend="Pybullet")
 
             else:
                 start_config = self.realtime_mimic_ik_solutions[-1]
@@ -820,11 +903,11 @@ class RobotHandlerCombinedBackends:
             print(f"CombinedBackendHandler: [{self.robot_name}] Initial request received. Resetting IK solutions.")
             self.realtime_mimic_ik_solutions = []
             # start_config = self._get_current_configuration()
-            start_config = self._get_latest_joint_values_from_stream_as_configuration()
+            start_config = self._get_latest_joint_values_from_stream_as_configuration(backend="Pybullet")
         else:
             if len(self.realtime_mimic_ik_solutions) == 0:
                 # start_config = self._get_current_configuration()
-                start_config = self._get_latest_joint_values_from_stream_as_configuration()
+                start_config = self._get_latest_joint_values_from_stream_as_configuration(backend="Pybullet")
             else:
                 start_config = self.realtime_mimic_ik_solutions[-1]
 
@@ -858,11 +941,11 @@ class RobotHandlerCombinedBackends:
             print(f"CombinedBackendHandler: [{self.robot_name}] Initial request received. Resetting IK solutions.")
             self.realtime_mimic_ik_solutions = []
             # start_config = self._get_current_configuration()
-            start_config = self._get_latest_joint_values_from_stream_as_configuration()
+            start_config = self._get_latest_joint_values_from_stream_as_configuration(backend="Pybullet")
         else:
             if len(self.realtime_mimic_ik_solutions) == 0:
                 # start_config = self._get_current_configuration()
-                start_config = self._get_latest_joint_values_from_stream_as_configuration()
+                start_config = self._get_latest_joint_values_from_stream_as_configuration(backend="Pybullet")
             else:
                 start_config = self.realtime_mimic_ik_solutions[-1]
 
@@ -900,7 +983,7 @@ class RobotHandlerCombinedBackends:
                 print(f"CombinedBackendHandler: [{self.robot_name}] Initial request received. Resetting IK solutions.")
                 self.realtime_mimic_ik_solutions = []
                 # start_config = self._get_current_configuration()
-                start_config = self._get_latest_joint_values_from_stream_as_configuration()
+                start_config = self._get_latest_joint_values_from_stream_as_configuration(backend="Pybullet")
                 options = dict(
                     link_name="tool0",
                     high_accuracy_threshold=1e-6,
@@ -933,7 +1016,7 @@ class RobotHandlerCombinedBackends:
             self.realtime_mimic_ik_solutions = []
 
         if msg.initial_request or not self.realtime_mimic_ik_solutions:
-            start_cfg = self._get_latest_joint_values_from_stream_as_configuration()
+            start_cfg = self._get_latest_joint_values_from_stream_as_configuration(backend="Pybullet")
             if start_cfg is None:
                 # rare fallback if stream isn't ready yet
                 start_cfg = self.pyb_robot.zero_configuration()
@@ -975,7 +1058,7 @@ class RobotHandlerCombinedBackends:
         This method can be overridden by child classes to handle custom message requests.
         """
         print(f"CombinedBackendHandler: [{self.robot_name}] Handling user-defined request: {msg} from {msg.header.device_id}")
-        start_config = self._get_latest_joint_values_from_stream_as_configuration()
+        start_config = self._get_latest_joint_values_from_stream_as_configuration(backend="Pybullet")
         options = dict(
                 link_name="tool0",
                 high_accuracy_threshold=1e-6,
@@ -1003,7 +1086,7 @@ class RobotHandlerCombinedBackends:
         This method can be overridden by child classes to handle custom message requests.
         """
         print(f"CombinedBackendHandler: [{self.robot_name}] Handling user-defined request: {msg} from {msg.header.device_id}")
-        start_config = self._get_latest_joint_values_from_stream_as_configuration()
+        start_config = self._get_latest_joint_values_from_stream_as_configuration(backend="ROS")
         options = dict(
                 link_name="tool0",
                 high_accuracy_threshold=1e-6,
@@ -1017,12 +1100,11 @@ class RobotHandlerCombinedBackends:
             print(f"CombinedBackendHandler ROSSSSSSSSSSSSSSSSSSSSSSSSSSSSS : [{self.robot_name}] No valid configurations found for planning. Returning empty trajectory.")
         else:
             print(f"CombinedBackendHandler ROSSSSSSSSSSSSSSSSSSSSSSSSSSSSS : [{self.robot_name}] Valid configurations found for planning. Found {len(configs_for_planning)} configs for planning.")        
-        return None
 
-        # trajectories = self._pyb_plan_trajectories_for_user_initiated_request(configurations=configs_for_planning)
-        # if len(trajectories) < 1:
-        #     print(f"CombinedBackendHandler: [{self.robot_name}] No valid trajectories found for planning. Returning empty trajectory.")
-        #     return None
+        trajectories = self._ros_plan_trajectories_for_user_initiated_request(configurations=configs_for_planning)
+        if len(trajectories) < 1:
+            print(f"CombinedBackendHandler: [{self.robot_name}] No valid trajectories found for planning. Returning empty trajectory.")
+            return None
         
         # print(f"CombinedBackendHandler: [{self.robot_name}] Valid trajectories found for planning. Found {len(trajectories)} trajectories for planning.")
         return trajectories
@@ -1046,6 +1128,7 @@ class RobotHandlerCombinedBackends:
                 print(f"CombinedBackendHandler: [{self.robot_name}] Failed to execute trajectory: {e}")
                 return False
         return True
+
 
 
 class URMimicHandlerCombined(RobotHandlerCombinedBackends):
@@ -1263,11 +1346,17 @@ class URMimicHandlerCombined(RobotHandlerCombinedBackends):
             print(f"[{self.robot_name}] No JOINTVALUE state data available yet.")
             return None
 
-    def _get_latest_joint_values_from_stream_as_configuration(self):
+    def _get_latest_joint_values_from_stream_as_configuration(self, backend="ROS"):
         q = self._get_latest_joint_values_from_stream()
         if q:
-            joint_names = self.pyb_robot.get_configurable_joint_names()
-            joint_types = self.pyb_robot.get_configurable_joint_types()
+            if backend == "ROS":
+                joint_names = self.ros_robot.get_configurable_joint_names()
+                joint_types = self.ros_robot.get_configurable_joint_types()
+            elif backend == "PyBullet":
+                joint_names = self.pyb_robot.get_configurable_joint_names()
+                joint_types = self.pyb_robot.get_configurable_joint_types()
+            else:
+                raise ValueError(f"Unknown backend: {backend}. Supported backends are 'ROS' and 'PyBullet'.")
             if len(q) != len(joint_names):
                 raise ValueError(f"Length of joint values ({len(q)}) does not match number of configurable joints ({len(joint_names)}).")
             return Configuration(joint_names=joint_names, joint_types=joint_types, joint_values=q)
@@ -1283,8 +1372,6 @@ class URMimicHandlerCombined(RobotHandlerCombinedBackends):
         else:
             print(f"[{self.robot_name}] No TCP state data available yet.")
             return None
-
-
 
 
 #TODO: FIX later (need to compute IK in PyBullet and send to ABB using ROSClient in RRC) #TODO: REALLY FIX INPUTS LATER.
