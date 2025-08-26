@@ -6,9 +6,11 @@ from compas_xr.mqtt import RealtimeMimicRequestMessage, RealtimeMimicResultMessa
 from robots.com_handlers.realtime_mimic_pbhandler import URMimicHandlerPyB, ABBMimicHandlerPyB #TODO: This needs to be wrapped into one handler for both Mimics
 from robots.com_handlers.realtime_mimic_roshandler import URMimicHandlerROS, ABBMimicHandlerROS #TODO: This needs to be wrapped into one handler for both Mimics
 from robots.com_handlers.robot_handler_combined_rospy import URMimicHandlerCombined, ABBMimicHandlerCombined
+from compas.geometry import Rotation
 
 from compas.data import json_load, json_dump
 import os
+import math
 
 #TODO: FIX ME JOSEPH. START PLANNING....
 
@@ -274,7 +276,14 @@ class CommunicationManager:
 
         # Robot base frame transformation
         #TODO: Tranformation is from the URDF baseframe to make sure that everything is correct with the urdf baseframe to the real world. (also where I can add extra transformatoin if needed because of the poor structure of some URDFs)
-        robot_base_frame = self._urdf_baseframe.transformed(self.transformations_robot_space_to_ar_space)
+        #TODO: TESTING THIS...
+        # robot_base_frame = self._transform_result_frame_from_robot_space_to_ar_space(self._urdf_baseframe)
+        _urdf_baseframe = self._urdf_baseframe
+        rotation = Rotation.from_axis_and_angle(_urdf_baseframe.zaxis, math.radians(180), _urdf_baseframe.point)
+        rotated_frame = _urdf_baseframe.transformed(rotation)
+        robot_base_frame = rotated_frame.transformed(self.transformations_robot_space_to_ar_space)
+        #TODO: Added Additional Transformation Rotation to account for poor URDF baseframe placement.
+
         self._user_initiated_mimic_trajectories_to_execute = trajectories_to_publsih
 
         result = MimicTrajectoryResultMessage(
