@@ -582,7 +582,6 @@ class RobotHandlerCombinedBackends:
 
         tolerance_above = self._generate_default_tolerances(self.ros_robot.get_configurable_joints(self.group))
         tolerance_below = self._generate_default_tolerances(self.ros_robot.get_configurable_joints(self.group))
-        # options_dict = dict(planne_id='TRRT', link_name="tool0", attached_collision_meshes=self.attached_collision_meshes) #TODO: UPDATE THIS.
         options_dict = dict(planner_id='TRRT', link_name="tool0")
 
         for i, goal in enumerate(configurations):
@@ -620,7 +619,6 @@ class RobotHandlerCombinedBackends:
                     print(f"CombinedBackendHandler: [{self.robot_name}] Planner returned None for leg {i} ({prev} -> {goal}).")
                     return []
 
-                # --- MINIMAL FIX 2: fill names/types if MoveIt/bridge omitted them ---
                 if not getattr(trajectory, "joint_names", None):
                     trajectory.joint_names = list(ros_joint_names)
                 for pt in trajectory.points:
