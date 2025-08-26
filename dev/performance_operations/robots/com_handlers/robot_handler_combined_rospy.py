@@ -579,7 +579,6 @@ class RobotHandlerCombinedBackends:
 
         trajectories: List[JointTrajectory] = []
         prev = start_config
-
         tolerance_above = self._generate_default_tolerances(self.ros_robot.get_configurable_joints(self.group))
         tolerance_below = self._generate_default_tolerances(self.ros_robot.get_configurable_joints(self.group))
         options_dict = dict(planner_id='TRRT', link_name="tool0")
