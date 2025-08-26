@@ -45,14 +45,14 @@ class RobotHandlerCombinedBackends:
         else:
             self.srdf_path = None
 
-        self.client = PyBulletClient()
-        self.client.__enter__()
-        self.robot = self._load_robot()
-        self.semantics = self._load_semantics()
+        self.pyb_client = PyBulletClient()
+        self.pyb_client.__enter__()
+        self.pyb_robot = self._pyb_load_robot()
+        self.pyb_semantics = self._pyb_load_semantics()
 
-        self._load_and_attach_tool(tool_info_fp, self.robot)
+        self._pyb_load_and_attach_tool(tool_info_fp, self.pyb_robot)
         if additional_static_collision_meshes_fp:
-            self.additional_static_collison_meshes = self._load_additional_static_collision_meshes(additional_static_collision_meshes_fp)
+            self.additional_static_collison_meshes = self._pyb_load_additional_static_collision_meshes(additional_static_collision_meshes_fp)
         else:
             self.additional_static_collison_meshes = None
 
@@ -68,21 +68,21 @@ class RobotHandlerCombinedBackends:
         self._last_visual_step_t = 0.0   # throttle timestamp for sim stepping
 
 
-        print(f"RealtimeMimicPyBulletHandler: [{robot_name}] Handler initialized")
+        print(f"CombinedBackendHandler: [{robot_name}] Handler initialized")
 
     ####################################################################################################
     # LOAD ROBOT AND SEMANTICS
     ####################################################################################################
 
-    def _load_robot(self):
+    def _pyb_load_robot(self):
         urdf_file = compas_fab.get(self.urdf_path)
-        robot = self.client.load_robot(urdf_file)
+        robot = self.pyb_client.load_robot(urdf_file)
         return robot
 
-    def _load_semantics(self):
+    def _pyb_load_semantics(self):
         if self.srdf_path:
             print("Semantics Loaded")
-            semantics = self.client.load_semantics(self.robot, srdf_filename=self.srdf_path)
+            semantics = self.pyb_client.load_semantics(self.pyb_robot, srdf_filename=self.srdf_path)
         else:
             print("Sementics Not loaded")
             semantics = None
@@ -92,7 +92,7 @@ class RobotHandlerCombinedBackends:
     # Attaching TOOLS and COLLION MESHES
     ####################################################################################################
 
-    def _load_and_attach_tool(self, tool_info_fp, robot):
+    def _pyb_load_and_attach_tool(self, tool_info_fp, robot):
         if not tool_info_fp:
             raise ValueError("Tool information file path is required.")
 
@@ -108,7 +108,7 @@ class RobotHandlerCombinedBackends:
         robot.attach_tool(tool)
         print(f"MIMICPYBULLETHANDLER: [{self.robot_name}] Loading tool from {tool_info}")
 
-    def _load_additional_static_collision_meshes(self, additional_attached_collision_meshes_fp):
+    def _pyb_load_additional_static_collision_meshes(self, additional_attached_collision_meshes_fp):
         if not additional_attached_collision_meshes_fp:
             raise ValueError("Additional collision meshes file path is required.")
         additional_meshes = json_load(additional_attached_collision_meshes_fp)
@@ -118,27 +118,27 @@ class RobotHandlerCombinedBackends:
     # Configuration & IK Solvers
     ####################################################################################################
 
-    def find_valid_ik_recursive(self, frame, start_config, options=None, max_tries=10, attempt=0):
+    def pyb_find_valid_ik_recursive(self, frame, start_config, options=None, max_tries=10, attempt=0):
         if attempt >= max_tries:
             print(f"[{self.robot_name}] Max IK attempts ({max_tries}) reached.")
             return None
 
         try:
-            ik_config = self.robot.inverse_kinematics(frame_WCF=frame, start_configuration=start_config, options=options)
-            self.client.set_robot_configuration(self.robot, ik_config)
-            self.client.step_simulation()
+            ik_config = self.pyb_robot.inverse_kinematics(frame_WCF=frame, start_configuration=start_config, options=options)
+            self.pyb_client.set_robot_configuration(self.pyb_robot, ik_config)
+            self.pyb_client.step_simulation()
 
-            if self.client.check_robot_self_collision(self.robot):
+            if self.pyb_client.check_robot_self_collision(self.pyb_robot):
                 print(f"[{self.robot_name}] Attempt {attempt + 1}: IK result in collision. Trying again...")
-                return self.find_valid_ik_recursive(frame, start_config, options, max_tries, attempt + 1)
+                return self.pyb_find_valid_ik_recursive(frame, start_config, options, max_tries, attempt + 1)
             else:
                 print(f"[{self.robot_name}] Found collision-free IK solution on attempt {attempt + 1}.")
                 return ik_config
         except Exception as e:
             print(f"[{self.robot_name}] IK exception at attempt {attempt + 1}: {e}")
-            return self.find_valid_ik_recursive(frame, start_config, options, max_tries, attempt + 1)
+            return self.pyb_find_valid_ik_recursive(frame, start_config, options, max_tries, attempt + 1)
 
-    def find_best_valid_ik_compas_fab_itter_ik(self, frame, start_config, options, max_results=20):
+    def pyb_find_best_valid_ik_compas_fab_itter_ik(self, frame, start_config, options, max_results=20):
         """
         Iteratively searches for valid IK solutions and selects the closest one
         based on joint difference.
@@ -163,28 +163,28 @@ class RobotHandlerCombinedBackends:
         valid_configs = []
 
         #TODO: Maybe Remove this...
-        self.client.set_robot_configuration(self.robot, start_config)
-        self.client.step_simulation()
+        self.pyb_client.set_robot_configuration(self.pyb_robot, start_config)
+        self.pyb_client.step_simulation()
 
 
-        for candidate in self.robot.iter_inverse_kinematics(
+        for candidate in self.pyb_robot.iter_inverse_kinematics(
             frame_WCF=frame,
             start_configuration=start_config,
             options=options
         ):
-            self.client.set_robot_configuration(self.robot, candidate)
-            self.client.step_simulation()
+            self.pyb_client.set_robot_configuration(self.pyb_robot, candidate)
+            self.pyb_client.step_simulation()
 
-            if not self.client.check_robot_self_collision(self.robot):
+            if not self.pyb_client.check_robot_self_collision(self.pyb_robot):
                 valid_configs.append(candidate)
 
         if not valid_configs:
-            print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] No valid collision-free IK solutions found.")
+            print(f"CombinedBackendHandler: [{self.robot_name}] No valid collision-free IK solutions found.")
             return None
 
         return self.find_minimum_movement_config(start_config, valid_configs)
 
-    def find_best_valid_ik_compas_fab_itter_ik_improved(self, frame, start_config, options=None, max_results=20):
+    def pyb_find_best_valid_ik_compas_fab_itter_ik_improved(self, frame, start_config, options=None, max_results=20):
         options = {} if options is None else dict(options)
         link = options.get("link_name", "tool0")
 
@@ -195,13 +195,13 @@ class RobotHandlerCombinedBackends:
 
         feasible = None
         tried = 0
-        for cfg in self.robot.iter_inverse_kinematics(
+        for cfg in self.pyb_robot.iter_inverse_kinematics(
             frame_WCF=frame,
             start_configuration=start_config,
             options=coarse
         ):
             tried += 1
-            if self._is_valid(cfg):
+            if self._pyb_is_valid(cfg):
                 feasible = cfg
                 break
             if tried >= max_results:
@@ -216,15 +216,15 @@ class RobotHandlerCombinedBackends:
         strict.setdefault("high_accuracy_threshold", 1e-6)
         strict.setdefault("high_accuracy_max_iter", 128)
 
-        refined = self.robot.inverse_kinematics(
+        refined = self.pyb_robot.inverse_kinematics(
             frame_WCF=frame,
             start_configuration=feasible,
             options=strict
         )
 
-        if refined is None or not self._is_valid(refined):
+        if refined is None or not self._pyb_is_valid(refined):
             # If refinement drove it into a collision or failed numerically, keep feasible.
-            return feasible if self._is_valid(feasible) else None
+            return feasible if self._pyb_is_valid(feasible) else None
 
         # # Optional: verify pose error explicitly
         # ee = getattr(self.robot, "get_end_effector_link_name", lambda: link)()
@@ -232,7 +232,7 @@ class RobotHandlerCombinedBackends:
         # pos_err = (tcp_world.point - frame.point).length
         return refined
 
-    def try_fast_ik(self, frame, start_config=None, do_collision_check=True, extra_seed=False, visual_hz=30):
+    def pyb_try_fast_ik(self, frame, start_config=None, do_collision_check=True, extra_seed=False, visual_hz=30):
         """
         Fast IK (single seed + optional last_good). On success, optionally mirror to sim,
         throttled to `visual_hz` (default 30 Hz).
@@ -246,7 +246,7 @@ class RobotHandlerCombinedBackends:
             if seed is None:
                 return None
             try:
-                return self.robot.inverse_kinematics(
+                return self.pyb_robot.inverse_kinematics(
                     frame_WCF=frame, start_configuration=seed, options=options
                 )
             except StopIteration:
@@ -260,16 +260,16 @@ class RobotHandlerCombinedBackends:
 
             restore_cfg = (self._get_latest_joint_values_from_stream_as_configuration()
                         or getattr(self, "_prev_cfg_cache", None)
-                        or self.robot.zero_configuration())
+                        or self.pyb_robot.zero_configuration())
             try:
-                self.client.set_robot_configuration(self.robot, cfg)
+                self.pyb_client.set_robot_configuration(self.pyb_robot, cfg)
                 try:
-                    self.client.check_robot_self_collision(self.robot)  # raises on collision
+                    self.pyb_client.check_robot_self_collision(self.pyb_robot)  # raises on collision
                     collides = False
                 except Exception as e:
                     collides = (e.__class__.__name__ == "CollisionError") or True
             finally:
-                self.client.set_robot_configuration(self.robot, restore_cfg)
+                self.pyb_client.set_robot_configuration(self.pyb_robot, restore_cfg)
                 self._prev_cfg_cache = restore_cfg
             return not collides
 
@@ -278,8 +278,8 @@ class RobotHandlerCombinedBackends:
             now = time.perf_counter()
             last = getattr(self, "_last_visual_step_t", 0.0)
             if now - last >= 1.0 / max(1, visual_hz):
-                self.client.set_robot_configuration(self.robot, cfg)  # commit accepted IK to sim
-                self.client.step_simulation()                         # single step
+                self.pyb_client.set_robot_configuration(self.pyb_robot, cfg)  # commit accepted IK to sim
+                self.pyb_client.step_simulation()                         # single step
                 self._last_visual_step_t = now
 
         # Attempt 1: current joints seed
@@ -295,10 +295,10 @@ class RobotHandlerCombinedBackends:
                 maybe_visualize(ik)
                 return ik
 
-        print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] IK failed.")
+        print(f"CombinedBackendHandler: [{self.robot_name}] IK failed.")
         return None
 
-    def log_self_collisions(self, ignored_pairs=None, threshold=0.001):
+    def pyb_log_self_collisions(self, ignored_pairs=None, threshold=0.001):
         """Log all robot self-collisions within a given distance threshold,
         ignoring specific link pairs if provided.
 
@@ -310,7 +310,7 @@ class RobotHandlerCombinedBackends:
             Distance threshold for considering proximity as collision.
         """
         ignored_pairs = ignored_pairs or []
-        robot_uid = self.client.client_id
+        robot_uid = self.pyb_client.client_id
         printed = set()
 
         for i in range(pb.getNumJoints(robot_uid)):
@@ -332,17 +332,17 @@ class RobotHandlerCombinedBackends:
         if not printed:
             print("No self-collisions detected.")
 
-    def _is_valid(self, cfg):
+    def _pyb_is_valid(self, cfg):
         """Check if a configuration is collision-free in the current PyBullet scene."""
-        self.client.set_robot_configuration(self.robot, cfg)
-        self.client.step_simulation()
-        return not self.client.check_robot_self_collision(self.robot)
+        self.pyb_client.set_robot_configuration(self.pyb_robot, cfg)
+        self.pyb_client.step_simulation()
+        return not self.pyb_client.check_robot_self_collision(self.pyb_robot)
 
     ####################################################################################################
     # Planning and Multi-Configuration Solving
     ####################################################################################################
 
-    def plan_ik_for_frames_list_compas_fab_itter(self, frames_for_ik, start_config, options=None, max_results=20) -> List[Configuration]:
+    def pyb_plan_ik_for_frames_list_compas_fab_itter(self, frames_for_ik, start_config, options=None, max_results=20) -> List[Configuration]:
         """
         Plans a joint trajectory for a list of target frames using iterative IK search.
 
@@ -367,26 +367,26 @@ class RobotHandlerCombinedBackends:
 
         for idx, frame in enumerate(frames_for_ik):
             try:
-                ik_config = self.find_best_valid_ik_compas_fab_itter_ik_improved(frame, current_config, options, max_results)
+                ik_config = self.pyb_find_best_valid_ik_compas_fab_itter_ik_improved(frame, current_config, options, max_results)
                 if ik_config is None:
-                    print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] No valid IK for frame {idx}. Aborting trajectory planning.")
+                    print(f"CombinedBackendHandler: [{self.robot_name}] No valid IK for frame {idx}. Aborting trajectory planning.")
                     return None
                 configurations.append(ik_config)
             except Exception as e:
-                print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Error finding IK for frame {idx}: {e}")
+                print(f"CombinedBackendHandler: [{self.robot_name}] Error finding IK for frame {idx}: {e}")
                 return None
         return configurations
 
-    def _plan_trajectories_for_user_initiated_request(self, configurations: List[Configuration]) -> List[JointTrajectory]:
+    def _pyb_plan_trajectories_for_user_initiated_request(self, configurations: List[Configuration]) -> List[JointTrajectory]:
 
         if not configurations:
-            print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] No configurations provided.")
+            print(f"CombinedBackendHandler: [{self.robot_name}] No configurations provided.")
             return []
 
         # Start from current robot state
         start_config = self._get_latest_joint_values_from_stream_as_configuration()
         if start_config is None:
-            print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Could not read current joint state.")
+            print(f"CombinedBackendHandler: [{self.robot_name}] Could not read current joint state.")
             return []
 
         trajectories: List[JointTrajectory] = []
@@ -394,7 +394,7 @@ class RobotHandlerCombinedBackends:
 
         for i, goal in enumerate(configurations):
             try:
-                traj = self._plan_free_motion_trajectory_pybullet_planning_test(prev, goal)
+                traj = self._pyb_plan_free_motion_trajectory_pybullet_planning_test(prev, goal)
             except Exception as e:
                 print(
                     f"RealtimeMimicPyBulletHandler: [{self.robot_name}] "
@@ -416,35 +416,7 @@ class RobotHandlerCombinedBackends:
         json_dump(trajectories, fp=r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\performance_operations\testing\random_data_saves\test_trajectory_pybullet_planning.json", pretty=True)
         return trajectories
 
-    def _plan_free_motion_trajectory_old(self, start_config: Configuration, goal_config: Configuration, num_steps=10) -> JointTrajectory:
-        
-        if start_config is None or goal_config is None:
-            raise ValueError("Start and end configurations must be provided.")
-        
-        # Best-practice: build constraints from a Configuration
-        goal_constraints = self.robot.constraints_from_configuration(
-            goal_config, group=self.group,
-            tolerances_above= self._generate_default_tolerances(self.robot.get_configurable_joints(self.group)),
-            tolerances_below=self._generate_default_tolerances(self.robot.get_configurable_joints(self.group))
-        )
-
-        options = dict(
-            max_planning_time=5.0,  # seconds
-            # Optional (PyBullet usually supports these):
-            resolution=0.01,        # joint-space interpolation resolution (rad)
-            smooth_iterations=50,   # post-smoothing in pybullet_planning
-        )
-
-        traj = self.robot.plan_motion(
-            goal_constraints,
-            start_configuration=start_config,
-            group=self.group
-        )
-        #     options=options
-        # )
-        return traj
-
-    def _plan_free_motion_trajectory_pybullet_planning_test(self, start_config, goal_config, num_steps=10):
+    def _pyb_plan_free_motion_trajectory_pybullet_planning_test(self, start_config, goal_config, num_steps=10):
         if start_config is None or goal_config is None:
             raise ValueError("Start and end configurations must be provided.")
 
@@ -457,7 +429,7 @@ class RobotHandlerCombinedBackends:
         # --- 2) joint names -> indices (fresh each call; tiny overhead, very simple)
         name_to_idx = {pb.getJointInfo(body_id, j)[1].decode(): j
                     for j in range(pb.getNumJoints(body_id))}
-        group_joint_names = self.robot.get_configurable_joint_names(self.group)
+        group_joint_names = self.pyb_robot.get_configurable_joint_names(self.group)
         try:
             joint_ids = [name_to_idx[n] for n in group_joint_names]
         except KeyError as e:
@@ -467,10 +439,10 @@ class RobotHandlerCombinedBackends:
             return None
 
         # --- 3) (optional) quick limits sanity
-        if not self._is_valid(start_config):
+        if not self._pyb_is_valid(start_config):
             print(f"[{self.robot_name}] Start configuration violates limits.")
             return None
-        if not self._is_valid(goal_config):
+        if not self._pyb_is_valid(goal_config):
             print(f"[{self.robot_name}] Goal configuration violates limits.")
             return None
 
@@ -494,14 +466,14 @@ class RobotHandlerCombinedBackends:
         traj_points = []
         t = 0.0
         for q in path:
-            traj_points.append(JointTrajectoryPoint(joint_values=list(q), joint_types=self.robot.get_configurable_joint_types(), joint_names=self.robot.get_configurable_joint_names()))
+            traj_points.append(JointTrajectoryPoint(joint_values=list(q), joint_types=self.pyb_robot.get_configurable_joint_types(), joint_names=self.pyb_robot.get_configurable_joint_names()))
             t += 0.02
-        traj = JointTrajectory(traj_points, self.robot.get_configurable_joint_names(), start_config) #TODO: ADD ATTACHED COLLISION MESH HERE.
+        traj = JointTrajectory(traj_points, self.pyb_robot.get_configurable_joint_names(), start_config) #TODO: ADD ATTACHED COLLISION MESH HERE.
         return traj
 
-    ####################################################################################################
-    # Testing for creating cartesian motion with TryIK fast.
-    ####################################################################################################
+    #######################################################################################################################
+    # TODO: THESE ARE FOR PYBULLET BUT NEVER USED OR TESTED : Testing for creating cartesian motion with TryIK fast.
+    #######################################################################################################################
 
     def slerp_quat(self, q0: Quaternion, q1: Quaternion, t: float) -> Quaternion:
         # compas Quaternion supports slerp via classmethod in newer versions; do manual if needed
@@ -572,7 +544,7 @@ class RobotHandlerCombinedBackends:
     ) -> Optional[JointTrajectory]:
 
         # Pre-check: start_cfg valid
-        if not self._is_valid(start_cfg):
+        if not self._pyb_is_valid(start_cfg):
             print("[cartesian] start_cfg violates limits")
             return None
 
@@ -586,9 +558,9 @@ class RobotHandlerCombinedBackends:
         while i < len(frames):
             f = frames[i]
 
-            cfg = self.try_fast_ik(f, seed)  # primary solver
+            cfg = self.pyb_try_fast_ik(f, seed)  # primary solver
             if cfg is None and fallback_compas_ik:
-                cfg = self.robot.inverse_kinematics(f, start_configuration=seed, group=group)
+                cfg = self.pyb_robot.inverse_kinematics(f, start_configuration=seed, group=group)
 
             if cfg is None:
                 if bisect_on_failure and num_steps < 800:
@@ -606,7 +578,7 @@ class RobotHandlerCombinedBackends:
                 return None
 
             # limits + optional collision
-            if not self._is_valid(cfg):
+            if not self._pyb_is_valid(cfg):
                 if bisect_on_failure and num_steps < 800:
                     if i == 0:
                         print(f"[cartesian] invalid/colliding at first step {i}")
@@ -668,16 +640,16 @@ class RobotHandlerCombinedBackends:
 
     def _get_current_configuration(self):
         if not self.realtime_mimic_ik_solutions:
-            return self.robot.zero_configuration()
+            return self.pyb_robot.zero_configuration()
         else:
             "using last configuration as start configuration"
         return self.realtime_mimic_ik_solutions[-1]
     
     def _send_to_target(self, frame: Frame):
-        print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] (Sim) Executing motion to target frame: {frame}")
+        print(f"CombinedBackendHandler: [{self.robot_name}] (Sim) Executing motion to target frame: {frame}")
 
     def _send_to_configuration(self, config: Configuration):
-        print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] (Sim) Executing: {config.joint_values}")
+        print(f"CombinedBackendHandler: [{self.robot_name}] (Sim) Executing: {config.joint_values}")
 
     def _get_latest_joint_values_from_stream(self):
         """
@@ -706,7 +678,7 @@ class RobotHandlerCombinedBackends:
         raise NotImplementedError("This method should be implemented on the child classes.")
 
     def shutdown(self):
-        self.client.__exit__(None, None, None)
+        self.pyb_client.__exit__(None, None, None)
 
     def _toggle_tool_io(self, signal: int, value: int):
         raise NotImplementedError("This method should be implemented on the child classes.")
@@ -719,11 +691,11 @@ class RobotHandlerCombinedBackends:
         """
         Checks recursively until it findes a valid IK that is collision free and returns it, but has a max attempt of 8. It returns the first solution without collision.
         """
-        print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Handling request: {msg.message} from {msg.header.device_id}")
+        print(f"CombinedBackendHandler: [{self.robot_name}] Handling request: {msg.message} from {msg.header.device_id}")
         frame = msg.requested_robot_frame
 
         if msg.initial_request:
-            print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Initial request received. Resetting IK solutions.")
+            print(f"CombinedBackendHandler: [{self.robot_name}] Initial request received. Resetting IK solutions.")
             self.realtime_mimic_ik_solutions = []
             # start_config = self._get_current_configuration()
             start_config = self._get_latest_joint_values_from_stream_as_configuration()
@@ -739,11 +711,11 @@ class RobotHandlerCombinedBackends:
         try:
             options = {"link_name": "tool0"}
             max_attempts = 8
-            ik_config = self.find_valid_ik_recursive(frame, start_config, options, max_tries=max_attempts)
+            ik_config = self.pyb_find_valid_ik_recursive(frame, start_config, options, max_tries=max_attempts)
             if ik_config is None:
-                self.client.set_robot_configuration(self.robot, start_config)
-                self.client.step_simulation()
-                print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] No valid IK solution found after {max_attempts} attempts.")
+                self.pyb_client.set_robot_configuration(self.pyb_robot, start_config)
+                self.pyb_client.step_simulation()
+                print(f"CombinedBackendHandler: [{self.robot_name}] No valid IK solution found after {max_attempts} attempts.")
                 return None
 
             self.realtime_mimic_ik_solutions.append(ik_config)
@@ -752,18 +724,18 @@ class RobotHandlerCombinedBackends:
             json_dump(self.realtime_mimic_ik_solutions, fp=fp, pretty=True)
             return ik_config
         except Exception as e:
-            print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] IK computation failed: {e}")
+            print(f"CombinedBackendHandler: [{self.robot_name}] IK computation failed: {e}")
             return None
 
     def handle_realtime_msg_request_compas_fab_itter(self, msg: RealtimeMimicRequestMessage) -> Configuration: #TODO: test run on the robot.
         """
         Checks recursively until it findes a valid IK that is collision free and returns it, but has a max attempt of 8. It returns the first solution without collision.
         """
-        print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Handling request: {msg.message} from {msg.header.device_id}")
+        print(f"CombinedBackendHandler: [{self.robot_name}] Handling request: {msg.message} from {msg.header.device_id}")
         frame = msg.requested_robot_frame
 
         if msg.initial_request:
-            print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Initial request received. Resetting IK solutions.")
+            print(f"CombinedBackendHandler: [{self.robot_name}] Initial request received. Resetting IK solutions.")
             self.realtime_mimic_ik_solutions = []
             # start_config = self._get_current_configuration()
             start_config = self._get_latest_joint_values_from_stream_as_configuration()
@@ -780,11 +752,11 @@ class RobotHandlerCombinedBackends:
                 high_accuracy_threshold=1e-6,
                 high_accuracy_max_iter=8
             )
-            ik_config = self.find_best_valid_ik_compas_fab_itter_ik(frame, start_config, options)
+            ik_config = self.pyb_find_best_valid_ik_compas_fab_itter_ik(frame, start_config, options)
 
             if ik_config is None:
-                self.client.set_robot_configuration(self.robot, start_config)
-                self.client.step_simulation()
+                self.pyb_client.set_robot_configuration(self.pyb_robot, start_config)
+                self.pyb_client.step_simulation()
                 return None
 
             self.realtime_mimic_ik_solutions.append(ik_config)
@@ -793,15 +765,15 @@ class RobotHandlerCombinedBackends:
             json_dump(self.realtime_mimic_ik_solutions, fp=fp, pretty=True)
             return ik_config
         except Exception as e:
-            print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] IK computation failed: {e}")
+            print(f"CombinedBackendHandler: [{self.robot_name}] IK computation failed: {e}")
             return None
 
     def handle_realtime_msg_request(self, msg: RealtimeMimicRequestMessage) -> Configuration: #TODO: Using this one, and check the visualization, but run on the robot.
-        print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Handling request: {msg.message} from {msg.header.device_id}")
+        print(f"CombinedBackendHandler: [{self.robot_name}] Handling request: {msg.message} from {msg.header.device_id}")
         frame = msg.requested_robot_frame
 
         if msg.initial_request:
-            print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Initial request received. Resetting IK solutions.")
+            print(f"CombinedBackendHandler: [{self.robot_name}] Initial request received. Resetting IK solutions.")
             self.realtime_mimic_ik_solutions = []
             # start_config = self._get_current_configuration()
             start_config = self._get_latest_joint_values_from_stream_as_configuration()
@@ -813,19 +785,19 @@ class RobotHandlerCombinedBackends:
                 start_config = self.realtime_mimic_ik_solutions[-1]
 
         try:
-            ik_config = self.robot.inverse_kinematics(frame_WCF=frame, start_configuration=start_config, options={"link_name": "tool0"}) #TODO: This tool0 param is hard coded for the UR20, it should be checked with the UR3 and ABB. Or passed as a paramater for the tool frame as well.
-            self.client.set_robot_configuration(self.robot, ik_config)
-            self.client.step_simulation()
-            is_collision = self.client.check_robot_self_collision(self.robot)
+            ik_config = self.pyb_robot.inverse_kinematics(frame_WCF=frame, start_configuration=start_config, options={"link_name": "tool0"}) #TODO: This tool0 param is hard coded for the UR20, it should be checked with the UR3 and ABB. Or passed as a paramater for the tool frame as well.
+            self.pyb_client.set_robot_configuration(self.pyb_robot, ik_config)
+            self.pyb_client.step_simulation()
+            is_collision = self.pyb_client.check_robot_self_collision(self.pyb_robot)
             if is_collision:
-                print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] IK solution is in collision. Logging details:")
-                self.log_self_collisions()
+                print(f"CombinedBackendHandler: [{self.robot_name}] IK solution is in collision. Logging details:")
+                self.pyb_log_self_collisions()
                 if self.realtime_mimic_ik_solutions:
-                    self.client.set_robot_configuration(self.robot, self.realtime_mimic_ik_solutions[-1])
-                    self.client.step_simulation()
+                    self.pyb_client.set_robot_configuration(self.pyb_robot, self.realtime_mimic_ik_solutions[-1])
+                    self.pyb_client.step_simulation()
                 else:
-                    self.client.set_robot_configuration(self.robot, self.robot.zero_configuration())
-                    self.client.step_simulation()
+                    self.pyb_client.set_robot_configuration(self.pyb_robot, self.pyb_robot.zero_configuration())
+                    self.pyb_client.step_simulation()
                 return None
             self.realtime_mimic_ik_solutions.append(ik_config)
 
@@ -834,16 +806,16 @@ class RobotHandlerCombinedBackends:
             json_dump(self.realtime_mimic_ik_solutions, fp=fp, pretty=True)
             return ik_config
         except Exception as e:
-            print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] IK computation failed: {e}")
+            print(f"CombinedBackendHandler: [{self.robot_name}] IK computation failed: {e}")
             return None
 
     def handle_realtime_msg_request_ik_target(self, msg: RealtimeMimicRequestMessage) -> Configuration: #TODO: Using this one, and check the visualization, but run on the robot.
-        print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Handling request: {msg.message} from {msg.header.device_id}")
+        print(f"CombinedBackendHandler: [{self.robot_name}] Handling request: {msg.message} from {msg.header.device_id}")
         frame = msg.requested_robot_frame
 
         try:
             if msg.initial_request:
-                print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Initial request received. Resetting IK solutions.")
+                print(f"CombinedBackendHandler: [{self.robot_name}] Initial request received. Resetting IK solutions.")
                 self.realtime_mimic_ik_solutions = []
                 # start_config = self._get_current_configuration()
                 start_config = self._get_latest_joint_values_from_stream_as_configuration()
@@ -852,21 +824,21 @@ class RobotHandlerCombinedBackends:
                     high_accuracy_threshold=1e-6,
                     high_accuracy_max_iter=8
                 )
-                ik_config = self.find_best_valid_ik_compas_fab_itter_ik(frame, start_config, options)
+                ik_config = self.pyb_find_best_valid_ik_compas_fab_itter_ik(frame, start_config, options)
 
                 if ik_config is None:
-                    self.client.set_robot_configuration(self.robot, start_config)
-                    self.client.step_simulation()
+                    self.pyb_client.set_robot_configuration(self.pyb_robot, start_config)
+                    self.pyb_client.step_simulation()
                     return None
 
                 self.realtime_mimic_ik_solutions.append(ik_config)
                 self._send_to_configuration(frame)
             else:
-                print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Non-initial request received. Executing motion to target frame.")
+                print(f"CombinedBackendHandler: [{self.robot_name}] Non-initial request received. Executing motion to target frame.")
                 self._send_to_target(frame)
                 return frame
         except Exception as e:
-            print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] IK computation failed: {e}")
+            print(f"CombinedBackendHandler: [{self.robot_name}] IK computation failed: {e}")
             return None
 
     def handle_realtime_msg_request_fastest_ik(self, msg: RealtimeMimicRequestMessage):
@@ -882,12 +854,12 @@ class RobotHandlerCombinedBackends:
             start_cfg = self._get_latest_joint_values_from_stream_as_configuration()
             if start_cfg is None:
                 # rare fallback if stream isn't ready yet
-                start_cfg = self.robot.zero_configuration()
+                start_cfg = self.pyb_robot.zero_configuration()
         else:
             start_cfg = self.realtime_mimic_ik_solutions[-1]
 
         # fast IK: current-joints seed, optional single fallback (last good)
-        ik = self.try_fast_ik(
+        ik = self.pyb_try_fast_ik(
             frame,
             start_config=start_cfg,
             do_collision_check=True,
@@ -903,13 +875,13 @@ class RobotHandlerCombinedBackends:
         return ik
 
     def handle_realtime_mimic_io_toggle_request(self, msg: RealtimeMimicIOToggleRequestMessage):
-        print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Handling IO toggle request: {msg} from {msg.header.device_id}")
+        print(f"CombinedBackendHandler: [{self.robot_name}] Handling IO toggle request: {msg} from {msg.header.device_id}")
         try:
             self._toggle_tool_io(signal=msg.signal, value=msg.value)
-            print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Successfully toggled IO signal {msg.signal} to {msg.value}.")
+            print(f"CombinedBackendHandler: [{self.robot_name}] Successfully toggled IO signal {msg.signal} to {msg.value}.")
             return True
         except Exception as e:
-            print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Failed to toggle IO signal: {e}")
+            print(f"CombinedBackendHandler: [{self.robot_name}] Failed to toggle IO signal: {e}")
             return False
 
     ####################################################################################################
@@ -920,7 +892,7 @@ class RobotHandlerCombinedBackends:
         """
         This method can be overridden by child classes to handle custom message requests.
         """
-        print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Handling user-defined request: {msg} from {msg.header.device_id}")
+        print(f"CombinedBackendHandler: [{self.robot_name}] Handling user-defined request: {msg} from {msg.header.device_id}")
         start_config = self._get_latest_joint_values_from_stream_as_configuration()
         options = dict(
                 link_name="tool0",
@@ -929,44 +901,44 @@ class RobotHandlerCombinedBackends:
             )
 
         if start_config is None:
-            print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] No valid start configuration found. Returning empty trajectory.")
-        configs_for_planning = self.plan_ik_for_frames_list_compas_fab_itter(msg.robot_frames, start_config, options=options, max_results=20)
+            print(f"CombinedBackendHandler: [{self.robot_name}] No valid start configuration found. Returning empty trajectory.")
+        configs_for_planning = self.pyb_plan_ik_for_frames_list_compas_fab_itter(msg.robot_frames, start_config, options=options, max_results=20)
         if configs_for_planning is None:
-            print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] No valid configurations found for planning. Returning empty trajectory.")
+            print(f"CombinedBackendHandler: [{self.robot_name}] No valid configurations found for planning. Returning empty trajectory.")
         else:
-            print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Valid configurations found for planning. Found {len(configs_for_planning)} configs for planning.")        
+            print(f"CombinedBackendHandler: [{self.robot_name}] Valid configurations found for planning. Found {len(configs_for_planning)} configs for planning.")        
 
-        trajectories = self._plan_trajectories_for_user_initiated_request(configurations=configs_for_planning)
+        trajectories = self._pyb_plan_trajectories_for_user_initiated_request(configurations=configs_for_planning)
         if len(trajectories) < 1:
-            print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] No valid trajectories found for planning. Returning empty trajectory.")
+            print(f"CombinedBackendHandler: [{self.robot_name}] No valid trajectories found for planning. Returning empty trajectory.")
             return None
         
-        print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Valid trajectories found for planning. Found {len(trajectories)} trajectories for planning.")
+        print(f"CombinedBackendHandler: [{self.robot_name}] Valid trajectories found for planning. Found {len(trajectories)} trajectories for planning.")
         return trajectories
 
     def handle_user_initiated_mimic_execution(self, msg: ExecuteMimicTrajectoryRequestMessage, trajectory_list: List[JointTrajectory]):
         """
         This method should be overridden by child classes to handle custom mimic execution requests.
         """
-        print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Handling user-defined mimic execution request: {msg} from {msg.header.device_id}")
+        print(f"CombinedBackendHandler: [{self.robot_name}] Handling user-defined mimic execution request: {msg} from {msg.header.device_id}")
         #TODO: MESSAGE NEEDS TO BE EXTENDED TO HANDLE AN IO ON OFF LIST OF THINGS
         if not trajectory_list:
-            print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] No trajectories to execute.")
+            print(f"CombinedBackendHandler: [{self.robot_name}] No trajectories to execute.")
             return False
 
         for traj in trajectory_list:
             try:
                 #TODO: The IO Beginning, End, None needs to be controled by the message or planning (when to turn on and off the IO).
                 self._send_to_trajectory_RT(trajectory=traj, io_begining_end_none=0)
-                print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Successfully executed trajectory.")
+                print(f"CombinedBackendHandler: [{self.robot_name}] Successfully executed trajectory.")
             except Exception as e:
-                print(f"RealtimeMimicPyBulletHandler: [{self.robot_name}] Failed to execute trajectory: {e}")
+                print(f"CombinedBackendHandler: [{self.robot_name}] Failed to execute trajectory: {e}")
                 return False
         return True
 
 
 
-class URMimicHandlerPyB(RobotHandlerCombinedBackends):
+class URMimicHandlerCombined(RobotHandlerCombinedBackends):
 
     def __init__(self, robot_name, robot_ip, urdf_path, tool_info_fp, additional_static_collision_meshes_fp=None, group="manipulator", srdf_path=None, io=0, speed=0.6, acceleration=0.1, radius=0.006, nowait=False):
         super().__init__(robot_name, urdf_path, tool_info_fp, additional_static_collision_meshes_fp, group=group, srdf_path=srdf_path)
@@ -1134,12 +1106,12 @@ class URMimicHandlerPyB(RobotHandlerCombinedBackends):
         if msg.initial_request or not self.realtime_mimic_ik_solutions:
             start_cfg = self._get_latest_joint_values_from_stream_as_configuration()
             if start_cfg is None:
-                start_cfg = self.robot.zero_configuration()
+                start_cfg = self.pyb_robot.zero_configuration()
         else:
             start_cfg = self.realtime_mimic_ik_solutions[-1]
 
         # fast IK (single seed + optional fallback); 30 Hz sim mirror inside
-        ik = self.try_fast_ik(frame,
+        ik = self.pyb_try_fast_ik(frame,
                             start_config=start_cfg,
                             do_collision_check=True,
                             extra_seed=True,
@@ -1184,8 +1156,8 @@ class URMimicHandlerPyB(RobotHandlerCombinedBackends):
     def _get_latest_joint_values_from_stream_as_configuration(self):
         q = self._get_latest_joint_values_from_stream()
         if q:
-            joint_names = self.robot.get_configurable_joint_names()
-            joint_types = self.robot.get_configurable_joint_types()
+            joint_names = self.pyb_robot.get_configurable_joint_names()
+            joint_types = self.pyb_robot.get_configurable_joint_types()
             if len(q) != len(joint_names):
                 raise ValueError(f"Length of joint values ({len(q)}) does not match number of configurable joints ({len(joint_names)}).")
             return Configuration(joint_names=joint_names, joint_types=joint_types, joint_values=q)
@@ -1206,7 +1178,7 @@ class URMimicHandlerPyB(RobotHandlerCombinedBackends):
 
 
 #TODO: FIX later (need to compute IK in PyBullet and send to ABB using ROSClient in RRC) #TODO: REALLY FIX INPUTS LATER.
-class ABBMimicHandlerPyB(RobotHandlerCombinedBackends):
+class ABBMimicHandlerCombined(RobotHandlerCombinedBackends):
     
     def __init__(self, robot_name, robot_ip, abb_client_name, ros_ip='127.0.0.1', ros_port=9090, speed=100, nowait=False):
         super().__init__(robot_name, robot_ip, ros_ip, ros_port)
@@ -1249,7 +1221,7 @@ class ABBMimicHandlerPyB(RobotHandlerCombinedBackends):
     def _get_current_configuration(self):
         robot_joints, _ = self.abb.send_and_wait(rrc.GetJoints())
         print(f"[{self.robot_name}] Current joints from controller: {robot_joints}")
-        return self.robot.zero_configuration()
+        return self.pyb_robot.zero_configuration()
 
     def _send_to_configuration(self, config: Configuration):
         print(f"ABBRealtimeMimicHandler: [{self.robot_name}] Executing motion: {config.joint_values}")

@@ -5,6 +5,7 @@ from compas_xr.mqtt import RealtimeMimicRequestMessage, RealtimeMimicResultMessa
 # from robots.com_handlers.realtime_mimic_roshandler import URRealtimeMimicHandler
 from robots.com_handlers.realtime_mimic_pbhandler import URMimicHandlerPyB, ABBMimicHandlerPyB #TODO: This needs to be wrapped into one handler for both Mimics
 from robots.com_handlers.realtime_mimic_roshandler import URMimicHandlerROS, ABBMimicHandlerROS #TODO: This needs to be wrapped into one handler for both Mimics
+from robots.com_handlers.robot_handler_combined_rospy import URMimicHandlerCombined, ABBMimicHandlerCombined
 
 from compas.data import json_load, json_dump
 import os
@@ -36,8 +37,6 @@ class CommunicationManager:
         realtime_mimic_io_toggle_request = Topic(f"robotic_territories/real_time_mimic_io_toggle_request/{project_name}", RealtimeMimicIOToggleRequestMessage)
         self.realtime_mimic_io_toggle_request = Subscriber(realtime_mimic_io_toggle_request, callback=self._on_message_realtime_mimic_io_toggle, transport=self.mqtt)
         self.realtime_mimic_io_toggle_request.subscribe()
-
-
 
         #User Initiated Mimic Request and Result Handlers
         user_initiated_mimic_result_topic = Topic(f"robotic_territories/mimic_result/{project_name}", MimicTrajectoryResultMessage)
@@ -89,6 +88,19 @@ class CommunicationManager:
                                                  nowait=robot_hardware_info_dict["nowait"],
                                                  tool_info_fp=robot_hardware_info_dict.get("tool_info_fp"),
                                                  additional_static_collision_meshes_fp=robot_hardware_info_dict.get("additional_collison_meshes_fp"))
+            elif backend_type == 'COMBINED':
+                return URMimicHandlerCombined(robot_name, 
+                                                 robot_ip=robot_hardware_info_dict["robot_ip"], 
+                                                 urdf_path=urdf_filepath, 
+                                                 srdf_path=srdf_filepath,
+                                                 group=robot_hardware_info_dict["group"],
+                                                 speed=robot_hardware_info_dict["speed"],
+                                                 acceleration=robot_hardware_info_dict["acceleration"],
+                                                 radius=robot_hardware_info_dict["radius"],
+                                                 nowait=robot_hardware_info_dict["nowait"],
+                                                 io=robot_hardware_info_dict["vacum_io"],
+                                                 tool_info_fp=robot_hardware_info_dict.get("tool_info_fp"),
+                                                 additional_static_collision_meshes_fp=robot_hardware_info_dict.get("additional_collison_meshes_fp"))                
             else:
                 raise ValueError(f"Unsupported backend type: {backend_type} for robot {robot_name}")
         elif robot_name == "ABB1" or robot_name == "ABB2" or robot_name == "ABB_IRB4600LL" or robot_name == "ABB_IRB4600LL":
@@ -111,7 +123,15 @@ class CommunicationManager:
                                                   nowait=robot_hardware_info_dict["nowait"],
                                                   tool_info_fp=robot_hardware_info_dict.get("tool_info_fp"),
                                                   additional_static_collision_meshes_fp=robot_hardware_info_dict.get("additional_attached_collison_meshes_fp"))
-
+            elif backend_type == 'COMBINED':
+                return ABBMimicHandlerCombined(robot_name, 
+                                                  robot_ip=robot_hardware_info_dict["robot_ip"], 
+                                                  urdf_path=urdf_filepath, 
+                                                  srdf_path=srdf_filepath,
+                                                  speed=robot_hardware_info_dict["speed"],
+                                                  nowait=robot_hardware_info_dict["nowait"],
+                                                  tool_info_fp=robot_hardware_info_dict.get("tool_info_fp"),
+                                                  additional_static_collision_meshes_fp=robot_hardware_info_dict.get("additional_attached_collison_meshes_fp"))
             else:
                 raise ValueError(f"Unsupported backend type: {backend_type} for robot {robot_name}")
         else:
@@ -174,7 +194,7 @@ class CommunicationManager:
     def _transform_result_frame_from_robot_space_to_ar_space(self, frame):
         tx_frame = frame.transformed(self.transformations_robot_space_to_ar_space)
         return tx_frame
-    
+
     def _transform_result_frames_list_from_robot_space_to_ar_space(self, frames_list):
         transformed_frames = []
         for frame in frames_list:
@@ -293,7 +313,8 @@ MQTT_PORT = MQTT_CONFIG["port"]
 
 PROJECT_NAME = PROJECT_CONFIG_DICT["project_name"]
 
-BACKEND_TYPE = "PyBullet"  # or "ROS", depending on the backend you want to use
+# BACKEND_TYPE = "PyBullet"  # or "ROS", depending on the backend you want to use
+BACKEND_TYPE = "COMBINED"
 # BACKEND_TYPE = "ROS"
 requested_frames = []
 
