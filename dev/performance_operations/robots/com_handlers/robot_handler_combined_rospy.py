@@ -86,7 +86,6 @@ class RobotHandlerCombinedBackends:
         self._prev_cfg_cache = None      # last safe Configuration to restore sim to
         self._last_visual_step_t = 0.0   # throttle timestamp for sim stepping
 
-
         print(f"CombinedBackendHandler: [{robot_name}] Handler initialized")
 
     ####################################################################################################
@@ -167,6 +166,8 @@ class RobotHandlerCombinedBackends:
     ####################################################################################################
     # Configuration & IK Solvers
     ####################################################################################################
+
+    ##### PyBullet IK Methods #####
 
     def pyb_find_valid_ik_recursive(self, frame, start_config, options=None, max_tries=10, attempt=0):
         if attempt >= max_tries:
@@ -388,9 +389,25 @@ class RobotHandlerCombinedBackends:
         self.pyb_client.step_simulation()
         return not self.pyb_client.check_robot_self_collision(self.pyb_robot)
 
+    ##### ROS IK Methods #####
+
+    def ros_find_ik(self, frame, start_config=None, options=None):
+        if start_config is None:
+            start_config = self._get_latest_joint_values_from_stream_as_configuration()
+
+        ik_config = self.ros_robot.inverse_kinematics(frame_WCF=frame, start_configuration=start_config, options=options)
+        if ik_config is None:
+            print(f"CombinedBackendHandler: [{self.robot_name}] No IK solution found in ROS.")
+            return None
+
+        return ik_config
+
+
     ####################################################################################################
     # Planning and Multi-Configuration Solving
     ####################################################################################################
+
+    ##### PyBullet Planning Methods #####
 
     def pyb_plan_ik_for_frames_list_compas_fab_itter(self, frames_for_ik, start_config, options=None, max_results=20) -> List[Configuration]:
         """
@@ -520,6 +537,24 @@ class RobotHandlerCombinedBackends:
             t += 0.02
         traj = JointTrajectory(traj_points, self.pyb_robot.get_configurable_joint_names(), start_config) #TODO: ADD ATTACHED COLLISION MESH HERE.
         return traj
+
+    ##### ROS Planning Methods #####
+
+    def _ros_plan_ik_for_frames_list(self, frames_for_ik, start_config, options=None) -> List[Configuration]:
+        configurations = []
+        current_config = start_config
+
+        for idx, frame in enumerate(frames_for_ik):
+            try:
+                ik_config = self.ros_find_ik(frame, current_config, options)
+                if ik_config is None:
+                    print(f"CombinedBackendHandler: [{self.robot_name}] No valid IK for frame {idx}. Aborting trajectory planning.")
+                    return None
+                configurations.append(ik_config)
+            except Exception as e:
+                print(f"CombinedBackendHandler: [{self.robot_name}] Error finding IK for frame {idx}: {e}")
+                return None
+        return configurations
 
     #######################################################################################################################
     # TODO: THESE ARE FOR PYBULLET BUT NEVER USED OR TESTED : Testing for creating cartesian motion with TryIK fast.
@@ -961,6 +996,35 @@ class RobotHandlerCombinedBackends:
             return None
         
         print(f"CombinedBackendHandler: [{self.robot_name}] Valid trajectories found for planning. Found {len(trajectories)} trajectories for planning.")
+        return trajectories
+
+    def handle_user_iniated_msg_request_ROS(self, msg: RealtimeMimicRequestMessage) -> List[JointTrajectory]:
+        """
+        This method can be overridden by child classes to handle custom message requests.
+        """
+        print(f"CombinedBackendHandler: [{self.robot_name}] Handling user-defined request: {msg} from {msg.header.device_id}")
+        start_config = self._get_latest_joint_values_from_stream_as_configuration()
+        options = dict(
+                link_name="tool0",
+                high_accuracy_threshold=1e-6,
+                high_accuracy_max_iter=8
+            )
+
+        if start_config is None:
+            print(f"CombinedBackendHandler: [{self.robot_name}] No valid start configuration found. Returning empty trajectory.")
+        configs_for_planning = self._ros_plan_ik_for_frames_list(msg.robot_frames, start_config, options=options)
+        if configs_for_planning is None:
+            print(f"CombinedBackendHandler ROSSSSSSSSSSSSSSSSSSSSSSSSSSSSS : [{self.robot_name}] No valid configurations found for planning. Returning empty trajectory.")
+        else:
+            print(f"CombinedBackendHandler ROSSSSSSSSSSSSSSSSSSSSSSSSSSSSS : [{self.robot_name}] Valid configurations found for planning. Found {len(configs_for_planning)} configs for planning.")        
+        return None
+
+        # trajectories = self._pyb_plan_trajectories_for_user_initiated_request(configurations=configs_for_planning)
+        # if len(trajectories) < 1:
+        #     print(f"CombinedBackendHandler: [{self.robot_name}] No valid trajectories found for planning. Returning empty trajectory.")
+        #     return None
+        
+        # print(f"CombinedBackendHandler: [{self.robot_name}] Valid trajectories found for planning. Found {len(trajectories)} trajectories for planning.")
         return trajectories
 
     def handle_user_initiated_mimic_execution(self, msg: ExecuteMimicTrajectoryRequestMessage, trajectory_list: List[JointTrajectory]):

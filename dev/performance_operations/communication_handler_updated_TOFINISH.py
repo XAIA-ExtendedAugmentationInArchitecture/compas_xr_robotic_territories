@@ -262,7 +262,8 @@ class CommunicationManager:
         msg.robot_frames = transformed_requested_robot_frames
 
         handler = self.handler
-        trajectories_list = handler.handle_user_iniated_msg_request(msg)
+        # trajectories_list = handler.handle_user_iniated_msg_request(msg)
+        trajectories_list = handler.handle_user_iniated_msg_request_ROS(msg)
 
         if trajectories_list:
             trajectories_to_publsih = trajectories_list
