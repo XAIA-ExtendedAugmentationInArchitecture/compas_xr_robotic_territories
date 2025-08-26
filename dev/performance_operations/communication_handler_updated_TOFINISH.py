@@ -291,6 +291,9 @@ class CommunicationManager:
             trajectories=trajectories_to_publsih,
             robot_base_frame=robot_base_frame,
         )
+
+        random_fp_save = r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\performance_operations\testing\random_trajectory_for_testing.json"
+        json_dump(data=result, fp=random_fp_save, pretty=True)
         self.user_initiated_publisher.publish(result)
         print(f"CommunicationManager : [CommunicationManager] Published result with {len(trajectories_to_publsih)} trajectories for robot {robot_name}")
 
