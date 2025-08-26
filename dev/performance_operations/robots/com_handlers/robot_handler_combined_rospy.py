@@ -112,7 +112,7 @@ class RobotHandlerCombinedBackends:
         if not additional_attached_collision_meshes_fp:
             raise ValueError("Additional collision meshes file path is required.")
         additional_meshes = json_load(additional_attached_collision_meshes_fp)
-        print(f"MIMICPYBULLETHANDLER: [{self.robot_name}] Loading additional collision meshes from {additional_meshes}")
+        print(f"CombinedBackendHandler: [{self.robot_name}] Loading additional collision meshes from {additional_meshes}")
 
     ####################################################################################################
     # Configuration & IK Solvers
@@ -671,9 +671,6 @@ class RobotHandlerCombinedBackends:
     def _send_to_trajectory_RT(self, trajectory: JointTrajectory, io_begining_end_none):
         raise NotImplementedError("This method should be implemented on the child classes.")
 
-    # def  _send_to_configuration_through_servoj_gate(self, config: Configuration):
-    #     raise NotImplementedError("This method should be implemented on the child classes.")
-
     def _send_to_configuration_through_gate(self, config: Configuration):
         raise NotImplementedError("This method should be implemented on the child classes.")
 
@@ -1032,7 +1029,7 @@ class URMimicHandlerCombined(RobotHandlerCombinedBackends):
             verbose=False
         )
 
-        print(f"URRealtimeMimicHandlerPyB: [{robot_name}] UR handler initialized")
+        print(f"URCombinedBackendHandler: [{robot_name}] UR handler initialized")
 
     ####################################################################################################
     # Killing the streamer and closing the connection
@@ -1054,7 +1051,7 @@ class URMimicHandlerCombined(RobotHandlerCombinedBackends):
         # stop any running script on controller (safe to call)
         try: self.rtde_ctrl.stopScript()
         except: pass
-        print(f"URRealtimeMimicHandlerPyB: [{self.robot_name}] closed")
+        print(f"URCombinedBackendHandler: [{self.robot_name}] closed")
 
     ####################################################################################################
     # Implemented through standard RTDE functions in fabrication.py
@@ -1068,26 +1065,26 @@ class URMimicHandlerCombined(RobotHandlerCombinedBackends):
         # return config_zero
 
     def _send_to_configuration(self, config: Configuration):
-        print(f"URRealtimeMimicHandlerPyB: [{self.robot_name}] (Sim) Executing UR motion: {config.joint_values}")
+        print(f"URCombinedBackendHandler: [{self.robot_name}] (Sim) Executing UR motion: {config.joint_values}")
         # rtde.move_to_joints(config, self.speed, self.acceleration, nowait=self.nowait, ip=self.robot_ip)
         # rtde.move_to_joints_blend(config, self.speed, self.acceleration, blend=self.radius, nowait=self.nowait, ip=self.robot_ip)
         
         rtde.move_to_joints_TEST(config, self.speed, self.acceleration, nowait=self.nowait, ip=self.robot_ip)
 
     def _send_to_target(self, frame: Frame):
-        print(f"URRealtimeMimicHandlerPyB: [{self.robot_name}] (Sim) Executing UR motion to target frame: {frame}")
+        print(f"URCombinedBackendHandler: [{self.robot_name}] (Sim) Executing UR motion to target frame: {frame}")
         # rtde.move_to_target(frame, self.speed, self.acceleration, nowait=self.nowait, ip=self.robot_ip)
         rtde.move_to_target(frame, self.speed, self.acceleration, nowait=True, ip=self.robot_ip)
         # rtde.move_to_target_TEST(frame, self.speed, self.acceleration, nowait=self.nowait, ip=self.robot_ip)
 
     def _send_to_trajectory_RT(self, trajectory: JointTrajectory, io_begining_end_none):
-        print(f"URRealtimeMimicHandlerPyB: [{self.robot_name}] (Sim) Executing UR trajectory: {trajectory}")
+        print(f"URCombinedBackendHandler: [{self.robot_name}] (Sim) Executing UR trajectory: {trajectory}")
         rtde.send_to_single_trajectory_robotic_territories_TEST(trajectory, self.speed, self.acceleration, self.radius, self.robot_ip, io_begining_end_none, vaccum_io=self.io)
         # rtde.send_to_single_trajectory_robotic_territories(trajectory, self.speed, self.acceleration, nowait=self.nowait, ip=self.robot_ip)
 
     def _toggle_tool_io(self, signal: int, value: int):
         rtde.set_tool_digital_io(signal, value, self.robot_ip)
-        print(f"URRealtimeMimicHandlerPyB: [{self.robot_name}] (Sim) Toggled tool IO signal {signal} to {value}.")
+        print(f"URCombinedBackendHandler: [{self.robot_name}] (Sim) Toggled tool IO signal {signal} to {value}.")
 
     ####################################################################################################
     # Implemented through Streamer Class Interface
@@ -1137,7 +1134,7 @@ class URMimicHandlerCombined(RobotHandlerCombinedBackends):
     def _send_to_configuration_through_gate(self, config: Configuration):
         sent = self.movej_gate.maybe_send(config.joint_values)
         if sent:
-            print(f"URRealtimeMimicHandlerPyB: [{self.robot_name}] moveJ sent (speed={self.speed}, accel={self.acceleration})")
+            print(f"URCombinedBackendHandler: [{self.robot_name}] moveJ sent (speed={self.speed}, accel={self.acceleration})")
 
     def _send_to_configuration_through_servoj_gate(self, config: Configuration):
         # Stream smoothed joints via servoj, no threads, non-blocking
@@ -1194,7 +1191,7 @@ class ABBMimicHandlerCombined(RobotHandlerCombinedBackends):
 
         #TODO: CHECK NAME '/robLL_track' IS CORRECT
         self.abb = rrc.AbbClient(self.ros_rrc, abb_client_name)
-        print(f"ABBRealtimeMimicHandler: [{robot_name}] Connected to ABB controller via RRC")
+        print(f"ABBCombinedBackendHandler: [{robot_name}] Connected to ABB controller via RRC")
 
     ####################################################################################################
     # Killing the streamer and closing the connection
@@ -1212,7 +1209,7 @@ class ABBMimicHandlerCombined(RobotHandlerCombinedBackends):
             self.ros_rrc.close()
             self.ros_rrc.terminate()
         finally:
-            print(f"ABBRealtimeMimicHandler: [{self.robot_name}] closed")
+            print(f"ABBCombinedBackendHandler: [{self.robot_name}] closed")
 
     ####################################################################################################
     # Execution
@@ -1224,7 +1221,7 @@ class ABBMimicHandlerCombined(RobotHandlerCombinedBackends):
         return self.pyb_robot.zero_configuration()
 
     def _send_to_configuration(self, config: Configuration):
-        print(f"ABBRealtimeMimicHandler: [{self.robot_name}] Executing motion: {config.joint_values}")
+        print(f"ABBCombinedBackendHandler: [{self.robot_name}] Executing motion: {config.joint_values}")
         
         # Convert radians to degrees for ABB
         joint_values_deg = [v * 180.0 / 3.1415926 for v in config.joint_values]
@@ -1235,6 +1232,6 @@ class ABBMimicHandlerCombined(RobotHandlerCombinedBackends):
         print(f"[{self.robot_name}] Motion complete: {result}")
 
     def _send_to_target(self, frame: Frame):
-        raise NotImplementedError("ABBRealtimeMimicHandlerPyB : WIP - Target frame motion not implemented yet.")
-        print(f"URRealtimeMimicHandlerPyB: [{self.robot_name}] (Sim) Executing UR motion to target frame: {frame}")
+        raise NotImplementedError("ABBCombinedBackendHandler : WIP - Target frame motion not implemented yet.")
+        print(f"URCombinedBackendHandler: [{self.robot_name}] (Sim) Executing UR motion to target frame: {frame}")
 
