@@ -178,6 +178,22 @@ class CommunicationManager:
     ####################################################################################################
 
 
+
+
+    ######################################################################################################
+    # Set Publisers and Subscribers for Inference
+    ####################################################################################################
+
+    # def _set_inference_publishers_and_subscribers(self, project_name):
+    #     #User Initiated Mimic Request and Result Handlers
+    #     user_initiated_mimic_result_topic = Topic(f"robotic_territories/mimic_result/{project_name}", MimicTrajectoryResultMessage)
+    #     self.user_initiated_publisher = Publisher(user_initiated_mimic_result_topic, transport=self.mqtt)
+
+    #     user_initiated_mimic_request_topic = Topic(f"robotic_territories/mimic_request/{project_name}", MimicTrajectoryRequestMessage)
+    #     self.user_initiated_subscriber = Subscriber(user_initiated_mimic_request_topic, callback=self._on_message_user_initiated_mimic, transport=self.mqtt)
+    #     self.user_initiated_subscriber.subscribe()
+
+
     ######################################################################################################
     # Frame Transformations to Robot Space & AR Space
     ####################################################################################################
