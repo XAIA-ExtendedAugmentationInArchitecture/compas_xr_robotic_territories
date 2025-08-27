@@ -319,11 +319,12 @@ class InferenceRequestMessage(Message):
     Request sent from Unity to CAD: current geometry + robot name for inference.
     """
 
-    def __init__(self, current_geometry_frames, robot_name, header=None):
+    def __init__(self, current_geometry_frames, initial_request, robot_name, header=None):
         super(InferenceRequestMessage, self).__init__()
         self["header"] = header or Header()
         # now a dict of name -> Frame, not a list
         self["geometry_frames"] = current_geometry_frames or {}
+        self["initial_request"] = initial_request
         self["robot_name"] = robot_name
 
     # --- helpers ---
@@ -354,24 +355,28 @@ class InferenceRequestMessage(Message):
         geometry_frames = cls._parse_frames_dict_from_data(frames_data)
 
         robot_name = value.get("robot_name")
+        initial_request = value.get("initial_request", None)
+        if initial_request is None:
+            raise ValueError("InferenceRequestMessage missing required field: initial_request")
 
         if robot_name is None:
             raise ValueError("InferenceRequestMessage missing required field: robot_name")
         if len(geometry_frames) == 0:
             raise ValueError("InferenceRequestMessage missing required field: geometry_frames")
 
-        return cls(geometry_frames, robot_name, header)
+        return cls(geometry_frames, initial_request, robot_name, header)
 
 class InferenceResultMessage(Message):
     """
     Result returned from CAD to Unity: trajectories, combined points, base frame, robot name, and the inference guess string.
     """
 
-    def __init__(self, inference_guess, trajectories=None, robot_base_frame=None, robot_name=None, header=None):
+    def __init__(self, inference_guess=None, completed_goals_list=[], trajectories=[], robot_base_frame=None, robot_name=None, header=None):
         super(InferenceResultMessage, self).__init__()
         trajectories = trajectories or []
 
         self["header"] = header or Header()
+        self["completed_goals"] = completed_goals_list                     # list[str]
         self["trajectories"] = trajectories                           # list[Trajectory]
         self["combined_trajectory_points"] = self._combine_points(trajectories)
         self["robot_base_frame"] = robot_base_frame                   # Frame or None
@@ -416,15 +421,17 @@ class InferenceResultMessage(Message):
         rbf_data = value.get("robot_base_frame")
         robot_base_frame = Frame.__from_data__(rbf_data)
 
-        robot_name = value.get("robot_name")
-        inference_guess = value.get("inference_guess")
+        robot_name = value.get("robot_name", None)
+        inference_guess = value.get("inference_guess", None)
+        completed_goals = value.get("completed_goals", [])
 
         return cls(
             inference_guess=inference_guess,
             trajectories=trajectories,
             robot_base_frame=robot_base_frame,
             robot_name=robot_name,
-            header=header,
+            completed_goals_list=completed_goals,
+            header=header
         )
 
 class InferenceReplyMessage(Message):

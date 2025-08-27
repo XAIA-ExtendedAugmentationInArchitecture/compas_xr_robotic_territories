@@ -9,6 +9,8 @@ from robots.com_handlers.realtime_mimic_roshandler import URMimicHandlerROS, ABB
 from robots.com_handlers.robot_handler_combined_rospy import URMimicHandlerCombined, ABBMimicHandlerCombined
 from compas.geometry import Rotation
 
+from inference.inference_manager import InferenceManager
+
 from compas.data import json_load, json_dump
 import os
 import math
@@ -34,6 +36,9 @@ class CommunicationManager:
 
         #Message Helpers
         self._user_initiated_mimic_trajectories_to_execute = []
+
+        #Inference Manager
+        self.inference_manager = InferenceManager(project_config_dict["goals_folder_file_path"])
 
         _transformations_file_path = project_config_dict["robot_transformations_fp"]
         if not _transformations_file_path:
@@ -181,7 +186,7 @@ class CommunicationManager:
 
         self.inference_user_reply_topic = Topic(f"robotic_territories/inference_user_reply/{project_name}", InferenceReplyMessage)
         self.inference_user_reply_subscriber = Subscriber(self.inference_user_reply_topic, callback=self._on_handle_inference_user_reply, transport=self.mqtt)
-        self.inference_user_reply_subscriber.subscribe()
+        self.inference_user_reply_subscriber.subscribe()      
 
         print(f"CommunicationManager : [CommunicationManager] Subscribed to: robotic_territories inference topics for project '{project_name}' and robot '{self.robot_name}'")
 
@@ -243,6 +248,57 @@ class CommunicationManager:
             transformed_frame = self._transform_result_frame_from_robot_space_to_ar_space(frame)
             transformed_frames.append(transformed_frame)
         return transformed_frames
+
+    def _transform_inference_information(self, geometry_frames_dict, incompleted_items_names, completed_items_names, target_frame):
+        print(f"CommunicationManager : geometry_frames_dict {geometry_frames_dict}")
+        transformed_incompleted_items_dict = {}
+        for item_name in incompleted_items_names:
+            if item_name in geometry_frames_dict:
+                original_frame = geometry_frames_dict[item_name]
+                transformed_frame = self._transform_result_frame_from_robot_space_to_ar_space(original_frame)
+                transformed_incompleted_items_dict[item_name] = transformed_frame
+            else:
+                print(f"CommunicationManager : [CommunicationManager] Warning: Incompleted item '{item_name}' not found in geometry frames dictionary.")
+
+        transformed_completed_items_dict = {}
+        for item_name in completed_items_names:
+            if item_name in geometry_frames_dict:
+                original_frame = geometry_frames_dict[item_name]
+                transformed_frame = self._transform_result_frame_from_robot_space_to_ar_space(original_frame)
+                transformed_completed_items_dict[item_name] = transformed_frame
+            else:
+                print(f"CommunicationManager : [CommunicationManager] Warning: Completed item '{item_name}' not found in geometry frames dictionary.")
+
+        transformed_target_frame = self._transform_result_frame_from_robot_space_to_ar_space(target_frame)
+
+        return transformed_incompleted_items_dict, transformed_completed_items_dict, transformed_target_frame
+
+    ###################################################################################################
+    # Inference Target Finding Helpers
+    ###################################################################################################
+
+    def _find_closest_incomplete_target_for_inference(self, incompleted_items_dict, target_frame):
+        if not incompleted_items_dict:
+            print("CommunicationManager : [CommunicationManager] No incompleted items provided for finding closest target.")
+            return None, None
+
+        closest_item_name = None
+        closest_item_frame = None
+        min_distance = float('inf')
+
+        for item_name, item_frame in incompleted_items_dict.items():
+            distance = item_frame.point.distance_to_point(target_frame.point)
+            if distance < min_distance:
+                min_distance = distance
+                closest_item_name = item_name
+                closest_item_frame = item_frame
+
+        if closest_item_name is None:
+            print("CommunicationManager : [CommunicationManager] No closest target found among incompleted items.")
+            return None, None
+
+        print(f"CommunicationManager : [CommunicationManager] Closest target found: {closest_item_name} at distance {min_distance}")
+        return closest_item_name, closest_item_frame
 
     ######################################################################################################
     # Message Handlers for Realtime Mimic and User Initiated Mimic
@@ -360,12 +416,44 @@ class CommunicationManager:
     def _on_handle_inference_request(self, msg: InferenceRequestMessage):
         robot_name = msg.robot_name
         geometry_frames_for_inference = msg.geometry_frames
-        print(f"CommunicationManager : [CommunicationManager] Received Inference request for robot '{robot_name}': Requesting : {len(geometry_frames_for_inference)} frames")
-        print(f"GEOMETRY FRAMES: {geometry_frames_for_inference}")
+        print(f"CommunicationManager : [CommunicationManager] Received Inference request for robot '{robot_name}': Requesting : {len(geometry_frames_for_inference)} frames. Initial request: {msg.initial_request}")
+        if len(geometry_frames_for_inference) == 0:
+            #TODO: This should actually return a none messgage.
+            raise ValueError("Inference request contains no geometry frames.")
         
+        inference_result_dict = self.inference_manager.handle_inference_request(geometry_frames_for_inference, initial_request=msg.initial_request)
 
-        # fp_testing = r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\performance_operations\testing\random_data_saves\test_inference_requested_frames.json"
-        # json_dump(data=geometry_frames_for_inference, fp=fp_testing, pretty=True)
+        if inference_result_dict == None:
+            print(f"CommunicationManager : [CommunicationManager] Inference manager returned no result for robot '{robot_name}'.")
+            self.inference_result_publisher.publish(InferenceResultMessage(
+                inference_guess=None,
+                completed_goals_list=[],
+                trajectories=[],
+                robot_base_frame=None,
+                robot_name=robot_name
+            ))
+            return
+
+        suggested_goal = inference_result_dict["suggested_goal"]
+        completed_goal_names = inference_result_dict["completed_goals"]
+        suggested_target_frame = inference_result_dict["suggested_target"]
+        completed_items_names = inference_result_dict["completed_items"]
+        incompleted_items_names = inference_result_dict["incompleted_items"]
+        print(f"CommunicationManager : [CommunicationManager] Inference suggested goal: {suggested_goal}, completed goals: {completed_goal_names}, target frame: {suggested_target_frame}, completed items: {completed_items_names}, incompleted items: {incompleted_items_names}")
+
+        transformed_incompleted_items_dict, transformed_completed_items_dict, transformed_target = self._transform_inference_information(geometry_frames_for_inference, incompleted_items_names, completed_items_names, suggested_target_frame)        
+
+        closest_target_name, closest_target_frame = self._find_closest_incomplete_target_for_inference(transformed_incompleted_items_dict, transformed_target)
+        #TODO: Compute if it should be within the robots reachability.... if not returen some messages.
+
+        handler = self.handler
+        trajectories = handler.handle_planning_for_inference(closest_target_frame, transformed_target, transformed_completed_items_dict, transformed_incompleted_items_dict, closest_target_name)
+
+        #Transform the target frame to the robot space for trajectory generation
+        # transformed_target_frame
+
+        # transformed_built_objects, transformed_unbuilt_objects, transformed_targets = self.transform_inference_information()
+        # trajectories_list = handler.handle_inference_msg_request(target_frame, target_frame)
 
     def _on_handle_inference_user_reply(self, msg: InferenceReplyMessage):
         # robot_name = msg.robot_name
