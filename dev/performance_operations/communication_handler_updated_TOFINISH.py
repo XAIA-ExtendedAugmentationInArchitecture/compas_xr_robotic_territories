@@ -172,15 +172,15 @@ class CommunicationManager:
         # user_initiated_mimic_result_topic = Topic(f"robotic_territories/mimic_result/{project_name}", MimicTrajectoryResultMessage)
         # self.user_initiated_publisher = Publisher(user_initiated_mimic_result_topic, transport=self.mqtt)
 
-        self.inference_request_topic = Topic(f"robotic_territories/inference_request/{project_name}", MimicTrajectoryRequestMessage)
+        self.inference_request_topic = Topic(f"robotic_territories/inference_request/{project_name}", InferenceRequestMessage)
         self.inference_request_subscriber = Subscriber(self.inference_request_topic, callback=self._on_handle_inference_request, transport=self.mqtt)
-        self.user_initiated_subscriber.subscribe()
+        self.inference_request_subscriber.subscribe()
 
         self.inference_result_topic = Topic(f"robotic_territories/inference_result/{project_name}", InferenceResultMessage)
         self.inference_result_publisher = Publisher(self.inference_result_topic, transport=self.mqtt)
 
         self.inference_user_reply_topic = Topic(f"robotic_territories/inference_user_reply/{project_name}", InferenceReplyMessage)
-        self.inference_user_reply_subscriber = Subscriber(self.inference_request_topic, callback=self._on_handle_inference_user_reply, transport=self.mqtt)
+        self.inference_user_reply_subscriber = Subscriber(self.inference_user_reply_topic, callback=self._on_handle_inference_user_reply, transport=self.mqtt)
         self.inference_user_reply_subscriber.subscribe()
 
         print(f"CommunicationManager : [CommunicationManager] Subscribed to: robotic_territories inference topics for project '{project_name}' and robot '{self.robot_name}'")
@@ -359,9 +359,12 @@ class CommunicationManager:
 
     def _on_handle_inference_request(self, msg: InferenceRequestMessage):
         robot_name = msg.robot_name
-        requested_human_frames = msg.geometry_frames
-        print(f"CommunicationManager : [CommunicationManager] Received Inference request for robot '{robot_name}': Requesting : {len(requested_human_frames)} frames")
-    
+        geometry_frames_for_inference = msg.geometry_frames
+        print(f"CommunicationManager : [CommunicationManager] Received Inference request for robot '{robot_name}': Requesting : {len(geometry_frames_for_inference)} frames")
+        print(f"GEOMETRY FRAMES: {geometry_frames_for_inference}")
+        fp_testing = r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\performance_operations\testing\random_data_saves\test_inference_requested_frames.json"
+        json_dump(data=geometry_frames_for_inference, fp=fp_testing, pretty=True)
+
     def _on_handle_inference_user_reply(self, msg: InferenceReplyMessage):
         # robot_name = msg.robot_name
         user_reply = msg.goal_status_reply

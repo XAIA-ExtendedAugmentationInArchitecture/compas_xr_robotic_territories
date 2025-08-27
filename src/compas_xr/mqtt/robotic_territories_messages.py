@@ -322,16 +322,23 @@ class InferenceRequestMessage(Message):
     def __init__(self, current_geometry_frames, robot_name, header=None):
         super(InferenceRequestMessage, self).__init__()
         self["header"] = header or Header()
-        self["geometry_frames"] = current_geometry_frames or []  # list[Frame]
-        self["robot_name"] = robot_name  # may be None
+        # now a dict of name -> Frame, not a list
+        self["geometry_frames"] = current_geometry_frames or {}
+        self["robot_name"] = robot_name
 
     # --- helpers ---
     @classmethod
-    def _parse_frames_list_from_data(cls, data):
-        """Parse a list of Frame dicts -> List[Frame]."""
+    def _parse_frames_dict_from_data(cls, data):
+        """Parse a dict of name->frameData into a dict of name->Frame."""
         if not data:
-            return []
-        return [Frame.__from_data__(item) for item in data]
+            return {}
+        frames = {}
+        for name, frame_data in data.items():
+            try:
+                frames[name] = Frame.__from_data__(frame_data)
+            except Exception as e:
+                print(f"InferenceRequestMessage: skipping frame '{name}': {e}")
+        return frames
 
     # --- API ---
     @classmethod
@@ -340,10 +347,19 @@ class InferenceRequestMessage(Message):
         Parse from a dict-like value (already JSON-decoded).
         Missing fields are tolerated and defaulted.
         """
-        header = Header.parse(value.get("header"))
-        frames_data = (value or {}).get("geometry_frames", [])
-        geometry_frames = cls._parse_frames_list_from_data(frames_data)
-        robot_name = (value or {}).get("robot_name")
+        header_data = value.get("header")
+        header = Header.parse(header_data) if header_data else Header()
+
+        frames_data = value.get("geometry_frames", {})
+        geometry_frames = cls._parse_frames_dict_from_data(frames_data)
+
+        robot_name = value.get("robot_name")
+
+        if robot_name is None:
+            raise ValueError("InferenceRequestMessage missing required field: robot_name")
+        if len(geometry_frames) == 0:
+            raise ValueError("InferenceRequestMessage missing required field: geometry_frames")
+
         return cls(geometry_frames, robot_name, header)
 
 class InferenceResultMessage(Message):
