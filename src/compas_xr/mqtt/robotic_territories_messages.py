@@ -312,3 +312,126 @@ class RealtimeMimicIOToggleRequestMessage(Message):
             raise ValueError("Invalid value for IO toggle. Expected 0 or 1.")
 
         return cls(signal, gripper_toggle, header)
+
+#TODO: Testing Classes..... for inference request and result messages.
+class InferenceRequestMessage(Message):
+    """
+    Request sent from Unity to CAD: current geometry + robot name for inference.
+    """
+
+    def __init__(self, current_geometry_frames, robot_name, header=None):
+        super(InferenceRequestMessage, self).__init__()
+        self["header"] = header or Header()
+        self["geometry_frames"] = current_geometry_frames or []  # list[Frame]
+        self["robot_name"] = robot_name  # may be None
+
+    # --- helpers ---
+    @classmethod
+    def _parse_frames_list_from_data(cls, data):
+        """Parse a list of Frame dicts -> List[Frame]."""
+        if not data:
+            return []
+        return [Frame.__from_data__(item) for item in data]
+
+    # --- API ---
+    @classmethod
+    def parse(cls, value):
+        """
+        Parse from a dict-like value (already JSON-decoded).
+        Missing fields are tolerated and defaulted.
+        """
+        header = Header.parse(value.get("header"))
+        frames_data = (value or {}).get("geometry_frames", [])
+        geometry_frames = cls._parse_frames_list_from_data(frames_data)
+        robot_name = (value or {}).get("robot_name")
+        return cls(geometry_frames, robot_name, header)
+
+class InferenceResultMessage(Message):
+    """
+    Result returned from CAD to Unity: trajectories, combined points, base frame, robot name, and the inference guess string.
+    """
+
+    def __init__(self, inference_guess, trajectories=None, robot_base_frame=None, robot_name=None, header=None):
+        super(InferenceResultMessage, self).__init__()
+        trajectories = trajectories or []
+
+        self["header"] = header or Header()
+        self["trajectories"] = trajectories                           # list[Trajectory]
+        self["combined_trajectory_points"] = self._combine_points(trajectories)
+        self["robot_base_frame"] = robot_base_frame                   # Frame or None
+        self["robot_name"] = robot_name                               # str or None
+        self["inference_guess"] = inference_guess                     # str or None
+
+    # --- helpers ---
+    def _combine_points(self, trajectories):
+        """
+        Flattens points from all trajectories. If a trajectory has no points, it contributes nothing.
+        Returns a Python list of JointTrajectoryPoint (as your system represents them).
+        """
+        combined = []
+        for traj in (trajectories or []):
+            # assuming Trajectory exposes .points (list[JointTrajectoryPoint])
+            pts = getattr(traj, "points", None)
+            if pts:
+                combined.extend(pts)
+        return combined
+
+    @classmethod
+    def _parse_trajectory_list(cls, data):
+        """
+        Parse list of trajectory dicts -> List[Trajectory].
+        """
+        if not data:
+            return []
+        return [JointTrajectory.__from_data__(t) for t in data]
+
+    # --- API ---
+    @classmethod
+    def parse(cls, value):
+        """
+        Parse from a dict-like value (already JSON-decoded).
+        All fields are optional; defaults applied if missing.
+        """
+        header = Header.parse(value.get("header"))
+
+        trajectories_data = value.get("trajectories", [])
+        trajectories = cls._parse_trajectory_list(trajectories_data)
+
+        rbf_data = value.get("robot_base_frame")
+        robot_base_frame = Frame.__from_data__(rbf_data)
+
+        robot_name = value.get("robot_name")
+        inference_guess = value.get("inference_guess")
+
+        return cls(
+            inference_guess=inference_guess,
+            trajectories=trajectories,
+            robot_base_frame=robot_base_frame,
+            robot_name=robot_name,
+            header=header,
+        )
+
+class InferenceReplyMessage(Message):
+    """
+    Reply from Unity back to CAD acknowledging/accepting/rejecting the inferred goal.
+    """
+
+    def __init__(self, goal_status_reply, header=None):
+        super(InferenceReplyMessage, self).__init__()
+        self["header"] = header or Header()
+        self["goal_status_reply"] = int(goal_status_reply) if goal_status_reply is not None else 0
+
+    @classmethod
+    def parse(cls, value):
+        """
+        Parse from dict-like value (already JSON-decoded).
+        Missing fields default to safe values.
+        """
+        header = Header.parse(value.get("header"))
+        gsr_raw = value.get("goal_status_reply", 0)
+        try:
+            goal_status_reply = int(gsr_raw)
+        except Exception:
+            raise ValueError(f"Invalid goal_status_reply: {gsr_raw!r}")
+
+        return cls(goal_status_reply, header)

@@ -1,6 +1,7 @@
 from compas_eve import Subscriber, Publisher, Topic
 from compas_eve.mqtt import MqttTransport
 from compas_xr.mqtt import RealtimeMimicRequestMessage, RealtimeMimicResultMessage, MimicTrajectoryRequestMessage, MimicTrajectoryResultMessage, ExecuteMimicTrajectoryRequestMessage, RealtimeMimicIOToggleRequestMessage
+from compas_xr.mqtt import InferenceRequestMessage, InferenceResultMessage, InferenceReplyMessage
 
 # from robots.com_handlers.realtime_mimic_roshandler import URRealtimeMimicHandler
 from robots.com_handlers.realtime_mimic_pbhandler import URMimicHandlerPyB, ABBMimicHandlerPyB #TODO: This needs to be wrapped into one handler for both Mimics
@@ -27,30 +28,11 @@ class CommunicationManager:
         _robot_hardware_info = project_config_dict["robot_hardware_info"][robot_name]
         self.handler = self._load_handler(robot_name, _urdf_filepath, _srdf_filepath, _robot_hardware_info, backend_type=backend_type)
 
-        #Realtime Mimic Request and Result Handlers
-        realtime_mimic_result_topic = Topic(f"robotic_territories/real_time_mimic_result/{project_name}", RealtimeMimicResultMessage)
-        self.realtime_publisher = Publisher(realtime_mimic_result_topic, transport=self.mqtt)
+        #Setting Publishers and Subscriber
+        self._set_mimic_publishers_and_subscribers(self.project_name)
+        self._set_inference_publishers_and_subscribers(self.project_name)
 
-        realtime_mimic_request_topic = Topic(f"robotic_territories/real_time_mimic_request/{project_name}", RealtimeMimicRequestMessage)
-        self.realtime_subscriber = Subscriber(realtime_mimic_request_topic, callback=self._on_message_realtime_mimic, transport=self.mqtt)
-        self.realtime_subscriber.subscribe()
-
-        # Adding IO toggle for Realtime Mimic
-        realtime_mimic_io_toggle_request = Topic(f"robotic_territories/real_time_mimic_io_toggle_request/{project_name}", RealtimeMimicIOToggleRequestMessage)
-        self.realtime_mimic_io_toggle_request = Subscriber(realtime_mimic_io_toggle_request, callback=self._on_message_realtime_mimic_io_toggle, transport=self.mqtt)
-        self.realtime_mimic_io_toggle_request.subscribe()
-
-        #User Initiated Mimic Request and Result Handlers
-        user_initiated_mimic_result_topic = Topic(f"robotic_territories/mimic_result/{project_name}", MimicTrajectoryResultMessage)
-        self.user_initiated_publisher = Publisher(user_initiated_mimic_result_topic, transport=self.mqtt)
-
-        user_initiated_mimic_request_topic = Topic(f"robotic_territories/mimic_request/{project_name}", MimicTrajectoryRequestMessage)
-        self.user_initiated_subscriber = Subscriber(user_initiated_mimic_request_topic, callback=self._on_message_user_initiated_mimic, transport=self.mqtt)
-        self.user_initiated_subscriber.subscribe()
-
-        user_initiated_mimic_execution_topic = Topic(f"robotic_territories/mimic_execute_trajectory/{project_name}", ExecuteMimicTrajectoryRequestMessage)
-        self.user_initiated_execution_subscriber = Subscriber(user_initiated_mimic_execution_topic, callback=self._on_message_user_initiated_mimic_execution, transport=self.mqtt)
-        self.user_initiated_execution_subscriber.subscribe()
+        #Message Helpers
         self._user_initiated_mimic_trajectories_to_execute = []
 
         _transformations_file_path = project_config_dict["robot_transformations_fp"]
@@ -184,14 +166,52 @@ class CommunicationManager:
     # Set Publisers and Subscribers for Inference
     ####################################################################################################
 
-    # def _set_inference_publishers_and_subscribers(self, project_name):
-    #     #User Initiated Mimic Request and Result Handlers
-    #     user_initiated_mimic_result_topic = Topic(f"robotic_territories/mimic_result/{project_name}", MimicTrajectoryResultMessage)
-    #     self.user_initiated_publisher = Publisher(user_initiated_mimic_result_topic, transport=self.mqtt)
+    def _set_inference_publishers_and_subscribers(self, project_name):
 
-    #     user_initiated_mimic_request_topic = Topic(f"robotic_territories/mimic_request/{project_name}", MimicTrajectoryRequestMessage)
-    #     self.user_initiated_subscriber = Subscriber(user_initiated_mimic_request_topic, callback=self._on_message_user_initiated_mimic, transport=self.mqtt)
-    #     self.user_initiated_subscriber.subscribe()
+        #User Initiated Mimic Request and Result Handlers
+        # user_initiated_mimic_result_topic = Topic(f"robotic_territories/mimic_result/{project_name}", MimicTrajectoryResultMessage)
+        # self.user_initiated_publisher = Publisher(user_initiated_mimic_result_topic, transport=self.mqtt)
+
+        self.inference_request_topic = Topic(f"robotic_territories/inference_request/{project_name}", MimicTrajectoryRequestMessage)
+        self.inference_request_subscriber = Subscriber(self.inference_request_topic, callback=self._on_handle_inference_request, transport=self.mqtt)
+        self.user_initiated_subscriber.subscribe()
+
+        self.inference_result_topic = Topic(f"robotic_territories/inference_result/{project_name}", InferenceResultMessage)
+        self.inference_result_publisher = Publisher(self.inference_result_topic, transport=self.mqtt)
+
+        self.inference_user_reply_topic = Topic(f"robotic_territories/inference_user_reply/{project_name}", InferenceReplyMessage)
+        self.inference_user_reply_subscriber = Subscriber(self.inference_request_topic, callback=self._on_handle_inference_user_reply, transport=self.mqtt)
+        self.inference_user_reply_subscriber.subscribe()
+
+        print(f"CommunicationManager : [CommunicationManager] Subscribed to: robotic_territories inference topics for project '{project_name}' and robot '{self.robot_name}'")
+
+    def _set_mimic_publishers_and_subscribers(self, project_name):
+        #Realtime Mimic Request and Result Handlers
+        realtime_mimic_result_topic = Topic(f"robotic_territories/real_time_mimic_result/{project_name}", RealtimeMimicResultMessage)
+        self.realtime_publisher = Publisher(realtime_mimic_result_topic, transport=self.mqtt)
+
+        realtime_mimic_request_topic = Topic(f"robotic_territories/real_time_mimic_request/{project_name}", RealtimeMimicRequestMessage)
+        self.realtime_subscriber = Subscriber(realtime_mimic_request_topic, callback=self._on_message_realtime_mimic, transport=self.mqtt)
+        self.realtime_subscriber.subscribe()
+
+        # Adding IO toggle for Realtime Mimic
+        realtime_mimic_io_toggle_request = Topic(f"robotic_territories/real_time_mimic_io_toggle_request/{project_name}", RealtimeMimicIOToggleRequestMessage)
+        self.realtime_mimic_io_toggle_request = Subscriber(realtime_mimic_io_toggle_request, callback=self._on_message_realtime_mimic_io_toggle, transport=self.mqtt)
+        self.realtime_mimic_io_toggle_request.subscribe()
+
+        #User Initiated Mimic Request and Result Handlers
+        user_initiated_mimic_result_topic = Topic(f"robotic_territories/mimic_result/{project_name}", MimicTrajectoryResultMessage)
+        self.user_initiated_publisher = Publisher(user_initiated_mimic_result_topic, transport=self.mqtt)
+
+        user_initiated_mimic_request_topic = Topic(f"robotic_territories/mimic_request/{project_name}", MimicTrajectoryRequestMessage)
+        self.user_initiated_subscriber = Subscriber(user_initiated_mimic_request_topic, callback=self._on_message_user_initiated_mimic, transport=self.mqtt)
+        self.user_initiated_subscriber.subscribe()
+
+        user_initiated_mimic_execution_topic = Topic(f"robotic_territories/mimic_execute_trajectory/{project_name}", ExecuteMimicTrajectoryRequestMessage)
+        self.user_initiated_execution_subscriber = Subscriber(user_initiated_mimic_execution_topic, callback=self._on_message_user_initiated_mimic_execution, transport=self.mqtt)
+        self.user_initiated_execution_subscriber.subscribe()
+
+        print(f"CommunicationManager : [CommunicationManager] Subscribed to: robotic_territories mimic topics for project '{project_name}' and robot '{self.robot_name}'")
 
 
     ######################################################################################################
@@ -332,6 +352,20 @@ class CommunicationManager:
         handler = self.handler
         handler.handle_realtime_mimic_io_toggle_request(msg=msg)
         print(f"CommunicationManager : [CommunicationManager] Processed IO toggle for signal '{signal}' with value '{value}'")
+
+    ######################################################################################################
+    # Message Handlers for Inference Requests and Results
+    ####################################################################################################
+
+    def _on_handle_inference_request(self, msg: InferenceRequestMessage):
+        robot_name = msg.robot_name
+        requested_human_frames = msg.geometry_frames
+        print(f"CommunicationManager : [CommunicationManager] Received Inference request for robot '{robot_name}': Requesting : {len(requested_human_frames)} frames")
+    
+    def _on_handle_inference_user_reply(self, msg: InferenceReplyMessage):
+        # robot_name = msg.robot_name
+        user_reply = msg.goal_status_reply
+        print(f"CommunicationManager : [CommunicationManager] Received Inference user reply from User : {msg.header.device_id} ': Reply : {user_reply}")
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_CONFIG_FP = os.path.join(SCRIPT_DIR, "project_config.json")
