@@ -362,8 +362,10 @@ class CommunicationManager:
         geometry_frames_for_inference = msg.geometry_frames
         print(f"CommunicationManager : [CommunicationManager] Received Inference request for robot '{robot_name}': Requesting : {len(geometry_frames_for_inference)} frames")
         print(f"GEOMETRY FRAMES: {geometry_frames_for_inference}")
-        fp_testing = r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\performance_operations\testing\random_data_saves\test_inference_requested_frames.json"
-        json_dump(data=geometry_frames_for_inference, fp=fp_testing, pretty=True)
+        
+
+        # fp_testing = r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\performance_operations\testing\random_data_saves\test_inference_requested_frames.json"
+        # json_dump(data=geometry_frames_for_inference, fp=fp_testing, pretty=True)
 
     def _on_handle_inference_user_reply(self, msg: InferenceReplyMessage):
         # robot_name = msg.robot_name
