@@ -446,7 +446,7 @@ class CommunicationManager:
         #TODO: Compute if it should be within the robots reachability.... if not returen some messages.
 
         handler = self.handler
-        trajectories, robot_base_frame, robot_name = handler.handle_planning_for_inference(closest_target_frame, transformed_target, transformed_completed_items_dict, transformed_incompleted_items_dict, closest_target_name)
+        trajectories = handler.handle_planning_for_inference(closest_target_frame, transformed_target, transformed_completed_items_dict, transformed_incompleted_items_dict, closest_target_name)
         if len(trajectories) == 0:
             print(f"CommunicationManager : [CommunicationManager] No trajectories computed for inference request for robot '{robot_name}'.")
             self.inference_result_publisher.publish(InferenceResultMessage(

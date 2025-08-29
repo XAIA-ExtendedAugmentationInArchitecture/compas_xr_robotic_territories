@@ -9,7 +9,7 @@ from compas_fab.backends.pybullet.exceptions import CollisionError
 from rtde_control import RTDEControlInterface as RTDEControl
 from rtde_receive import RTDEReceiveInterface as RTDEReceive
 
-from compas.geometry import Frame, Quaternion
+from compas.geometry import Frame, Quaternion, Vector, Translation
 import compas_fab
 import compas_rrc as rrc
 
@@ -636,6 +636,86 @@ class RobotHandlerCombinedBackends:
 
         return trajectories
 
+
+    #TODO: Needs to have collision meshes attached.
+    def _ros_plan_trajectories_for_inference(self, configurations: List[Configuration], placed_blocks_dict, unplaced_blocks_dict) -> List[JointTrajectory]:
+        if not configurations:
+            print(f"CombinedBackendHandler: [{self.robot_name}] No configurations provided.")
+            return []
+
+        start_config = self._get_latest_joint_values_from_stream_as_configuration()
+        if start_config is None:
+            print(f"CombinedBackendHandler: [{self.robot_name}] Could not read current joint state.")
+            return []
+
+        ros_joint_names = self.ros_robot.get_configurable_joint_names(self.group)
+        ros_joint_types = self.ros_robot.get_configurable_joint_types(self.group)
+        if (not getattr(start_config, "joint_names", None)) or (list(start_config.joint_names) != list(ros_joint_names)):
+            start_config = Configuration(
+                joint_names=ros_joint_names,
+                joint_types=ros_joint_types,
+                joint_values=list(start_config.joint_values),
+            )
+
+        trajectories: List[JointTrajectory] = []
+        prev = start_config
+        tolerance_above = self._generate_default_tolerances(self.ros_robot.get_configurable_joints(self.group))
+        tolerance_below = self._generate_default_tolerances(self.ros_robot.get_configurable_joints(self.group))
+        options_dict = dict(planner_id='TRRT', link_name="tool0")
+
+        for i, goal in enumerate(configurations):
+            try:
+                if (not getattr(goal, "joint_names", None)) or (list(goal.joint_names) != list(ros_joint_names)):
+                    goal = Configuration(
+                        joint_names=ros_joint_names,
+                        joint_types=ros_joint_types,
+                        joint_values=list(goal.joint_values),
+                    )
+
+                start_cfg = prev if i == 0 else configurations[i-1]
+                if (not getattr(start_cfg, "joint_names", None)) or (list(start_cfg.joint_names) != list(ros_joint_names)):
+                    start_cfg = Configuration(
+                        joint_names=ros_joint_names,
+                        joint_types=ros_joint_types,
+                        joint_values=list(start_cfg.joint_values),
+                    )
+
+                goal_constraints = self.ros_robot.constraints_from_configuration(
+                    configuration=goal,
+                    tolerances_above=tolerance_above,
+                    tolerances_below=tolerance_below,
+                    group=self.group
+                )
+
+                trajectory = self.ros_robot.plan_motion(
+                    goal_constraints,
+                    start_configuration=start_cfg,
+                    group=self.group,
+                    options=options_dict
+                )
+
+                if trajectory is None:
+                    print(f"CombinedBackendHandler: [{self.robot_name}] Planner returned None for leg {i} ({prev} -> {goal}).")
+                    return []
+
+                if not getattr(trajectory, "joint_names", None):
+                    trajectory.joint_names = list(ros_joint_names)
+                for pt in trajectory.points:
+                    if not getattr(pt, "joint_names", None):
+                        pt.joint_names = list(ros_joint_names)
+                    if not getattr(pt, "joint_types", None):
+                        pt.joint_types = list(ros_joint_types)
+
+                print(f"CombinedBackendHandler: [{self.robot_name}] Planned leg {i} with {len(trajectory.points)} points; joints={trajectory.joint_names}.")
+                trajectories.append(trajectory)
+                prev = goal
+
+            except Exception as e:
+                print(f"CombinedBackendHandler: [{self.robot_name}] Error planning trajectory leg {i} from {prev} to {goal}: {e}")
+                return []
+
+        return trajectories
+
     #######################################################################################################################
     # TODO: THESE ARE FOR PYBULLET BUT NEVER USED OR TESTED : Testing for creating cartesian motion with TryIK fast.
     #######################################################################################################################
@@ -1130,18 +1210,238 @@ class RobotHandlerCombinedBackends:
     # Inference Handlers
     #####################################################################################################
 
-    def handle_planning_for_inference(self, closest_target_frame, transformed_target, transformed_completed_items_dict, transformed_incompleted_items_dict, closest_target_name):
-        #TODO: PLANNING FOR INFERENCE
+    def _align_config(self, cfg: Configuration, ros_joint_names, ros_joint_types) -> Configuration:
+        if (not getattr(cfg, "joint_names", None)) or (list(cfg.joint_names) != list(ros_joint_names)):
+            return Configuration(
+                joint_names=list(ros_joint_names),
+                joint_types=list(ros_joint_types),
+                joint_values=list(cfg.joint_values),
+            )
+        return cfg
+
+    def _stamp_joint_meta(self, traj: JointTrajectory, ros_joint_names, ros_joint_types) -> None:
+        if not getattr(traj, "joint_names", None):
+            traj.joint_names = list(ros_joint_names)
+        for pt in traj.points:
+            if not getattr(pt, "joint_names", None):
+                pt.joint_names = list(ros_joint_names)
+            if not getattr(pt, "joint_types", None):
+                pt.joint_types = list(ros_joint_types)
+
+    def _reverse_trajectory(self, traj: JointTrajectory) -> JointTrajectory:
+        # Reverse point order and rebuild time_from_start cumulatively
+        new_points: List[JointTrajectoryPoint] = []
+        if not traj.points:
+            return JointTrajectory(joint_names=list(getattr(traj, "joint_names", []) or []), points=[])
+
+        # Compute per-segment durations from the forward trajectory
+        times = [p.time_from_start for p in traj.points]
+        dts = [times[0]] + [t2 - t1 for t1, t2 in zip(times[:-1], times[1:])]
+        dts_rev = list(reversed(dts))
+
+        t_accum = 0.0
+        for idx, pt in enumerate(reversed(traj.points)):
+            new_pt = JointTrajectoryPoint(
+                positions=list(pt.positions),
+                velocities=None,  # keep simple; set if you have them
+                accelerations=None,
+                time_from_start=t_accum
+            )
+            new_points.append(new_pt)
+            t_accum += float(dts_rev[idx])
+
+        return JointTrajectory(joint_names=list(traj.joint_names), points=new_points)
+
+    # TODO: attach/update collision meshes based on placed/unplaced dicts before planning
+    def _ros_plan_trajectories_for_inference(self, configurations: List[Configuration],
+                                            placed_blocks_dict, unplaced_blocks_dict) -> List[JointTrajectory]:
+        """
+        Expects configurations in this order (length >= 5):
+            0: exit_safe
+            1: approach_pick
+            2: pick
+            3: approach_place
+            4: place
+        Plans legs:
+            start -> 0 (cartesian)
+            0 -> 1 (free)
+            1 -> 2 (cartesian)
+            reverse of [1 -> 2] (cartesian reversed: 2 -> 1)
+            1 -> 3 (free)
+            3 -> 4 (cartesian)
+        """
+        if not configurations or len(configurations) < 5:
+            print(f"CombinedBackendHandler: [{self.robot_name}] Need at least 5 configs (exit_safe, approach_pick, pick, approach_place, place).")
+            return []
+
+        # Start config from stream
+        start_config = self._get_latest_joint_values_from_stream_as_configuration()
+        if start_config is None:
+            print(f"CombinedBackendHandler: [{self.robot_name}] Could not read current joint state.")
+            return []
+
+        ros_joint_names = self.ros_robot.get_configurable_joint_names(self.group)
+        ros_joint_types = self.ros_robot.get_configurable_joint_types(self.group)
+        start_config = self._align_config(start_config, ros_joint_names, ros_joint_types)
+
+        # Align all provided configs
+        cfgs = [self._align_config(c, ros_joint_names, ros_joint_types) for c in configurations]
+        exit_safe, approach_pick, pick, approach_place, place = cfgs[:5]
+
+        trajectories: List[JointTrajectory] = []
+
+        # Common options
+        free_options = dict(planner_id='TRRT', link_name="tool0")
+        # Tune max_step/jump_threshold if needed for your setup
+        cart_options = dict(link_name="tool0", avoid_collisions=True, max_step=0.01, jump_threshold=0.0)
+
+        # Helper: cartesian plan from A cfg to B cfg via B's EE frame
+        def plan_cartesian(a_cfg: Configuration, b_cfg: Configuration) -> Optional[JointTrajectory]:
+            b_frame = self.ros_robot.forward_kinematics(b_cfg, options=dict(link_name="tool0"), group=self.group)
+            if b_frame is None:
+                print(f"CombinedBackendHandler: [{self.robot_name}] FK failed for cartesian target.")
+                return None
+            traj = self.ros_robot.plan_cartesian_motion(
+                [b_frame],
+                start_configuration=a_cfg,
+                group=self.group,
+                options = dict(link_name=cart_options["link_name"],
+                max_step=cart_options["max_step"])
+            )
+            return traj
+
+        # Helper: free plan from A cfg to B cfg
+        def plan_free(a_cfg: Configuration, b_cfg: Configuration) -> Optional[JointTrajectory]:
+            goal_constraints = self.ros_robot.constraints_from_configuration(
+                configuration=b_cfg,
+                tolerances_above=self._generate_default_tolerances(self.ros_robot.get_configurable_joints(self.group)),
+                tolerances_below=self._generate_default_tolerances(self.ros_robot.get_configurable_joints(self.group)),
+                group=self.group
+            )
+            traj = self.ros_robot.plan_motion(
+                goal_constraints,
+                start_configuration=a_cfg,
+                group=self.group,
+                options=free_options
+            )
+            return traj
+
+        # ---- Leg 1: start -> exit_safe (cartesian)
+        traj = plan_cartesian(start_config, exit_safe)
+        if traj is None:
+            print(f"CombinedBackendHandler: [{self.robot_name}] Leg 1 cartesian failed.")
+            return []
+        self._stamp_joint_meta(traj, ros_joint_names, ros_joint_types)
+        trajectories.append(traj)
+
+        # ---- Leg 2: exit_safe -> approach_pick (free)
+        traj = plan_free(exit_safe, approach_pick)
+        if traj is None:
+            print(f"CombinedBackendHandler: [{self.robot_name}] Leg 2 free failed.")
+            return []
+        self._stamp_joint_meta(traj, ros_joint_names, ros_joint_types)
+        trajectories.append(traj)
+
+        # ---- Leg 3: approach_pick -> pick (cartesian)
+        traj_pick_fwd = plan_cartesian(approach_pick, pick)
+        if traj_pick_fwd is None:
+            print(f"CombinedBackendHandler: [{self.robot_name}] Leg 3 cartesian (approach_pick->pick) failed.")
+            return []
+        self._stamp_joint_meta(traj_pick_fwd, ros_joint_names, ros_joint_types)
+        trajectories.append(traj_pick_fwd)
+
+        # ---- Leg 4: reverse of Leg 3 (pick -> approach_pick)
+        traj_pick_rev = self._reverse_trajectory(traj_pick_fwd)
+        self._stamp_joint_meta(traj_pick_rev, ros_joint_names, ros_joint_types)
+        trajectories.append(traj_pick_rev)
+
+        # ---- Leg 5: approach_pick -> approach_place (free)
+        traj = plan_free(approach_pick, approach_place)
+        if traj is None:
+            print(f"CombinedBackendHandler: [{self.robot_name}] Leg 5 free failed.")
+            return []
+        self._stamp_joint_meta(traj, ros_joint_names, ros_joint_types)
+        trajectories.append(traj)
+
+        # ---- Leg 6: approach_place -> place (cartesian)
+        traj = plan_cartesian(approach_place, place)
+        if traj is None:
+            print(f"CombinedBackendHandler: [{self.robot_name}] Leg 6 cartesian failed.")
+            return []
+        self._stamp_joint_meta(traj, ros_joint_names, ros_joint_types)
+        trajectories.append(traj)
+
+        print(f"CombinedBackendHandler: [{self.robot_name}] Planned {len(trajectories)} legs (C, F, C, C-rev, F, C).")
+        return trajectories
+
+    ######### TODO: Helper Functions ####################################################################
+
+    def offset_frame_by_distance(self, frame: Frame, vector: Vector, distance: float ) -> Frame:
+        direction = vector.unitized()
+        offset_vector = direction * distance
+        tx = Translation.from_vector(offset_vector)
+        new_frame = frame.transformed(tx)
+        return new_frame
+
+    #TODO: Needs to have collision meshes attached. and planning options.
+    def handle_planning_for_inference(self, closest_target_frame, transformed_target, 
+                                    transformed_completed_items_dict, transformed_incompleted_items_dict, 
+                                    closest_target_name):
         print(f"CombinedBackendHandler: [{self.robot_name}] Handling inference planning request for target: {closest_target_name}")
-        
+
+        start_config = self._get_latest_joint_values_from_stream_as_configuration(backend="ROS")
+        if start_config is None:
+            print(f"CombinedBackendHandler: [{self.robot_name}] No valid start configuration found. Returning empty trajectory.")
+            return None
+
+        current_tool_frame = self.ros_robot.forward_kinematics(start_config, options=dict(link_name="tool0"), group=self.group)
+        if current_tool_frame is None:
+            print(f"CombinedBackendHandler: [{self.robot_name}] Could not compute current tool frame. Returning empty trajectory.")
+            return None
+
+        # Frames
+        exit_safe_frame       = self.offset_frame_by_distance(current_tool_frame, current_tool_frame.zaxis, 0.2)    # 20 cm up
+        pick_frame = self.offset_frame_by_distance(closest_target_frame, closest_target_frame.zaxis, -0.15) # pick from 15 cm below
+        approach_pick_frame   = self.offset_frame_by_distance(pick_frame, pick_frame.zaxis, 0.4)                    # 40 cm above pick
+        place_frame = self.offset_frame_by_distance(transformed_target, transformed_target.zaxis, 0.15) # place from 15 cm above
+        approach_place_frame  = self.offset_frame_by_distance(place_frame, place_frame.zaxis, 0.4)                  # 40 cm above place
+
+        # Correct order for IK (match the planning legs below)
+        frames_for_ik = [
+            exit_safe_frame,        # idx 0
+            approach_pick_frame,    # idx 1
+            pick_frame,             # idx 2
+            approach_place_frame,   # idx 3
+            place_frame,            # idx 4
+        ]
+
+        ik_options = dict(link_name="tool0", high_accuracy_threshold=1e-6, high_accuracy_max_iter=8)
+
+        configs_for_planning = self._ros_plan_ik_for_frames_list(frames_for_ik, start_config, options=ik_options)
+        if not configs_for_planning:
+            print(f"CombinedBackendHandler: [{self.robot_name}] No valid configurations found for planning. Returning empty trajectory.")
+            return None
+
+        # Plan per the required sequence
+        trajectories = self._ros_plan_trajectories_for_inference(
+            configurations=configs_for_planning,
+            placed_blocks_dict=transformed_completed_items_dict,
+            unplaced_blocks_dict=transformed_incompleted_items_dict
+        )
+        if len(trajectories) < 1:
+            print(f"CombinedBackendHandler: [{self.robot_name}] No valid trajectories found for planning. Returning empty trajectory.")
+            return []
+        print(f"CombinedBackendHandler: [{self.robot_name}] Valid trajectories found for planning. Found {len(trajectories)} trajectories for planning.")
+        return trajectories
+
 
         # For now just load information from a file.
-        fp = r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\performance_operations\testing\random_trajectory_for_testing.json"
-        sample_message = json_load(fp)
-        trajectories = sample_message["trajectories"]
-        robot_base_frame = sample_message["robot_base_frame"]
-        robot_name = sample_message["robot_name"]
-        return trajectories, robot_base_frame, robot_name
+        # fp = r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\performance_operations\testing\random_trajectory_for_testing.json"
+        # sample_message = json_load(fp)
+        # trajectories = sample_message["trajectories"]
+        # robot_base_frame = sample_message["robot_base_frame"]
+        # robot_name = sample_message["robot_name"]
+        # return trajectories, robot_base_frame, robot_name
 
 
 class URMimicHandlerCombined(RobotHandlerCombinedBackends):
@@ -1214,29 +1514,31 @@ class URMimicHandlerCombined(RobotHandlerCombinedBackends):
 
 
         # last attempt to make it smoother.
-        self.servo_gate = ServoJGate(
-            rtde_ctrl=self.rtde_ctrl,
-            rtde_recv=self.rtde_recv,
-            # caps a bit lower → smoother
-            speed_cap=0.65,          # was 0.8
-            accel_cap=1.10,          # was 1.5
+        #TODO: Commented in before actual execution...
+        # self.servo_gate = ServoJGate(
+        #     rtde_ctrl=self.rtde_ctrl,
+        #     rtde_recv=self.rtde_recv,
+        #     # caps a bit lower → smoother
+        #     speed_cap=0.65,          # was 0.8
+        #     accel_cap=1.10,          # was 1.5
 
-            # UR controller
-            dt_nominal=1/125.0,
-            lookahead=0.12,          # was 0.10
-            gain=240,                # was 280
+        #     # UR controller
+        #     dt_nominal=1/125.0,
+        #     lookahead=0.12,          # was 0.10
+        #     gain=240,                # was 280
 
-            # filtering + adaptive scaling
-            target_alpha=0.18,       # LOWER = more smoothing (was 0.25)
-            k_speed=1.2,             # was 1.6
-            tau=0.38,                # accel = speed/tau (bigger tau = softer accel), was 0.30
-            cmd_alpha=0.55,          # smoother speed/acc commands (was 0.35)
+        #     # filtering + adaptive scaling
+        #     target_alpha=0.18,       # LOWER = more smoothing (was 0.25)
+        #     k_speed=1.2,             # was 1.6
+        #     tau=0.38,                # accel = speed/tau (bigger tau = softer accel), was 0.30
+        #     cmd_alpha=0.55,          # smoother speed/acc commands (was 0.35)
 
-            # sending cadence + deadband
-            min_dt_send=0.012,       # was 0.010
-            min_dq=0.01,             # ~0.57° joint deadband to avoid chatter
-            verbose=False
-        )
+        #     # sending cadence + deadband
+        #     min_dt_send=0.012,       # was 0.010
+        #     min_dq=0.01,             # ~0.57° joint deadband to avoid chatter
+        #     verbose=False
+        # )
+        #TODO: Commented in before actual execution...
 
         print(f"URCombinedBackendHandler: [{robot_name}] UR handler initialized")
 
