@@ -289,7 +289,7 @@ class RobotHandlerCombinedBackends:
         throttled to `visual_hz` (default 30 Hz).
         """
         if start_config is None:
-            start_config = self._get_latest_joint_values_from_stream_as_configuration(backend="Pybullet")
+            start_config = self._get_latest_joint_values_from_stream_as_configuration(backend="PyBullet")
 
         options = {"link_name": "tool0"}
 
@@ -309,7 +309,7 @@ class RobotHandlerCombinedBackends:
             if cfg is None or not do_collision_check:
                 return cfg is not None
 
-            restore_cfg = (self._get_latest_joint_values_from_stream_as_configuration(backend="Pybullet")
+            restore_cfg = (self._get_latest_joint_values_from_stream_as_configuration(backend="PyBullet")
                         or getattr(self, "_prev_cfg_cache", None)
                         or self.pyb_robot.zero_configuration())
             try:
@@ -860,12 +860,12 @@ class RobotHandlerCombinedBackends:
             print(f"CombinedBackendHandler: [{self.robot_name}] Initial request received. Resetting IK solutions.")
             self.realtime_mimic_ik_solutions = []
             # start_config = self._get_current_configuration()
-            start_config = self._get_latest_joint_values_from_stream_as_configuration(backend="Pybullet")
+            start_config = self._get_latest_joint_values_from_stream_as_configuration(backend="PyBullet")
 
         else:
             if len(self.realtime_mimic_ik_solutions) == 0:
                 # start_config = self._get_current_configuration()
-                start_config = self._get_latest_joint_values_from_stream_as_configuration(backend="Pybullet")
+                start_config = self._get_latest_joint_values_from_stream_as_configuration(backend="PyBullet")
 
             else:
                 start_config = self.realtime_mimic_ik_solutions[-1]
@@ -900,11 +900,11 @@ class RobotHandlerCombinedBackends:
             print(f"CombinedBackendHandler: [{self.robot_name}] Initial request received. Resetting IK solutions.")
             self.realtime_mimic_ik_solutions = []
             # start_config = self._get_current_configuration()
-            start_config = self._get_latest_joint_values_from_stream_as_configuration(backend="Pybullet")
+            start_config = self._get_latest_joint_values_from_stream_as_configuration(backend="PyBullet")
         else:
             if len(self.realtime_mimic_ik_solutions) == 0:
                 # start_config = self._get_current_configuration()
-                start_config = self._get_latest_joint_values_from_stream_as_configuration(backend="Pybullet")
+                start_config = self._get_latest_joint_values_from_stream_as_configuration(backend="PyBullet")
             else:
                 start_config = self.realtime_mimic_ik_solutions[-1]
 
@@ -938,11 +938,11 @@ class RobotHandlerCombinedBackends:
             print(f"CombinedBackendHandler: [{self.robot_name}] Initial request received. Resetting IK solutions.")
             self.realtime_mimic_ik_solutions = []
             # start_config = self._get_current_configuration()
-            start_config = self._get_latest_joint_values_from_stream_as_configuration(backend="Pybullet")
+            start_config = self._get_latest_joint_values_from_stream_as_configuration(backend="PyBullet")
         else:
             if len(self.realtime_mimic_ik_solutions) == 0:
                 # start_config = self._get_current_configuration()
-                start_config = self._get_latest_joint_values_from_stream_as_configuration(backend="Pybullet")
+                start_config = self._get_latest_joint_values_from_stream_as_configuration(backend="PyBullet")
             else:
                 start_config = self.realtime_mimic_ik_solutions[-1]
 
@@ -980,7 +980,7 @@ class RobotHandlerCombinedBackends:
                 print(f"CombinedBackendHandler: [{self.robot_name}] Initial request received. Resetting IK solutions.")
                 self.realtime_mimic_ik_solutions = []
                 # start_config = self._get_current_configuration()
-                start_config = self._get_latest_joint_values_from_stream_as_configuration(backend="Pybullet")
+                start_config = self._get_latest_joint_values_from_stream_as_configuration(backend="PyBullet")
                 options = dict(
                     link_name="tool0",
                     high_accuracy_threshold=1e-6,
@@ -1013,7 +1013,7 @@ class RobotHandlerCombinedBackends:
             self.realtime_mimic_ik_solutions = []
 
         if msg.initial_request or not self.realtime_mimic_ik_solutions:
-            start_cfg = self._get_latest_joint_values_from_stream_as_configuration(backend="Pybullet")
+            start_cfg = self._get_latest_joint_values_from_stream_as_configuration(backend="PyBullet")
             if start_cfg is None:
                 # rare fallback if stream isn't ready yet
                 start_cfg = self.pyb_robot.zero_configuration()
@@ -1055,7 +1055,7 @@ class RobotHandlerCombinedBackends:
         This method can be overridden by child classes to handle custom message requests.
         """
         print(f"CombinedBackendHandler: [{self.robot_name}] Handling user-defined request: {msg} from {msg.header.device_id}")
-        start_config = self._get_latest_joint_values_from_stream_as_configuration(backend="Pybullet")
+        start_config = self._get_latest_joint_values_from_stream_as_configuration(backend="PyBullet")
         options = dict(
                 link_name="tool0",
                 high_accuracy_threshold=1e-6,
@@ -1132,6 +1132,9 @@ class RobotHandlerCombinedBackends:
 
     def handle_planning_for_inference(self, closest_target_frame, transformed_target, transformed_completed_items_dict, transformed_incompleted_items_dict, closest_target_name):
         #TODO: PLANNING FOR INFERENCE
+        print(f"CombinedBackendHandler: [{self.robot_name}] Handling inference planning request for target: {closest_target_name}")
+        
+
         # For now just load information from a file.
         fp = r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\performance_operations\testing\random_trajectory_for_testing.json"
         sample_message = json_load(fp)
@@ -1321,12 +1324,21 @@ class URMimicHandlerCombined(RobotHandlerCombinedBackends):
                             visual_hz=30)
 
         if ik:
+            #TODO: Comment me in if you want to run on sim only....
+            self.realtime_mimic_ik_solutions.append(ik)
+            print(f"[{self.robot_name}] (SIM) would send with servoj, skipping actual send.")
+            return ik 
+            #TODO: Comment me in if you want to run on sim only....
             # remember and command through servoj
             self.realtime_mimic_ik_solutions.append(ik)
             self.servo_gate.set_target(ik.joint_values)
             self.servo_gate.tick()
             return ik
-
+        #TODO: Comment me in if you want to run on sim only...
+        # IK failed: keep feeding servo with last known good (or current measured)
+        print(f"[{self.robot_name}] (SIM) IK failed, would normally keep feeding servo — skipping send.")
+        return None
+        #TODO: Comment me in if you want to run on sim only...
         # IK failed: keep feeding servo with last known good (or current measured)
         if self.realtime_mimic_ik_solutions:
             self.servo_gate.set_target(self.realtime_mimic_ik_solutions[-1].joint_values)

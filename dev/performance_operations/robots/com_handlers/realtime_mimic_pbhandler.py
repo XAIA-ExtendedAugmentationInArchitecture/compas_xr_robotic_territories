@@ -1140,13 +1140,22 @@ class URMimicHandlerPyB(MimicPyBulletHandler):
                             visual_hz=30)
 
         if ik:
+            #TODO: Comment me in if you want to run on sim only....
+            self.realtime_mimic_ik_solutions.append(ik)
+            print(f"[{self.robot_name}] (SIM) would send with servoj, skipping actual send.")
+            return ik 
+            #TODO: Comment me in if you want to run on sim only....
             # remember and command through servoj
             self.realtime_mimic_ik_solutions.append(ik)
             self.servo_gate.set_target(ik.joint_values)
             self.servo_gate.tick()
             return ik
 
+        #TODO: Comment me in if you want to run on sim only...
         # IK failed: keep feeding servo with last known good (or current measured)
+        print(f"[{self.robot_name}] (SIM) IK failed, would normally keep feeding servo — skipping send.")
+        return None
+        #TODO: Comment me in if you want to run on sim only...
         if self.realtime_mimic_ik_solutions:
             self.servo_gate.set_target(self.realtime_mimic_ik_solutions[-1].joint_values)
         else:

@@ -218,7 +218,6 @@ class CommunicationManager:
 
         print(f"CommunicationManager : [CommunicationManager] Subscribed to: robotic_territories mimic topics for project '{project_name}' and robot '{self.robot_name}'")
 
-
     ######################################################################################################
     # Frame Transformations to Robot Space & AR Space
     ####################################################################################################
