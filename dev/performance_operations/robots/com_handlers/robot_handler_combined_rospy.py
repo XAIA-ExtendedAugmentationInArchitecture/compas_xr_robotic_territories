@@ -1130,16 +1130,15 @@ class RobotHandlerCombinedBackends:
     # Inference Handlers
     #####################################################################################################
 
-    def handle_planning_for_inference(closest_target_frame, transformed_target, transformed_completed_items_dict, transformed_incompleted_items_dict, closest_target_name):
-        print(f"CombinedBackendHandler: [{self.robot_name}] Handling inference request for target: {closest_target_name}")
-        print(f"CombinedBackendHandler: [{self.robot_name}] Closest target frame: {closest_target_frame}")
-        print(f"CombinedBackendHandler: [{self.robot_name}] Transformed target: {transformed_target}")
-        print(f"CombinedBackendHandler: [{self.robot_name}] Transformed completed items: {transformed_completed_items_dict}")
-        print(f"CombinedBackendHandler: [{self.robot_name}] Transformed incompleted items: {transformed_incompleted_items_dict}")
-        # Implement your inference logic here
-        # For example, you might want to select the next best target based on certain criteria
-        # This is a placeholder implementation
-        next_target = closest_target_frame
+    def handle_planning_for_inference(self, closest_target_frame, transformed_target, transformed_completed_items_dict, transformed_incompleted_items_dict, closest_target_name):
+        #TODO: PLANNING FOR INFERENCE
+        # For now just load information from a file.
+        fp = r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\performance_operations\testing\random_trajectory_for_testing.json"
+        sample_message = json_load(fp)
+        trajectories = sample_message["trajectories"]
+        robot_base_frame = sample_message["robot_base_frame"]
+        robot_name = sample_message["robot_name"]
+        return trajectories, robot_base_frame, robot_name
 
 
 class URMimicHandlerCombined(RobotHandlerCombinedBackends):

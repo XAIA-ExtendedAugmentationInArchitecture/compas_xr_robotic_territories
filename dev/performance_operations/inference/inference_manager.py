@@ -2,7 +2,7 @@
 from compas.data import json_load
 from compas.geometry import Transformation, Frame
 import random
-
+import os
 
 class InferenceManager:
 
@@ -16,9 +16,6 @@ class InferenceManager:
         self.TEMPORARY_SUB_GOALS_LIST = ['G0', 'G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7', 'G8']
 
     def _load_goals(self, goals_folder_path):
-        import os
-        import json
-
         goals_dict = {}
         for filename in os.listdir(goals_folder_path):
             if filename.endswith(".json"):
