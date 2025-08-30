@@ -6,6 +6,7 @@ from datetime import datetime
 from compas.geometry import Frame, Point, Vector
 from compas_fab.robots import JointTrajectory, JointTrajectoryPoint
 from compas_eve import Message
+from enum import IntEnum
 
 
 class MessageHandelingExtensions(object):
@@ -371,7 +372,7 @@ class InferenceResultMessage(Message):
     Result returned from CAD to Unity: trajectories, combined points, base frame, robot name, and the inference guess string.
     """
 
-    def __init__(self, inference_guess=None, completed_goals_list=[], trajectories=[], robot_base_frame=None, robot_name=None, header=None):
+    def __init__(self, inference_guess=None, suggested_target_name=None, completed_goals_list=[], trajectories=[], robot_base_frame=None, robot_name=None, header=None):
         super(InferenceResultMessage, self).__init__()
         trajectories = trajectories or []
 
@@ -382,6 +383,7 @@ class InferenceResultMessage(Message):
         self["robot_base_frame"] = robot_base_frame                   # Frame or None
         self["robot_name"] = robot_name                               # str or None
         self["inference_guess"] = inference_guess                     # str or None
+        self["suggested_target_name"] = suggested_target_name                   # Frame or None
 
     # --- helpers ---
     def _combine_points(self, trajectories):
@@ -434,27 +436,37 @@ class InferenceResultMessage(Message):
             header=header
         )
 
+
+class GoalStatusReply(IntEnum):
+    REJECT_TARGET_AND_GOAL = 0
+    ACCEPT_TARGET_REJECT_GOAL = 1
+    ACCEPT_TARGET_AND_GOAL = 2
+
 class InferenceReplyMessage(Message):
     """
     Reply from Unity back to CAD acknowledging/accepting/rejecting the inferred goal.
     """
 
-    def __init__(self, goal_status_reply, header=None):
+    def __init__(self, goal_status_reply: GoalStatusReply, includes_executable_trajectory: bool, header=None):
         super(InferenceReplyMessage, self).__init__()
         self["header"] = header or Header()
+        # always store as int for transport
         self["goal_status_reply"] = int(goal_status_reply) if goal_status_reply is not None else 0
+        self["includes_executable_trajectory"] = bool(includes_executable_trajectory)
 
     @classmethod
-    def parse(cls, value):
+    def parse(cls, value: dict):
         """
         Parse from dict-like value (already JSON-decoded).
         Missing fields default to safe values.
         """
         header = Header.parse(value.get("header"))
         gsr_raw = value.get("goal_status_reply", 0)
+        includes_executable_trajectory = bool(value.get("includes_executable_trajectory", False))
+
         try:
-            goal_status_reply = int(gsr_raw)
+            goal_status_reply = GoalStatusReply(int(gsr_raw))
         except Exception:
             raise ValueError(f"Invalid goal_status_reply: {gsr_raw!r}")
 
-        return cls(goal_status_reply, header)
+        return cls(goal_status_reply, includes_executable_trajectory, header)

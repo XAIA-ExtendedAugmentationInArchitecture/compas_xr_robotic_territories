@@ -412,7 +412,11 @@ class CommunicationManager:
     # Message Handlers for Inference Requests and Results
     ####################################################################################################
 
+    #TODO: FIX THE PLANNING (INVERTED FRAMES and MISSING TX I think)
     def _on_handle_inference_request(self, msg: InferenceRequestMessage):
+        # Clear any previous executable trajectories (just to be safe)
+        self._INFERENCE_EXACUTABLE_TRAJECTORIES = []
+
         robot_name = msg.robot_name
         geometry_frames_for_inference = msg.geometry_frames
         print(f"CommunicationManager : [CommunicationManager] Received Inference request for robot '{robot_name}': Requesting : {len(geometry_frames_for_inference)} frames. Initial request: {msg.initial_request}")
@@ -426,9 +430,10 @@ class CommunicationManager:
             print(f"CommunicationManager : [CommunicationManager] Inference manager returned no result for robot '{robot_name}'.")
             self.inference_result_publisher.publish(InferenceResultMessage(
                 inference_guess=None,
+                suggested_target_name=None,
                 completed_goals_list=[],
                 trajectories=[],
-                robot_base_frame=None,
+                robot_base_frame=[],
                 robot_name=robot_name
             ))
             return
@@ -438,6 +443,7 @@ class CommunicationManager:
         suggested_target_frame = inference_result_dict["suggested_target"]
         completed_items_names = inference_result_dict["completed_items"]
         incompleted_items_names = inference_result_dict["incompleted_items"]
+        suggested_target_name = inference_result_dict["suggested_target_name"]
         print(f"CommunicationManager : [CommunicationManager] Inference suggested goal: {suggested_goal}, completed goals: {completed_goal_names}, target frame: {suggested_target_frame}, completed items: {completed_items_names}, incompleted items: {incompleted_items_names}")
 
         transformed_incompleted_items_dict, transformed_completed_items_dict, transformed_target = self._transform_inference_information(geometry_frames_for_inference, incompleted_items_names, completed_items_names, suggested_target_frame)        
@@ -452,28 +458,37 @@ class CommunicationManager:
             self.inference_result_publisher.publish(InferenceResultMessage(
                 inference_guess=suggested_goal,
                 completed_goals_list=completed_goal_names,
+                suggested_target_name=suggested_target_name,
                 trajectories=[],
-                robot_base_frame=None,
+                robot_base_frame=[],
                 robot_name=robot_name
             ))
             return
-        else:
-            print(f"CommunicationManager : [CommunicationManager] Computed {len(trajectories)} trajectories for inference request for robot '{robot_name}'.")
-            result = InferenceResultMessage(
-                inference_guess=suggested_goal,
-                completed_goals_list=completed_goal_names,
-                trajectories=trajectories,
-                robot_base_frame=robot_base_frame,
-                robot_name=robot_name
-            )
-            print(f"CommunicationManager : [CommunicationManager] Published inference result with {len(trajectories)} trajectories for robot {robot_name}")
 
+        #TODO: Tranformation is from the URDF baseframe to make sure that everything is correct with the urdf baseframe to the real world. (also where I can add extra transformatoin if needed because of the poor structure of some URDFs)
+        #TODO: TESTING THIS...
+        fp = r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\performance_operations\testing\20250830_json_testing_trajectory_dumps\inf_trajectory_dump.json"
+        json_dump(data=trajectories, fp=fp, pretty=True)
 
-        #Transform the target frame to the robot space for trajectory generation
-        # transformed_target_frame
+        # robot_base_frame = self._transform_result_frame_from_robot_space_to_ar_space(self._urdf_baseframe)
+        _urdf_baseframe = self._urdf_baseframe
+        rotation = Rotation.from_axis_and_angle(_urdf_baseframe.zaxis, math.radians(180), _urdf_baseframe.point)
+        rotated_frame = _urdf_baseframe.transformed(rotation)
+        robot_base_frame = rotated_frame.transformed(self.transformations_robot_space_to_ar_space)
+        #TODO: Added Additional Transformation Rotation to account for poor URDF baseframe placement.
 
-        # transformed_built_objects, transformed_unbuilt_objects, transformed_targets = self.transform_inference_information()
-        # trajectories_list = handler.handle_inference_msg_request(target_frame, target_frame)
+        print(f"CommunicationManager : [CommunicationManager] Computed {len(trajectories)} trajectories for inference request for robot '{robot_name}'.")
+        result = InferenceResultMessage(
+            inference_guess=suggested_goal,
+            suggested_target_name=suggested_target_name,
+            completed_goals_list=completed_goal_names,
+            trajectories=trajectories,
+            robot_base_frame=robot_base_frame,
+            robot_name=robot_name
+        )
+        self._INFERENCE_EXACUTABLE_TRAJECTORIES = trajectories
+        self.inference_result_publisher.publish(result)
+        print(f"CommunicationManager : [CommunicationManager] Published inference result with {len(trajectories)} trajectories for robot {robot_name}")
 
     def _on_handle_inference_user_reply(self, msg: InferenceReplyMessage):
         # robot_name = msg.robot_name

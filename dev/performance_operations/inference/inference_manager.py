@@ -97,12 +97,12 @@ class InferenceManager:
         incompleted_goal_names = [candidate_names[i] for i in incompleted_goal_indexes]
 
         # ---- 4) Pick target frame from an incompleted goal
-        target_name = random.choice(incompleted_goal_names) if incompleted_goal_names else None
+        suggested_target_name = random.choice(incompleted_goal_names) if incompleted_goal_names else None
         target_frame = None
-        if target_name:
+        if suggested_target_name:
             # Your schema: goal["cube_locations"][Gx]["data"]["frame"] (often a Box with .frame via compas json_load)
             try:
-                entry = goal_data["cube_locations"][target_name]
+                entry = goal_data["cube_locations"][suggested_target_name]
                 # If json_load reconstructs a Box, `.frame` works; else try dict->Frame
                 if hasattr(entry, "frame"):
                     target_frame = entry.frame
@@ -182,9 +182,9 @@ class InferenceManager:
         print(f"Incompleted goal idx: {incompleted_goal_indexes} | names: {incompleted_goal_names} (len={len(incompleted_goal_indexes)})")
         print(f"Completed items (len={len(completed_items_names)}): {completed_items_names}")
         print(f"Incompleted items (len={len(incompleted_items_names)}): {incompleted_items_names}")
-        print(f"Suggested target: {target_name} -> {target_frame}")
+        print(f"Suggested target: {suggested_target_name} -> {target_frame}")
 
-        return suggested_goal, completed_goal_names, target_frame, completed_items_names, incompleted_items_names
+        return suggested_goal, suggested_target_name, completed_goal_names, target_frame, completed_items_names, incompleted_items_names
 
     def handle_inference_request(self, geometry_frames_dict, initial_request):
 
@@ -206,7 +206,7 @@ class InferenceManager:
         transformed_frames = self._transform_geometry_dict_for_inference(geometry_frames_dict, T_anchor_to_world)
 
         #Perform inference on transformed frames
-        suggested_goal, completed_goal_indexes, target_frame, completed_items_names, incompleted_items_names = self.perform_inference(transformed_frames)
+        suggested_goal, suggested_target_name, completed_goal_indexes, target_frame, completed_items_names, incompleted_items_names = self.perform_inference(transformed_frames)
 
         print(f"INFERENCE MANAGER: Suggested goal: {suggested_goal}, completed_goal_indexes: {completed_goal_indexes}, target_frame: {target_frame}, completed_items_names: {completed_items_names}, incompleted_items_names: {incompleted_items_names}")
 
@@ -222,6 +222,7 @@ class InferenceManager:
             "suggested_goal": suggested_goal,
             "completed_goals": completed_goal_indexes,
             "suggested_target": suggested_target_transformed,
+            "suggested_target_name": suggested_target_name,
             "completed_items": completed_items_names,
             "incompleted_items": incompleted_items_names
         }
