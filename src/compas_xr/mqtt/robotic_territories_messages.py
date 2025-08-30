@@ -447,7 +447,7 @@ class InferenceReplyMessage(Message):
     Reply from Unity back to CAD acknowledging/accepting/rejecting the inferred goal.
     """
 
-    def __init__(self, goal_status_reply: GoalStatusReply, includes_executable_trajectory: bool, header=None):
+    def __init__(self, goal_status_reply: GoalStatusReply, current_goal_name:str, suggested_target_name:str, includes_executable_trajectory: bool, header=None):
         super(InferenceReplyMessage, self).__init__()
         self["header"] = header or Header()
         # always store as int for transport
@@ -463,10 +463,17 @@ class InferenceReplyMessage(Message):
         header = Header.parse(value.get("header"))
         gsr_raw = value.get("goal_status_reply", 0)
         includes_executable_trajectory = bool(value.get("includes_executable_trajectory", False))
+        suggested_target_name = value.get("suggested_target_name", None)
+        current_goal_name = value.get("current_goal_name", None)
+
+        if suggested_target_name is None:
+            raise ValueError("InferenceReplyMessage missing required field: suggested_target_name")
+        if current_goal_name is None:
+            raise ValueError("InferenceReplyMessage missing required field: current_goal_name")
 
         try:
             goal_status_reply = GoalStatusReply(int(gsr_raw))
         except Exception:
             raise ValueError(f"Invalid goal_status_reply: {gsr_raw!r}")
 
-        return cls(goal_status_reply, includes_executable_trajectory, header)
+        return cls(goal_status_reply, current_goal_name, suggested_target_name, includes_executable_trajectory, header)
