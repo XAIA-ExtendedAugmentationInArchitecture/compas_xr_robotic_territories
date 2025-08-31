@@ -1156,7 +1156,6 @@ class RobotHandlerCombinedBackends:
         trajectory_points = traj.points
         reversed_points = trajectory_points[::-1]
         start_configuration = reversed_points[0]
-        
 
         return JointTrajectory(joint_names=list(traj.joint_names), trajectory_points=reversed_points, start_configuration=start_configuration, attached_collision_meshes=traj.attached_collision_meshes)
 
