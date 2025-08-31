@@ -844,6 +844,9 @@ class RobotHandlerCombinedBackends:
 
     def _toggle_tool_io(self, signal: int, value: int):
         raise NotImplementedError("This method should be implemented on the child classes.")
+
+    def _execute_inference_pick_and_place(self, trajectory_list: List[JointTrajectory]):
+        raise NotImplementedError("This method should be implemented on the child classes.")
     
     ####################################################################################################
     # MESSAGE HANDLERS RealtimeMimicResquestMessage
@@ -1489,7 +1492,6 @@ class URMimicHandlerCombined(RobotHandlerCombinedBackends):
         print(f"URCombinedBackendHandler: [{self.robot_name}] (Sim) Executing UR motion: {config.joint_values}")
         # rtde.move_to_joints(config, self.speed, self.acceleration, nowait=self.nowait, ip=self.robot_ip)
         # rtde.move_to_joints_blend(config, self.speed, self.acceleration, blend=self.radius, nowait=self.nowait, ip=self.robot_ip)
-        
         rtde.move_to_joints_TEST(config, self.speed, self.acceleration, nowait=self.nowait, ip=self.robot_ip)
 
     def _send_to_target(self, frame: Frame):
@@ -1506,6 +1508,10 @@ class URMimicHandlerCombined(RobotHandlerCombinedBackends):
     def _toggle_tool_io(self, signal: int, value: int):
         rtde.set_tool_digital_io(signal, value, self.robot_ip)
         print(f"URCombinedBackendHandler: [{self.robot_name}] (Sim) Toggled tool IO signal {signal} to {value}.")
+
+    def _execute_inference_pick_and_place(self, trajectory_list: List[JointTrajectory]):
+        print (f"URCombinedBackendHandler: [{self.robot_name}] Executing inference pick-and-place trajectories of Length {len(trajectory_list)}.")
+        print (f"URCOMBINEDBACKENDHANDLER: IMPLEMENT THE ACTUAL EXECUTION HERE....through RTDE custom routine.")
 
     ####################################################################################################
     # Implemented through Streamer Class Interface

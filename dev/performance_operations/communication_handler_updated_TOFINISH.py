@@ -490,10 +490,35 @@ class CommunicationManager:
         self.inference_result_publisher.publish(result)
         print(f"CommunicationManager : [CommunicationManager] Published inference result with {len(trajectories)} trajectories for robot {robot_name}")
 
+    #TODO: UPDATE THIS TO HANDLE REPLIES IN THE INFERENCE MODEL
     def _on_handle_inference_user_reply(self, msg: InferenceReplyMessage):
         # robot_name = msg.robot_name
         user_reply = msg.goal_status_reply
-        print(f"CommunicationManager : [CommunicationManager] Received Inference user reply from User : {msg.header.device_id} ': Reply : {user_reply}")
+        self.inference_manager._process_user_reply(goal_name=msg.current_goal_name, suggested_target_name=msg.suggested_target_name, goal_status_reply=msg.goal_status_reply, timestamp=msg.header.time_stamp)
+
+        if user_reply == 0:
+            print(f"CommunicationManager : [CommunicationManager] Reject Goal & Targer reply from User : {msg.header.device_id} ': Reply : {user_reply}")
+        elif user_reply == 1:
+            if msg.includes_exacutable_trajectory:
+                if len(self._INFERENCE_EXACUTABLE_TRAJECTORIES) > 0:
+                    handler = self.handler
+                    handler._execute_inference_pick_and_place(self._INFERENCE_EXACUTABLE_TRAJECTORIES)
+                else:
+                    raise ValueError("No executable trajectories available to execute for inference pick-and-place.")
+                print(f"CommunicationManager : [CommunicationManager] Accept Target and Reject Goal with Executable Trajectory reply from User : {msg.header.device_id} ': Reply : {user_reply}")
+            else:
+                print(f"CommunicationManager : [CommunicationManager] Accept Target and Reject Goal without Executable Trajectory reply from User : {msg.header.device_id} ': Reply : {user_reply}")
+        elif user_reply == 2:
+            if msg.includes_exacutable_trajectory:
+                print(f"CommunicationManager : [CommunicationManager] Accept Target and Goal with Executable Trajectory reply from User : {msg.header.device_id} ': Reply : {user_reply}")
+                if len(self._INFERENCE_EXACUTABLE_TRAJECTORIES) > 0:
+                    handler = self.handler
+                    handler._execute_inference_pick_and_place(self._INFERENCE_EXACUTABLE_TRAJECTORIES)
+                else:
+                    raise ValueError("No executable trajectories available to execute for inference pick-and-place.")
+            else:
+                print(f"CommunicationManager : [CommunicationManager] Accept Target and Goal without Executable Trajectory reply from User : {msg.header.device_id} ': Reply : {user_reply}")
+
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_CONFIG_FP = os.path.join(SCRIPT_DIR, "project_config.json")

@@ -1,17 +1,26 @@
 #TODO: This is a temporary file to test inference functionality. Needs to be updated by Camillas final implementation
 from compas.data import json_load
 from compas.geometry import Transformation, Frame
+from compas.data import json_dump
 import random
 import os
+import time
 
 class InferenceManager:
 
     def __init__(self, goals_folder_path):
 
         self.goals_dict = self._load_goals(goals_folder_path)
+        self.record_file_path = self._set_record_file_path(goals_folder_path)
+        self.runntime_start = time.time()
+        self.inference_session_start = None
+        self.inference_routines_log = {}
+
         self.incorrect_goals = []
         self.incorrect_targets = []
         self.correct_targets = []
+        self.target_log = []
+        self.INFERED_GOAL = None
         
         self.TEMPORARY_SUB_GOALS_LIST = ['G0', 'G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7', 'G8']
 
@@ -31,6 +40,71 @@ class InferenceManager:
                     print(f"GoalManager : Error decoding JSON from file {filename}: {e}. Skipping this file.")
         print(f"Loaded {len(goals_dict)} goals from {goals_folder_path}.")
         return goals_dict
+    
+    def _set_record_file_path(self, goals_folder_path):
+        # go up one directory, then into "records"
+        record_folder_path = os.path.normpath(
+            os.path.join(goals_folder_path, "..", "records")
+        )
+        os.makedirs(record_folder_path, exist_ok=True)
+        filename = f"{int(time.time())}_inference_record.json"
+        record_file_path = os.path.join(record_folder_path, filename)
+        print(f"GoalManager : Inference record file will be saved to: {record_file_path}")
+        return record_file_path
+
+    def _process_user_reply(self, goal_name, suggested_target_name, goal_status_reply, timestamp):
+        # Rejecting goal and target
+        if goal_status_reply == 0:
+            self.incorrect_goals.append(goal_name)
+            data = {}
+            data["timestamp"] = timestamp
+            data["suggested_target_name"] = suggested_target_name
+            data["goal_name"] = goal_name
+            self.incorrect_targets.append(data)
+            data["target_status"] = "incorrect_target"
+            self.target_log.append(data)
+
+        # Rejecting goal and Accepting target
+        elif goal_status_reply == 1:
+            self.incorrect_goals.append(goal_name)
+            data = {}
+            data["timestamp"] = timestamp
+            data["suggested_target_name"] = suggested_target_name
+            data["goal_name"] = goal_name
+            self.correct_targets.append(data)
+            data["target_status"] = "correct_target"
+            self.target_log.append(data)
+
+        # Accepting Goal and target
+        elif goal_status_reply == 2:
+            # self.correct_targets.append(suggested_target_name)
+            self.INFERED_GOAL = goal_name
+            self.incorrect_goals.append(goal_name)
+            data = {}
+            data["timestamp"] = timestamp
+            data["suggested_target_name"] = suggested_target_name
+            data["goal_name"] = goal_name
+            self.correct_targets.append(data)
+            data["target_status"] = "correct_target"
+            data["goal_inferred"] = True
+            data["inference_timestamp"] = time.time()
+            self.target_log.append(data)
+            self.inference_routines_log[str(self.inference_session_start)] = {
+                "incorrect_goals": self.incorrect_goals,
+                "incorrect_targets": self.incorrect_targets,
+                "correct_targets": self.correct_targets,
+                "target_log": self.target_log,
+                "INFERED_GOAL": self.INFERED_GOAL,
+                "GOAL_INFERRED_AT": time.time(),
+                "inference_session_start": self.inference_session_start,
+                "inference_request_time": time.time(),
+                "inference_session_duration": time.time() - self.inference_session_start
+            }
+            json_dump(fp=self.record_file_path, data=self.inference_routines_log, pretty=True)
+
+        # Unknown reply
+        else:
+            print(f"GoalManager : Warning: Unknown goal_status_reply '{goal_status_reply}' received.")
 
     def _construct_transformation_matrices(self, anchor_cube_frame):
         # Placeholder for constructing transformation matrices
@@ -190,10 +264,25 @@ class InferenceManager:
 
         #If it is the first request, reset the lists
         if initial_request:
+            self.inference_session_start = time.time()
             self.incorrect_goals = []
             self.incorrect_targets = []
             self.correct_targets = []
+            self.INFERED_GOAL = None
+            print("InferenceManager: Starting a new inference routine.")
         else:
+            self.inference_routines_log[str(self.inference_session_start)] = {
+                "incorrect_goals": self.incorrect_goals,
+                "incorrect_targets": self.incorrect_targets,
+                "correct_targets": self.correct_targets,
+                "target_log": self.target_log,
+                "INFERED_GOAL": self.INFERED_GOAL,
+                "inference_session_start": self.inference_session_start,
+                "inference_request_time": time.time(),
+                "inference_session_duration": time.time() - self.inference_session_start
+            }
+            json_dump(fp=self.record_file_path, data=self.inference_routines_log, pretty=True)
+
             print(f"Previous inference results so far: {len(self.incorrect_goals)} incorrect goals, {len(self.incorrect_targets)} incorrect targets, {len(self.correct_targets)} correct targets.")
 
         #Get the anchor cube frame
