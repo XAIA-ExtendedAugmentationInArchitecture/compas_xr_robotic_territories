@@ -52,6 +52,33 @@ class InferenceManager:
         print(f"GoalManager : Inference record file will be saved to: {record_file_path}")
         return record_file_path
 
+    def _record_inference_data(self, data: dict):
+        """
+        Append or initialize inference record file with new data.
+        """
+        # Ensure parent directory exists
+        os.makedirs(os.path.dirname(self.record_file_path), exist_ok=True)
+
+        # Load existing log if the file exists, else start fresh
+        if os.path.exists(self.record_file_path):
+            try:
+                log = json_load(self.record_file_path)
+            except Exception:
+                print("Warning: Could not load existing record file. Starting new log.")
+                log = {}
+        else:
+            log = {}
+
+        # Use inference_session_start as unique key
+        session_key = str(self.inference_session_start)
+
+        # Update or create the entry for this session
+        log[session_key] = data
+
+        # Save back to file
+        json_dump(fp=self.record_file_path, data=log, pretty=True)
+        print(f"InferenceManager: Record updated at {self.record_file_path}")
+
     def _process_user_reply(self, goal_name, suggested_target_name, goal_status_reply, timestamp):
         # Rejecting goal and target
         if goal_status_reply == 0:
@@ -100,7 +127,7 @@ class InferenceManager:
                 "inference_request_time": time.time(),
                 "inference_session_duration": time.time() - self.inference_session_start
             }
-            json_dump(fp=self.record_file_path, data=self.inference_routines_log, pretty=True)
+            self._record_inference_data(self.inference_routines_log)
 
         # Unknown reply
         else:
@@ -281,8 +308,7 @@ class InferenceManager:
                 "inference_request_time": time.time(),
                 "inference_session_duration": time.time() - self.inference_session_start
             }
-            json_dump(fp=self.record_file_path, data=self.inference_routines_log, pretty=True)
-
+            self._record_inference_data(self.inference_routines_log)
             print(f"Previous inference results so far: {len(self.incorrect_goals)} incorrect goals, {len(self.incorrect_targets)} incorrect targets, {len(self.correct_targets)} correct targets.")
 
         #Get the anchor cube frame

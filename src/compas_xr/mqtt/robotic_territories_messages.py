@@ -453,6 +453,8 @@ class InferenceReplyMessage(Message):
         # always store as int for transport
         self["goal_status_reply"] = int(goal_status_reply) if goal_status_reply is not None else 0
         self["includes_executable_trajectory"] = bool(includes_executable_trajectory)
+        self["suggested_target_name"] = suggested_target_name
+        self["current_goal_name"] = current_goal_name
 
     @classmethod
     def parse(cls, value: dict):
@@ -477,3 +479,112 @@ class InferenceReplyMessage(Message):
             raise ValueError(f"Invalid goal_status_reply: {gsr_raw!r}")
 
         return cls(goal_status_reply, current_goal_name, suggested_target_name, includes_executable_trajectory, header)
+
+class PostInferenceTargetRequestMessage(Message):
+    def __init__(self, completed_goals_list=None, inference_goal_name=None, target_name=None, robot_name=None, geometry_frames_dict=None, header=None):
+        super(PostInferenceTargetRequestMessage, self).__init__()
+        self["header"] = header or Header()
+        self["completed_goals"] = list(completed_goals_list or [])
+        self["inference_goal_name"] = inference_goal_name
+        self["target_name"] = target_name
+        self["geometry_frames"] = dict(geometry_frames_dict or {})
+        self["robot_name"] = robot_name
+
+    @classmethod
+    def parse(cls, value):
+        header = Header.parse(value.get("header"))
+
+        completed_goals = value.get("completed_goals") or []
+        if not isinstance(completed_goals, list):
+            completed_goals = []
+
+        gf_raw = value.get("geometry_frames") or {}
+        geometry_frames = {}
+        if isinstance(gf_raw, dict):
+            for name, fd in gf_raw.items():
+                try:
+                    geometry_frames[name] = Frame.__from_data__(fd)
+                except Exception:
+                    continue
+
+        return cls(
+            completed_goals_list=completed_goals,
+            inference_goal_name=value.get("inference_goal_name"),
+            target_name=value.get("target_name"),
+            robot_name=value.get("robot_name"),
+            geometry_frames_dict=geometry_frames,
+            header=header,
+        )
+
+#TODO: Written by GPT NEEDS FIXED....
+class PostInferenceTrajectoryResultMessage(Message):
+    def __init__(self, trajectories=None, inference_goal_name=None, target_name=None, robot_base_frame=None, robot_name=None, header=None):
+        super(PostInferenceTrajectoryResultMessage, self).__init__()
+        trajectories = trajectories or []
+        self["header"] = header or Header()
+        self["trajectories"] = trajectories
+        self["combined_trajectory_points"] = self._combine_points(trajectories)
+        self["robot_base_frame"] = robot_base_frame
+        self["robot_name"] = robot_name
+        self["inference_goal_name"] = inference_goal_name
+        self["target_name"] = target_name
+
+    def _combine_points(self, trajectories):
+        combined = []
+        for traj in (trajectories or []):
+            pts = getattr(traj, "points", None)
+            if pts:
+                combined.extend(pts)
+        return combined
+
+    @classmethod
+    def _parse_trajectory_list(cls, data):
+        if not data:
+            return []
+        return [JointTrajectory.__from_data__(t) for t in data]
+
+    @classmethod
+    def parse(cls, value):
+        header = Header.parse(value.get("header"))
+
+        trajectories_data = value.get("trajectories", [])
+        trajectories = cls._parse_trajectory_list(trajectories_data)
+
+        rbf_data = value.get("robot_base_frame")
+        robot_base_frame = Frame.__from_data__(rbf_data)
+
+        robot_name = value.get("robot_name")
+        inference_goal_name = value.get("inference_goal_name")
+        target_name = value.get("target_name")
+
+        return cls(
+            trajectories=trajectories,
+            inference_goal_name=inference_goal_name,
+            target_name=target_name,
+            robot_base_frame=robot_base_frame,
+            robot_name=robot_name,
+            header=header,
+        )
+
+
+class PostInferenceExecuteTrajectoryMessage(Message):
+    def __init__(self, inference_goal_name=None, target_name=None, robot_name=None, header=None):
+        super(PostInferenceExecuteTrajectoryMessage, self).__init__()
+        self["header"] = header or Header()
+        self["robot_name"] = robot_name
+        self["inference_goal_name"] = inference_goal_name
+        self["target_name"] = target_name
+
+    @classmethod
+    def parse(cls, value):
+        header = Header.parse(value.get("header"))
+        robot_name = value.get("robot_name")
+        inference_goal_name = value.get("inference_goal_name")
+        target_name = value.get("target_name")
+
+        return cls(
+            inference_goal_name=inference_goal_name,
+            target_name=target_name,
+            robot_name=robot_name,
+            header=header,
+        )

@@ -1,7 +1,7 @@
 from compas_eve import Subscriber, Publisher, Topic
 from compas_eve.mqtt import MqttTransport
 from compas_xr.mqtt import RealtimeMimicRequestMessage, RealtimeMimicResultMessage, MimicTrajectoryRequestMessage, MimicTrajectoryResultMessage, ExecuteMimicTrajectoryRequestMessage, RealtimeMimicIOToggleRequestMessage
-from compas_xr.mqtt import InferenceRequestMessage, InferenceResultMessage, InferenceReplyMessage
+from compas_xr.mqtt import InferenceRequestMessage, InferenceResultMessage, InferenceReplyMessage, PostInferenceTargetRequestMessage, PostInferenceTrajectoryResultMessage, PostInferenceExecuteTrajectoryMessage
 
 # from robots.com_handlers.realtime_mimic_roshandler import URRealtimeMimicHandler
 from robots.com_handlers.realtime_mimic_pbhandler import URMimicHandlerPyB, ABBMimicHandlerPyB #TODO: This needs to be wrapped into one handler for both Mimics
@@ -186,7 +186,24 @@ class CommunicationManager:
 
         self.inference_user_reply_topic = Topic(f"robotic_territories/inference_user_reply/{project_name}", InferenceReplyMessage)
         self.inference_user_reply_subscriber = Subscriber(self.inference_user_reply_topic, callback=self._on_handle_inference_user_reply, transport=self.mqtt)
-        self.inference_user_reply_subscriber.subscribe()      
+        self.inference_user_reply_subscriber.subscribe()
+
+        # Topics for sending information after infernce has been compelted
+        self.inference_post_inference_request_target_topic = Topic(f"robotic_territories/post_inference_request_target/{project_name}", PostInferenceTargetRequestMessage)
+        self.inferenc_post_inference_request_target_subscriber = Subscriber(self.inference_post_inference_request_target_topic, callback=self._on_handle_post_inference_request_target, transport=self.mqtt)
+        self.inferenc_post_inference_request_target_subscriber.subscribe()
+
+        self.inference_post_inference_target_request_result_topic = Topic(f"robotic_territories/post_inference_target_result/{project_name}", PostInferenceTrajectoryResultMessage)
+        self.inference_post_inference_target_result_publisher = Publisher(self.inference_post_inference_target_request_result_topic, transport=self.mqtt)
+
+        self.inference_post_inference_execute_target_topic = Topic(f"robotic_territories/post_inference_execute_target/{project_name}", PostInferenceExecuteTrajectoryMessage)
+        self.inference_post_inference_execute_target_subscriber = Subscriber(self.inference_post_inference_execute_target_topic, callback=self._on_handle_post_inference_execute_target, transport=self.mqtt)
+        self.inference_post_inference_execute_target_subscriber.subscribe()
+
+        # inferencePostInferenceRequestTarget = $"robotic_territories/post_inference_request_target/{projectName}";
+        # inferencePostInferenceExecuteTargetTopic = $"robotic_territories/post_inference_execute_target/{projectName}";
+        # inferencePostInferenceTargetTrajectoryResultTopic = $"robotic_territories/post_inference_target_result/{projectName}";
+
 
         print(f"CommunicationManager : [CommunicationManager] Subscribed to: robotic_territories inference topics for project '{project_name}' and robot '{self.robot_name}'")
 
@@ -494,12 +511,13 @@ class CommunicationManager:
     def _on_handle_inference_user_reply(self, msg: InferenceReplyMessage):
         # robot_name = msg.robot_name
         user_reply = msg.goal_status_reply
+        print(f"CommunicationManager : [CommunicationManager] msg : {msg}")
         self.inference_manager._process_user_reply(goal_name=msg.current_goal_name, suggested_target_name=msg.suggested_target_name, goal_status_reply=msg.goal_status_reply, timestamp=msg.header.time_stamp)
 
         if user_reply == 0:
             print(f"CommunicationManager : [CommunicationManager] Reject Goal & Targer reply from User : {msg.header.device_id} ': Reply : {user_reply}")
         elif user_reply == 1:
-            if msg.includes_exacutable_trajectory:
+            if msg.includes_executable_trajectory:
                 if len(self._INFERENCE_EXACUTABLE_TRAJECTORIES) > 0:
                     handler = self.handler
                     handler._execute_inference_pick_and_place(self._INFERENCE_EXACUTABLE_TRAJECTORIES)
@@ -509,7 +527,7 @@ class CommunicationManager:
             else:
                 print(f"CommunicationManager : [CommunicationManager] Accept Target and Reject Goal without Executable Trajectory reply from User : {msg.header.device_id} ': Reply : {user_reply}")
         elif user_reply == 2:
-            if msg.includes_exacutable_trajectory:
+            if msg.includes_executable_trajectory:
                 print(f"CommunicationManager : [CommunicationManager] Accept Target and Goal with Executable Trajectory reply from User : {msg.header.device_id} ': Reply : {user_reply}")
                 if len(self._INFERENCE_EXACUTABLE_TRAJECTORIES) > 0:
                     handler = self.handler
@@ -519,6 +537,11 @@ class CommunicationManager:
             else:
                 print(f"CommunicationManager : [CommunicationManager] Accept Target and Goal without Executable Trajectory reply from User : {msg.header.device_id} ': Reply : {user_reply}")
 
+    def _on_handle_post_inference_request_target(self, msg: PostInferenceTargetRequestMessage):
+        print(f"CommunicationManager : [CommunicationManager] Received Post Inference Request Target Message: {msg}")
+    
+    def _on_handle_post_inference_execute_target(self, msg: PostInferenceExecuteTrajectoryMessage):
+        print(f"CommunicationManager : [CommunicationManager] Received Post Inference Execute Target Message: {msg}")
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_CONFIG_FP = os.path.join(SCRIPT_DIR, "project_config.json")

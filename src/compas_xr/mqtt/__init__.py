@@ -22,6 +22,6 @@ MQTT Messages
 """
 
 from .messages import ApproveTrajectory, GetTrajectoryRequest, GetTrajectoryResult, SendTrajectory
-from.robotic_territories_messages import MimicTrajectoryRequestMessage, MimicTrajectoryResultMessage, ExecuteMimicTrajectoryRequestMessage, RealtimeMimicRequestMessage, RealtimeMimicResultMessage, RealtimeMimicIOToggleRequestMessage, InferenceReplyMessage, InferenceRequestMessage, InferenceResultMessage
+from.robotic_territories_messages import MimicTrajectoryRequestMessage, MimicTrajectoryResultMessage, ExecuteMimicTrajectoryRequestMessage, RealtimeMimicRequestMessage, RealtimeMimicResultMessage, RealtimeMimicIOToggleRequestMessage, InferenceReplyMessage, InferenceRequestMessage, InferenceResultMessage, PostInferenceExecuteTrajectoryMessage, PostInferenceTargetRequestMessage, PostInferenceTrajectoryResultMessage
 
-__all__ = ["GetTrajectoryRequest", "GetTrajectoryResult", "ApproveTrajectory", "SendTrajectory", "MimicTrajectoryRequestMessage", "MimicTrajectoryResultMessage", "ExecuteMimicTrajectoryRequestMessage", "RealtimeMimicRequestMessage", "RealtimeMimicResultMessage", "RealtimeMimicIOToggleRequestMessage", "InferenceReplyMessage", "InferenceRequestMessage", 'InferenceResultMessage']
+__all__ = ["GetTrajectoryRequest", "GetTrajectoryResult", "ApproveTrajectory", "SendTrajectory", "MimicTrajectoryRequestMessage", "MimicTrajectoryResultMessage", "ExecuteMimicTrajectoryRequestMessage", "RealtimeMimicRequestMessage", "RealtimeMimicResultMessage", "RealtimeMimicIOToggleRequestMessage", "InferenceReplyMessage", "InferenceRequestMessage", 'InferenceResultMessage', "PostInferenceExecuteTrajectoryMessage", "PostInferenceTargetRequestMessage", "PostInferenceTrajectoryResultMessage"]

@@ -1,0 +1,59 @@
+{
+    "1756683107.4540534": {
+        "GOAL_INFERRED_AT": 1756683192.0895624,
+        "INFERED_GOAL": "Goal05",
+        "correct_targets": [
+            {
+                "goal_name": "Goal04",
+                "suggested_target_name": "G6",
+                "target_status": "correct_target",
+                "timestamp": "2025-08-31 19:32:09.064"
+            },
+            {
+                "goal_name": "Goal08",
+                "suggested_target_name": "G3",
+                "target_status": "correct_target",
+                "timestamp": "2025-08-31 19:32:49.296"
+            },
+            {
+                "goal_inferred": true,
+                "goal_name": "Goal05",
+                "inference_timestamp": 1756683192.0895624,
+                "suggested_target_name": "G4",
+                "target_status": "correct_target",
+                "timestamp": "2025-08-31 19:33:12.059"
+            }
+        ],
+        "incorrect_goals": [
+            "Goal04",
+            "Goal08",
+            "Goal05"
+        ],
+        "incorrect_targets": [],
+        "inference_request_time": 1756683192.0895624,
+        "inference_session_duration": 84.63550901412964,
+        "inference_session_start": 1756683107.4540534,
+        "target_log": [
+            {
+                "goal_name": "Goal04",
+                "suggested_target_name": "G6",
+                "target_status": "correct_target",
+                "timestamp": "2025-08-31 19:32:09.064"
+            },
+            {
+                "goal_name": "Goal08",
+                "suggested_target_name": "G3",
+                "target_status": "correct_target",
+                "timestamp": "2025-08-31 19:32:49.296"
+            },
+            {
+                "goal_inferred": true,
+                "goal_name": "Goal05",
+                "inference_timestamp": 1756683192.0895624,
+                "suggested_target_name": "G4",
+                "target_status": "correct_target",
+                "timestamp": "2025-08-31 19:33:12.059"
+            }
+        ]
+    }
+}
