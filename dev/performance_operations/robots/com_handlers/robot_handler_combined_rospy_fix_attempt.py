@@ -1286,26 +1286,31 @@ class RobotHandlerCombinedBackends:
 
     ######### TODO: Helper Functions ####################################################################
 
-    def offset_frame_by_distance(self, frame: Frame, vector: Vector, distance: float ) -> Frame:
-        direction = vector.unitized()
-        offset_vector = direction * distance
-        tx = Translation.from_vector(offset_vector)
-        new_frame = frame.transformed(tx)
-        return new_frame
+    def flip_frame(self, frame: Frame) -> Frame:
+        """
+        Return a new frame with its z-axis flipped (180° inversion of orientation).
 
-    def flip_plane_test(self, frame: Frame) -> Frame:
-            """Return a new Frame with its plane normal (z) flipped 180°.
-            Keeps right-handedness by also flipping x.
-            """
-            p = frame.point
-            x = -frame.xaxis
-            z = -frame.zaxis
-            out = Frame(p, x, z)
+        Parameters
+        ----------
+        frame : compas.geometry.Frame
+            The frame to flip.
 
-            # sanity: right-handed check
-            if (out.xaxis.cross(out.yaxis)).dot(out.zaxis) < 0.999:
-                raise ValueError("flip_plane produced a non right-handed frame.")
-            return out
+        Returns
+        -------
+        Frame
+            A new frame with flipped orientation.
+        """
+        # Keep the same origin point
+        point = frame.point
+
+        # Flip z-axis
+        zaxis = -frame.zaxis
+
+        # To preserve right-handedness, also flip x-axis
+        xaxis = -frame.xaxis
+
+        # Rebuild frame
+        return Frame(point, xaxis, zaxis)
 
     def flip_frame_around_axis(self, frame: Frame, axis: str = "z") -> Frame:
         """
@@ -1341,6 +1346,54 @@ class RobotHandlerCombinedBackends:
         flipped.transform(R)
         return flipped
 
+    def construct_negative_z_frame(self, frame: Frame) -> Frame:
+        # Keep the same origin point
+        point = frame.point
+
+        # Flip z-axis
+        zaxis = -frame.zaxis
+
+        # To preserve right-handedness, also flip x-axis
+        xaxis = -frame.xaxis
+
+        # Rebuild frame
+        return Frame(point, xaxis, zaxis)
+
+    def offset_frame_by_distance(self, frame: Frame, vector: Vector, distance: float ) -> Frame:
+        direction = vector.unitized()
+        offset_vector = direction * distance
+        tx = Translation.from_vector(offset_vector)
+        new_frame = frame.transformed(tx)
+        return new_frame
+
+    def flip_plane_test(self, frame: Frame) -> Frame:
+        """Return a new Frame with its plane normal (z) flipped 180°.
+        Keeps right-handedness by also flipping x.
+        """
+        p = frame.point
+        x = -frame.xaxis
+        z = -frame.zaxis
+        out = Frame(p, x, z)
+
+        # sanity: right-handed check
+        if (out.xaxis.cross(out.yaxis)).dot(out.zaxis) < 0.999:
+            raise ValueError("flip_plane produced a non right-handed frame.")
+        return out
+
+    def rotate_180_about(self, frame: Frame, axis: str = "z") -> Frame:
+        """Rotate the frame 180° about its own local axis (x|y|z)."""
+        axis_vec = {"x": frame.xaxis, "y": frame.yaxis, "z": frame.zaxis}[axis]
+        R = Rotation.from_axis_and_angle(axis_vec, math.pi, frame.point)
+        out = frame.copy()
+        out.transform(R)
+        return out
+    
+    def offset_along_axis(self, frame: Frame, axis: str, distance: float) -> Frame:
+        """Translate a frame along its own local axis by a world-space distance."""
+        ax = {"x": frame.xaxis, "y": frame.yaxis, "z": frame.zaxis}[axis]
+        v = Vector(*ax).unitized() * distance
+        return frame.translated(v)
+
     #TODO: Needs to have collision meshes attached. and planning options.
     def handle_planning_for_inference(self, closest_target_frame, transformed_target, 
                                     transformed_completed_items_dict, transformed_incompleted_items_dict, 
@@ -1357,23 +1410,59 @@ class RobotHandlerCombinedBackends:
             print(f"CombinedBackendHandler: [{self.robot_name}] Could not compute current tool frame. Returning empty trajectory.")
             return []
 
-        # Frames # TODO: These Frames Need to be flipped. THIS NEEDS TO BE DONE BIG TIME.....
-        # exit_safe_frame       = self.offset_frame_by_distance(current_tool_frame, current_tool_frame.zaxis, -0.2)    # 20 cm up
-        # pick_frame = self.offset_frame_by_distance(closest_target_frame, closest_target_frame.zaxis, 0.15) # pick from 15 cm below
-        # approach_pick_frame   = self.offset_frame_by_distance(pick_frame, pick_frame.zaxis, 0.4)                    # 40 cm above pick
-        # place_frame = self.offset_frame_by_distance(transformed_target, transformed_target.zaxis, 0.15) # place from 15 cm above
-        # approach_place_frame  = self.offset_frame_by_distance(place_frame, place_frame.zaxis, 0.4)                  # 40 cm above place
-        #TODO: Testing flipping of planes
-        closest_target_frame = self.flip_frame_around_axis(closest_target_frame, axis="y")
-        # closest_target_frame = self.flip_plane_test(closest_target_frame)
-        transformed_target = self.flip_frame_around_axis(transformed_target, axis="y")
-        # transformed_target = self.flip_plane_test(transformed_target)
+        
 
+        # Frames # TODO: These Frames Need to be flipped. THIS NEEDS TO BE DONE BIG TIME.....
+        # current_tool_frame = self.flip_frame(current_tool_frame)
+        # closest_target_frame = self.flip_frame(closest_target_frame)
+        # transformed_target = self.flip_frame(transformed_target)
+        # current_tool_frame = self.flip_frame_around_axis(current_tool_frame, axis="y")
+        # closest_target_frame = self.flip_frame_around_axis(closest_target_frame, axis="y")
+        # transformed_target = self.flip_frame_around_axis(transformed_target, axis="y")
+        # current_tool_frame = self.construct_negative_z_frame(current_tool_frame)
+        # closest_target_frame = self.construct_negative_z_frame(closest_target_frame)
+        # transformed_target = self.construct_negative_z_frame(transformed_target)
+        # exit_safe_frame       = self.offset_frame_by_distance(current_tool_frame, current_tool_frame.zaxis, -0.2)    # 20 cm up
+
+        #         # OR, if your TCP convention wants a wrist "roll" flip:
+        # # current_tool_frame   = self.rotate_180_about(current_tool_frame,   axis="y")
+        # closest_target_frame = self.rotate_180_about(closest_target_frame, axis="y")
+        # transformed_target   = self.rotate_180_about(transformed_target,   axis="y")
+
+        # # 2) Offsets (world-space, along the frame’s own axes)
+        # pick_frame           = self.offset_along_axis(closest_target_frame, "z", -0.15)  # 15 cm below
+        # approach_pick_frame  = self.offset_along_axis(pick_frame,           "z",  -0.40)  # 40 cm above pick
+        # place_frame          = self.offset_along_axis(transformed_target,   "z",  -0.15)  # 15 cm above
+        # approach_place_frame = self.offset_along_axis(place_frame,          "z",  -0.40)  # 40 cm above place
+        # pick_frame = self.offset_frame_by_distance(closest_target_frame, closest_target_frame.zaxis, 0.15) # pick from 15 cm below
+        # approach_pick_frame   = self.offset_frame_by_distance(pick_frame, pick_frame.zaxis, -0.4)                    # 40 cm above pick
+        # place_frame = self.offset_frame_by_distance(transformed_target, transformed_target.zaxis, 0.15) # place from 15 cm above
+        # approach_place_frame  = self.offset_frame_by_distance(place_frame, place_frame.zaxis, -0.4)                  # 40 cm above place
+
+        #TODO: This was the closest to working from the flipping instances, but still didn't work....
+        # # Frames # TODO: These Frames Need to be flipped. THIS NEEDS TO BE DONE BIG TIME.....
+        # closest_target_frame = self.rotate_180_about(closest_target_frame, axis="y")
+        # transformed_target   = self.rotate_180_about(transformed_target,   axis="y")
+
+        # # 2) Offsets (world-space, along the frame’s own axes)
+        # pick_frame           = self.offset_along_axis(closest_target_frame, "z", -0.15)  # 15 cm below
+        # approach_pick_frame  = self.offset_along_axis(pick_frame,           "z",  -0.40)  # 40 cm above pick
+        # place_frame          = self.offset_along_axis(transformed_target,   "z",  -0.15)  # 15 cm above
+        # approach_place_frame = self.offset_along_axis(place_frame,          "z",  -0.40)  # 40 cm above place
+        # exit_safe_frame       = self.offset_frame_by_distance(current_tool_frame, current_tool_frame.zaxis, -0.2)    # 20 cm up
+        # closest_target_frame = self.rotate_180_about(closest_target_frame, axis="y")
+        # transformed_target   = self.rotate_180_about(transformed_target,   axis="y")
+        # pick_frame           = self.offset_along_axis(closest_target_frame, "z", -0.15)  # 15 cm below
+        # approach_pick_frame  = self.offset_along_axis(pick_frame,           "z",  -0.40)  # 40 cm above pick
+        # place_frame          = self.offset_along_axis(transformed_target,   "z",  -0.15)  # 15 cm above
+        # approach_place_frame = self.offset_along_axis(place_frame,          "z",  -0.40)  # 40 cm above place
+
+        # Frames # TODO: These Frames Need to be flipped. THIS NEEDS TO BE DONE BIG TIME.....
         exit_safe_frame       = self.offset_frame_by_distance(current_tool_frame, current_tool_frame.zaxis, -0.2)    # 20 cm up
         pick_frame = self.offset_frame_by_distance(closest_target_frame, closest_target_frame.zaxis, -0.15) # pick from 15 cm below
-        approach_pick_frame   = self.offset_frame_by_distance(pick_frame, pick_frame.zaxis, -0.4)                    # 40 cm above pick
-        place_frame = self.offset_frame_by_distance(transformed_target, transformed_target.zaxis, -0.15) # place from 15 cm above
-        approach_place_frame  = self.offset_frame_by_distance(place_frame, place_frame.zaxis, -0.4)                  # 40 cm above place
+        approach_pick_frame   = self.offset_frame_by_distance(pick_frame, pick_frame.zaxis, 0.4)                    # 40 cm above pick
+        place_frame = self.offset_frame_by_distance(transformed_target, transformed_target.zaxis, 0.15) # place from 15 cm above
+        approach_place_frame  = self.offset_frame_by_distance(place_frame, place_frame.zaxis, 0.4)
 
         data = {}
         data["current_tool_frame"] = current_tool_frame
@@ -1381,15 +1470,11 @@ class RobotHandlerCombinedBackends:
         data["transformed_target"] = transformed_target
         data["exit_safe_frame"] = exit_safe_frame
         data["pick_frame"] = pick_frame
-        data["approach_pick_frame"] = approach_pick_frame
-        data["place_frame"] = place_frame
-        data["approach_place_frame"] = approach_place_frame
         data["completed_items_dict"] = transformed_completed_items_dict
         data["incompleted_items_dict"] = transformed_incompleted_items_dict
         data["colsest_target_name"] = closest_target_name
         data["current_config"] = start_config
         json_dump(data, os.path.join(os.path.dirname(__file__), "planning_frames_debug.json"), pretty=True)
-
 
         # Correct order for IK (match the planning legs below)
         frames_for_ik = [
@@ -1427,6 +1512,7 @@ class RobotHandlerCombinedBackends:
         # robot_base_frame = sample_message["robot_base_frame"]
         # robot_name = sample_message["robot_name"]
         # return trajectories, robot_base_frame, robot_name
+        
 
 
 class URMimicHandlerCombined(RobotHandlerCombinedBackends):

@@ -316,13 +316,25 @@ class InferenceManager:
         if not anchor_cube_frame:
             raise ValueError("AnchorCube frame is missing from geometry_frames.")
 
+        data = {}
+        data["geometry_frames_input_before_tx"] = geometry_frames_dict
+
         #Transform geometry frames to world frame for comparision wiht goals
         T_anchor_to_world, inverse_T = self._construct_transformation_matrices(anchor_cube_frame)
         transformed_frames = self._transform_geometry_dict_for_inference(geometry_frames_dict, T_anchor_to_world)
 
         #Perform inference on transformed frames
         suggested_goal, suggested_target_name, completed_goal_indexes, target_frame, completed_items_names, incompleted_items_names = self.perform_inference(transformed_frames)
+        fp = r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\performance_operations\inference\inference_debug.json"
+        data["suggested_goal"] = suggested_goal
+        data["suggested_target_name"] = suggested_target_name
+        data["completed_goal_indexes"] = completed_goal_indexes
+        data["geometry_frames_input_after_tx"] = transformed_frames
+        data["target_frame"] = target_frame
+        data["suggested_target_frame_transformed"] = target_frame.transformed(inverse_T) if target_frame else None
+        data["transformed_geometry_frames"] = transformed_frames
 
+        json_dump(fp=fp, data=data, pretty=True)
         print(f"INFERENCE MANAGER: Suggested goal: {suggested_goal}, completed_goal_indexes: {completed_goal_indexes}, target_frame: {target_frame}, completed_items_names: {completed_items_names}, incompleted_items_names: {incompleted_items_names}")
 
         if suggested_goal == None:
@@ -344,3 +356,28 @@ class InferenceManager:
 
         return inference_result
     
+    def _validate_and_compute_target_location(self, goal_name, geometry_frames_dict, target_frame):
+        if goal_name != self.INFERED_GOAL:
+            goal_is_correct = False
+        else:
+            goal_is_correct = True
+        
+        #Get the anchor cube frame
+        anchor_cube_frame = geometry_frames_dict.get("AnchorCube")
+        if not anchor_cube_frame:
+            raise ValueError("AnchorCube frame is missing from geometry_frames.")
+
+        #Get the target_frame from the goal data
+        goal_data = self.goals_dict.get(goal_name)
+        if not goal_data:
+            raise ValueError(f"GoalManager : Goal '{goal_name}' not found in goals_dict.")
+        target_goal_entry = goal_data["cube_locations"].get(target_frame)
+        if not target_goal_entry:
+            raise ValueError(f"GoalManager : Target '{target_frame}' not found in goal '{goal_name}' cube_locations.")
+
+        #Transform geometry frames to world frame for comparision wiht goals
+        T_anchor_to_world, inverse_T = self._construct_transformation_matrices(anchor_cube_frame)
+        transformed_target_frame = target_goal_entry.frame.transformed(inverse_T)
+
+        return goal_is_correct, transformed_target_frame
+        
