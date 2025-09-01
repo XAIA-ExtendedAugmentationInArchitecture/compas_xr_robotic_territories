@@ -16,7 +16,7 @@ import os
 import math
 
 #TODO: FIX ME JOSEPH. START PLANNING....
-
+#TODO: Remove dumb inference loggining print and extra stuff in inference trajectory computation
 class CommunicationManager:
 
     def __init__(self, project_name, robot_name, project_config_dict, broker='localhost', mqtt_port=1883, backend_type='PyBullet'):
