@@ -6,6 +6,8 @@ import random
 import os
 import time
 
+from simple_inference.simple_inference import SimpleInference
+
 class InferenceManager:
 
     def __init__(self, goals_folder_path):
@@ -21,7 +23,9 @@ class InferenceManager:
         self.correct_targets = []
         self.target_log = []
         self.INFERED_GOAL = None
-        
+
+        self.simple_inference = SimpleInference()
+
         self.TEMPORARY_SUB_GOALS_LIST = ['G0', 'G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7', 'G8']
 
     def _load_goals(self, goals_folder_path):
