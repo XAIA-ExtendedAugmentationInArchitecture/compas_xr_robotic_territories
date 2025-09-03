@@ -267,7 +267,7 @@ class CommunicationManager:
         return transformed_frames
 
     def _transform_inference_information(self, geometry_frames_dict, incompleted_items_names, completed_items_names, target_frame):
-        print(f"CommunicationManager : geometry_frames_dict {geometry_frames_dict}")
+        # print(f"CommunicationManager : geometry_frames_dict {geometry_frames_dict}")
         transformed_incompleted_items_dict = {}
         for item_name in incompleted_items_names:
             if item_name in geometry_frames_dict:
@@ -472,6 +472,9 @@ class CommunicationManager:
                 robot_name=robot_name
             ))
             return
+
+
+        print (f"Inference Result Dict: {inference_result_dict}")
 
         suggested_goal = inference_result_dict["suggested_goal"]
         completed_goal_names = inference_result_dict["completed_goals"]

@@ -5,8 +5,9 @@ from compas.data import json_dump
 import random
 import os
 import time
+import json
 
-from simple_inference.simple_inference import SimpleInference
+from .simple_inference.inference import SimpleInference
 
 class InferenceManager:
 
@@ -325,33 +326,43 @@ class InferenceManager:
 
         #Transform geometry frames to world frame for comparision wiht goals
         T_anchor_to_world, inverse_T = self._construct_transformation_matrices(anchor_cube_frame)
-        transformed_frames = self._transform_geometry_dict_for_inference(geometry_frames_dict, T_anchor_to_world)
+        transformed_current_geometry_frames = self._transform_geometry_dict_for_inference(geometry_frames_dict, T_anchor_to_world)
 
-        #Perform inference on transformed frames
-        suggested_goal, suggested_target_name, completed_goal_indexes, target_frame, completed_items_names, incompleted_items_names = self.perform_inference(transformed_frames)
-        fp = r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\performance_operations\inference\inference_debug.json"
-        data["suggested_goal"] = suggested_goal
-        data["suggested_target_name"] = suggested_target_name
-        data["completed_goal_indexes"] = completed_goal_indexes
-        data["geometry_frames_input_after_tx"] = transformed_frames
-        data["target_frame"] = target_frame
-        data["suggested_target_frame_transformed"] = target_frame.transformed(inverse_T) if target_frame else None
-        data["transformed_geometry_frames"] = transformed_frames
+        # #Perform inference on transformed frames
+        # suggested_goal, suggested_target_name, completed_target_names, suggested_target_frame, completed_items_names, incompleted_items_names = self.perform_inference(transformed_current_geometry_frames)
+        # fp = r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\performance_operations\inference\inference_debug.json"
+        # data["suggested_goal"] = suggested_goal
+        # data["suggested_target_name"] = suggested_target_name
+        # data["completed_goal_indexes"] = completed_target_names
+        # data["geometry_frames_input_after_tx"] = transformed_current_geometry_frames
+        # data["target_frame"] = suggested_target_frame
+        # data["suggested_target_frame_transformed"] = suggested_target_frame.transformed(inverse_T) if suggested_target_frame else None
+        # data["transformed_geometry_frames"] = transformed_current_geometry_frames
 
-        json_dump(fp=fp, data=data, pretty=True)
-        print(f"INFERENCE MANAGER: Suggested goal: {suggested_goal}, completed_goal_indexes: {completed_goal_indexes}, target_frame: {target_frame}, completed_items_names: {completed_items_names}, incompleted_items_names: {incompleted_items_names}")
+        #TODO: TESTINGGGGGG Simple inference###########################################################################################
+        inference_results_dict = self.simple_inference.perform_inference(self.goals_dict, transformed_current_geometry_frames, self.incorrect_goals, 0.03, 3.0)
+        print (f"Simple inference results: {inference_results_dict}")
+        suggested_goal = inference_results_dict.get("suggested_goal")
+        suggested_target_name = inference_results_dict.get("suggested_target_name")
+        completed_target_names = inference_results_dict.get("completed_target_names", [])
+        suggested_target_frame = inference_results_dict.get("suggested_target_frame")
+        completed_items_names = inference_results_dict.get("completed_items_names", [])
+        incompleted_items_names = inference_results_dict.get("incompleted_items_names", [])
+
+        # json_dump(fp=fp, data=data, pretty=True)
+        print(f"INFERENCE MANAGER: Suggested goal: {suggested_goal}, completed_goal_indexes: {completed_target_names}, target_frame: {suggested_target_frame}, completed_items_names: {completed_items_names}, incompleted_items_names: {incompleted_items_names}")
 
         if suggested_goal == None:
             return None
-        if target_frame == None or len(completed_goal_indexes) <= 0 or len(completed_items_names) <= 0 or len(incompleted_items_names) <= 0:
+        if suggested_target_frame == None or len(completed_target_names) <= 0 or len(completed_items_names) <= 0 or len(incompleted_items_names) <= 0:
             raise ValueError("InferenceManager : Incomplete inference result. One of the required fields is None or empty.")
 
 
         #Package in a dictionary to return
-        suggested_target_transformed = target_frame.transformed(inverse_T)
+        suggested_target_transformed = suggested_target_frame.transformed(inverse_T)
         inference_result = {
             "suggested_goal": suggested_goal,
-            "completed_goals": completed_goal_indexes,
+            "completed_goals": completed_target_names,
             "suggested_target": suggested_target_transformed,
             "suggested_target_name": suggested_target_name,
             "completed_items": completed_items_names,
