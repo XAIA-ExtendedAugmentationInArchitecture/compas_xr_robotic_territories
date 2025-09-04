@@ -1,0 +1,37 @@
+RANDOM INFERENCE INFORMATION
+
+exit trajectory
+move to pick
+pick 
+pause....
+reverse_pick
+move to place
+place
+pause...
+
+
+SLOW PICK & PLACE:
+        "UR20": {
+            "robot_name": "UR20",
+            "robot_ip" : "192.168.1.10",
+            "speed": 0.6,
+            "acceleration":0.1,
+            "radius":0.006,
+            "nowait": false
+            },
+
+FAST PICK & PLACE:
+        "UR20": {
+            "robot_name": "UR20",
+            "robot_ip" : "192.168.1.10",
+            "group": "manipulator",
+            "speed": 0.9,
+            "acceleration":1.2,
+            "vacum_io": "0",
+            "radius":0.006,
+            "nowait": true,
+            "ros_ip": "127.0.0.1",
+            "ros_port":9090,
+            "tool_info_fp": "C:\\Users\\jk6372\\Desktop\\00_princeton_projects\\00_robotic_territories\\00_git\\compas_xr_robotic_territories\\dev\\performance_operations\\robots\\setup_objects\\endeffectors\\ur20\\piab_gripper.json",
+            "additional_collison_meshes_fp": "C:\\Users\\jk6372\\Desktop\\00_princeton_projects\\00_robotic_territories\\00_git\\compas_xr_robotic_territories\\dev\\performance_operations\\robots\\setup_objects\\table\\table_test.json"
+            },

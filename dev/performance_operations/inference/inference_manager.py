@@ -368,7 +368,6 @@ class InferenceManager:
             "completed_items": completed_items_names,
             "incompleted_items": incompleted_items_names
         }
-
         return inference_result
     
     def _validate_and_compute_target_location(self, goal_name, geometry_frames_dict, target_frame):

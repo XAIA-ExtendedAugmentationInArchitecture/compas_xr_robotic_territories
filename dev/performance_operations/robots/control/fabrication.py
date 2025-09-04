@@ -369,6 +369,30 @@ def pick_and_place_jk(pick_trajectory_configs, move_trajectory_configs, place_tr
         print(e)
         raise
 
+def send_pick_and_place_trajectory_RT_inference(trajectory_list, speed, accel, ur_c, radius, ip):
+
+    # ur_c = RTDEControl(ip)
+    try:
+        for i, trajectory in enumerate(trajectory_list):
+            print(f"Sending trajectory {i+1} of {len(trajectory_list)}")
+
+            configs = trajectory.points
+            send_trajectory_path(configs, speed, accel, radius, ur_c)
+
+            if i == 2: # After pick trajectory
+                time.sleep(0.5)
+                set_tool_digital_io(1, True, ip=ip)
+                time.sleep(1.0)
+            if i == 5: # After place trajectory
+                time.sleep(0.5)
+                set_tool_digital_io(1, False, ip=ip)
+                time.sleep(1.0)
+
+    except Exception as e:
+        print(e)
+        raise
+    print("All trajectories sent successfully.")
+
 def send_to_single_trajectory(trajectory_configs, speed, accel, radius, nowait, ip, vaccum_io=None):
 
     ur_c = RTDEControl(ip)
