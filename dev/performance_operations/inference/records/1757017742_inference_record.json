@@ -1,0 +1,61 @@
+{
+    "1757017751.9106314": {
+        "1757017751.9106314": {
+            "GOAL_INFERRED_AT": 1757017933.0848298,
+            "INFERED_GOAL": "Goal08",
+            "correct_targets": [
+                {
+                    "goal_name": "Goal01",
+                    "suggested_target_name": "G1",
+                    "target_status": "correct_target",
+                    "timestamp": "2025-09-04 22:30:04.891"
+                },
+                {
+                    "goal_name": "Goal07",
+                    "suggested_target_name": "None",
+                    "target_status": "correct_target",
+                    "timestamp": "2025-09-04 22:31:46.454"
+                },
+                {
+                    "goal_inferred": true,
+                    "goal_name": "Goal08",
+                    "inference_timestamp": 1757017933.0848298,
+                    "suggested_target_name": "None",
+                    "target_status": "correct_target",
+                    "timestamp": "2025-09-04 22:32:13.932"
+                }
+            ],
+            "incorrect_goals": [
+                "Goal01",
+                "Goal07",
+                "Goal08"
+            ],
+            "incorrect_targets": [],
+            "inference_request_time": 1757017933.0848298,
+            "inference_session_duration": 181.17419838905334,
+            "inference_session_start": 1757017751.9106314,
+            "target_log": [
+                {
+                    "goal_name": "Goal01",
+                    "suggested_target_name": "G1",
+                    "target_status": "correct_target",
+                    "timestamp": "2025-09-04 22:30:04.891"
+                },
+                {
+                    "goal_name": "Goal07",
+                    "suggested_target_name": "None",
+                    "target_status": "correct_target",
+                    "timestamp": "2025-09-04 22:31:46.454"
+                },
+                {
+                    "goal_inferred": true,
+                    "goal_name": "Goal08",
+                    "inference_timestamp": 1757017933.0848298,
+                    "suggested_target_name": "None",
+                    "target_status": "correct_target",
+                    "timestamp": "2025-09-04 22:32:13.932"
+                }
+            ]
+        }
+    }
+}

@@ -1503,30 +1503,48 @@ class URMimicHandlerCombined(RobotHandlerCombinedBackends):
 
         # last attempt to make it smoother.
         #TODO: Commented in before actual execution...
+        # self.servo_gate = ServoJGate(
+        #     rtde_ctrl=self.rtde_ctrl,
+        #     rtde_recv=self.rtde_recv,
+        #     # caps a bit lower → smoother
+        #     speed_cap=0.65,          # was 0.8
+        #     accel_cap=1.10,          # was 1.5
+
+        #     # UR controller
+        #     dt_nominal=1/125.0,
+        #     lookahead=0.12,          # was 0.10
+        #     gain=240,                # was 280
+
+        #     # filtering + adaptive scaling
+        #     target_alpha=0.18,       # LOWER = more smoothing (was 0.25)
+        #     k_speed=1.2,             # was 1.6
+        #     tau=0.38,                # accel = speed/tau (bigger tau = softer accel), was 0.30
+        #     cmd_alpha=0.55,          # smoother speed/acc commands (was 0.35)
+
+        #     # sending cadence + deadband
+        #     min_dt_send=0.012,       # was 0.010
+        #     min_dq=0.01,             # ~0.57° joint deadband to avoid chatter
+        #     verbose=False
+        # )
+        # #TODO: Commented in before actual execution...
+
+        pace = 0.5  # 50% speed
         self.servo_gate = ServoJGate(
             rtde_ctrl=self.rtde_ctrl,
             rtde_recv=self.rtde_recv,
-            # caps a bit lower → smoother
-            speed_cap=0.65,          # was 0.8
-            accel_cap=1.10,          # was 1.5
-
-            # UR controller
+            speed_cap=0.65 * pace,
+            accel_cap=1.10 * pace,
             dt_nominal=1/125.0,
-            lookahead=0.12,          # was 0.10
-            gain=240,                # was 280
-
-            # filtering + adaptive scaling
-            target_alpha=0.18,       # LOWER = more smoothing (was 0.25)
-            k_speed=1.2,             # was 1.6
-            tau=0.38,                # accel = speed/tau (bigger tau = softer accel), was 0.30
-            cmd_alpha=0.55,          # smoother speed/acc commands (was 0.35)
-
-            # sending cadence + deadband
-            min_dt_send=0.012,       # was 0.010
-            min_dq=0.01,             # ~0.57° joint deadband to avoid chatter
+            lookahead=0.12,
+            gain=240,
+            target_alpha=0.18,
+            k_speed=1.2 * pace,  # include if k_speed scales velocity
+            tau=0.38,
+            cmd_alpha=0.55,
+            min_dt_send=0.012,
+            min_dq=0.01,
             verbose=False
         )
-        #TODO: Commented in before actual execution...
 
         print(f"URCombinedBackendHandler: [{robot_name}] UR handler initialized")
 
@@ -1599,6 +1617,8 @@ class URMimicHandlerCombined(RobotHandlerCombinedBackends):
 
         # reset history on first call
         if msg.initial_request:
+            fp = os.path.join(os.path.dirname(__file__), "realtime_mimic_ik_solutions.json")
+            json_dump(self.realtime_mimic_ik_solutions, fp, pretty=True)
             self.realtime_mimic_ik_solutions = []
 
         # choose seed: current joints if no history, else last good
@@ -1617,21 +1637,23 @@ class URMimicHandlerCombined(RobotHandlerCombinedBackends):
                             visual_hz=30)
 
         if ik:
-            #TODO: Comment me in if you want to run on sim only....
+            # #TODO: Comment me in if you want to run on sim only....
             self.realtime_mimic_ik_solutions.append(ik)
             print(f"[{self.robot_name}] (SIM) would send with servoj, skipping actual send.")
+            fp = os.path.join(os.path.dirname(__file__), "realtime_mimic_ik_solutions.json")
+            json_dump(self.realtime_mimic_ik_solutions, fp, pretty=True)
             return ik 
-            #TODO: Comment me in if you want to run on sim only....
+            # #TODO: Comment me in if you want to run on sim only....
             # remember and command through servoj
             self.realtime_mimic_ik_solutions.append(ik)
             self.servo_gate.set_target(ik.joint_values)
             self.servo_gate.tick()
             return ik
-        #TODO: Comment me in if you want to run on sim only...
+        # #TODO: Comment me in if you want to run on sim only...
         # IK failed: keep feeding servo with last known good (or current measured)
         print(f"[{self.robot_name}] (SIM) IK failed, would normally keep feeding servo — skipping send.")
         return None
-        #TODO: Comment me in if you want to run on sim only...
+        # #TODO: Comment me in if you want to run on sim only...
         # IK failed: keep feeding servo with last known good (or current measured)
         if self.realtime_mimic_ik_solutions:
             self.servo_gate.set_target(self.realtime_mimic_ik_solutions[-1].joint_values)

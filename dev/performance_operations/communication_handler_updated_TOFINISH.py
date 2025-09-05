@@ -245,7 +245,7 @@ class CommunicationManager:
     def _transform_requested_frame_from_ar_space_to_robot_space(self, frame):
         tx_frame = frame.transformed(self.transformation_ar_space_to_robot_space)
         return tx_frame
-    
+
     def _transform_requested_frames_list_from_robot_space_to_ar_space(self, frames_list):
         transformed_frames = []
         for frame in frames_list:
@@ -640,8 +640,8 @@ PROJECT_CONFIG_DICT = json_load(PROJECT_CONFIG_FP)
 
 ROBOT_NAME = "UR20"
 
-# MQTT_CONFIG = PROJECT_CONFIG_DICT["mqtt_config"]
-MQTT_CONFIG = PROJECT_CONFIG_DICT["mqtt_config_local"]  # Use local MQTT config for testing
+MQTT_CONFIG = PROJECT_CONFIG_DICT["mqtt_config"]
+# MQTT_CONFIG = PROJECT_CONFIG_DICT["mqtt_config_local"]  # Use local MQTT config for testing
 BROKER = MQTT_CONFIG["broker"]
 MQTT_PORT = MQTT_CONFIG["port"]
 
