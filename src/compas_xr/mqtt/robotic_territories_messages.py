@@ -5,6 +5,7 @@ from datetime import datetime
 
 from compas.geometry import Frame, Point, Vector
 from compas_fab.robots import JointTrajectory, JointTrajectoryPoint
+from compas_robots import Configuration
 from compas_eve import Message
 from enum import IntEnum
 
@@ -221,14 +222,14 @@ class RealtimeMimicRequestMessage(Message):
         The header of the message.
     """
 
-    def __init__(self, requested_robot_frame, robot_name, message, header=None, intial_request=False):
+    def __init__(self, requested_robot_frame, robot_name, point_index, header=None, intial_request=False):
         super(RealtimeMimicRequestMessage, self).__init__()
         self["header"] = header or Header()
         # self["human_frames"] = human_frames
         # self["robot_frames"] = robot_frames
         self["robot_name"] = robot_name
         self["requested_robot_frame"] = requested_robot_frame
-        self["message"] = message
+        self["point_index"] = point_index
         self["initial_request"] = intial_request
     
     @classmethod
@@ -239,9 +240,9 @@ class RealtimeMimicRequestMessage(Message):
         header = Header.parse(value["header"])
         requested_robot_frame = Frame.__from_data__(value["requested_robot_frame"])
         robot_name = value["robot_name"]
-        message = value["message"]
+        pt_index = value["point_index"]
         initial_request = value["initial_request"]
-        return cls(requested_robot_frame, robot_name, message, header, initial_request)
+        return cls(requested_robot_frame, robot_name, pt_index, header, initial_request)
 
 class RealtimeMimicResultMessage(Message):
     """
@@ -256,11 +257,11 @@ class RealtimeMimicResultMessage(Message):
         The header of the message.
     """
 
-    def __init__(self, robot_name, return_message, header=None):
+    def __init__(self, robot_name, pt_index, return_message, configuration=None, header=None):
         super(RealtimeMimicResultMessage, self).__init__()
         self["header"] = header or Header()
-        # self["human_frames"] = human_frames
-        # self["robot_frames"] = robot_frames
+        self["point_index"] = pt_index
+        self["configuration"] = configuration
         self["robot_name"] = robot_name
         self["return_message"] = return_message
 
@@ -272,6 +273,12 @@ class RealtimeMimicResultMessage(Message):
         header = Header.parse(value["header"])
         robot_name = value["robot_name"]
         return_message = value["return_message"]
+        pt_index = value["point_index"]
+        configuration = value.get("configuration", None)
+        if configuration is not None:
+            configuration = Configuration.__from_data__(configuration)
+        else:
+            configuration = None
         return cls(robot_name, return_message, header)
     
 class RealtimeMimicIOToggleRequestMessage(Message):

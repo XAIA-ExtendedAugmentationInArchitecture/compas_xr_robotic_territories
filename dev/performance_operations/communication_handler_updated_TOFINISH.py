@@ -354,18 +354,24 @@ class CommunicationManager:
         # ik_config = handler.handle_realtime_msg_request_fastest_ik(msg)
         ik_config = handler.handle_realtime_msg_request_servoj_gate(msg)
 
-        #TODO: NEED TO TRANSFORM BACK TO ROBOT BASEFRAME, BUT JUST SEE IF IT PRINTS FIRST....
-
         if ik_config:
-            #TODO: UPDATE THE KEEPING TRACK OF THE MESSAGES
             result = RealtimeMimicResultMessage(
                 robot_name=robot_name,
-                return_message=f"IK computed for {msg.message} with {robot_name} and an ik solution of {ik_config}",
+                return_message=f"IK computed for {msg.point_index} with {robot_name} and an ik solution of {ik_config}",
+                configuration=ik_config,
+                pt_index=msg.point_index
             )
-            self.realtime_publisher.publish(result)
             print(f"CommunicationManager : [CommunicationManager] Published IK result for robot {robot_name}")
         else:
+            result = RealtimeMimicResultMessage(
+                robot_name=robot_name,
+                return_message=f"IK computed for {msg.point_index} with {robot_name} and an ik solution of {ik_config}",
+                configuration=None,
+                pt_index=msg.point_index
+            )
             print(f" CommunicationManager : [CommunicationManager] No result to publish for robot {robot_name}")
+
+        self.realtime_publisher.publish(result)
 
     def _on_message_user_initiated_mimic(self, msg: MimicTrajectoryRequestMessage):
         # TODO: Set this to an empty list just to be safe... This will be my attribute for storing the trajectories to execute.
@@ -640,8 +646,8 @@ PROJECT_CONFIG_DICT = json_load(PROJECT_CONFIG_FP)
 
 ROBOT_NAME = "UR20"
 
-MQTT_CONFIG = PROJECT_CONFIG_DICT["mqtt_config"]
-# MQTT_CONFIG = PROJECT_CONFIG_DICT["mqtt_config_local"]  # Use local MQTT config for testing
+# MQTT_CONFIG = PROJECT_CONFIG_DICT["mqtt_config"]
+MQTT_CONFIG = PROJECT_CONFIG_DICT["mqtt_config_local"]  # Use local MQTT config for testing
 BROKER = MQTT_CONFIG["broker"]
 MQTT_PORT = MQTT_CONFIG["port"]
 
