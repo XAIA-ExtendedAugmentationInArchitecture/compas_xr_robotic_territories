@@ -101,7 +101,6 @@ class OptitrackItems(object):
         )
         return transformed_instance
 
-
     #INCORRECT NEEDS UPDATING
     def create_box_geometry_from_items_dict(self, optitrack_items_dict, xsize, ysize, zsize):
         boxes = []
@@ -151,7 +150,7 @@ class OptitrackItems(object):
         box = Box(xsize, ysize, zsize, transformed_frame)
 
         return box
-    
+
 class RoboticTerritoriesFormattingHelpers(object):
 
     def format_box_dict(self, rhino_box):
