@@ -59,6 +59,8 @@ class SimplePybulletLoadTest:
 
 if __name__ == "__main__":
 
-    test = SimplePybulletLoadTest("UR20", 
-                                    r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\scripts\urdf\ur_20_attached_ee_attached_base\urdf\ur20_ee_ab.urdf",
-                                    r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\scripts\urdf\ur_20_attached_ee_attached_base\ur20_ee_ab.srdf")
+    test = SimplePybulletLoadTest("ABB", 
+        urdf_path="C:\\Users\\jk6372\\Desktop\\00_princeton_projects\\00_robotic_territories\\00_git\\compas_xr_robotic_territories\\dev\\performance_operations\\robots\\urdf_abbs\\abb_irb4600s_robots\\urdf\\abb_irb4600s.urdf",
+        srdf_path="C:\\Users\\jk6372\\Desktop\\00_princeton_projects\\00_robotic_territories\\00_git\\compas_xr_robotic_territories\\dev\\performance_operations\\robots\\urdf_abbs\\abb_irb4600s_moveit_config\\config\\abb_irb4600s.srdf",
+        time_sleep_delay=5
+    )   

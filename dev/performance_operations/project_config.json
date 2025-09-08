@@ -9,15 +9,15 @@
             "urdf" : "C:\\Users\\jk6372\\Desktop\\00_princeton_projects\\00_robotic_territories\\00_git\\compas_xr_robotic_territories\\dev\\scripts\\urdf\\ur_description\\urdf\\ur20.urdf",
             "srdf" : "C:\\Users\\jk6372\\Desktop\\00_princeton_projects\\00_robotic_territories\\00_git\\compas_xr_robotic_territories\\dev\\scripts\\urdf\\ur_description\\urdf\\ur20.srdf"
         },
-        "UR3": {
-            "urdf" : "PlaceHolder",
-            "srdf" : "PlaceHolder"
-        },
         "ABB_IRB4600LL": {
-            "urdf" : "PlaceHolder",
-            "srdf" : "PlaceHolder"
+            "urdf" : "C:\\Users\\jk6372\\Desktop\\00_princeton_projects\\00_robotic_territories\\00_git\\compas_xr_robotic_territories\\dev\\performance_operations\\robots\\urdf_abbs\\abb_irb4600s_robots\\urdf\\abb_irb4600s.urdf",
+            "srdf" : "C:\\Users\\jk6372\\Desktop\\00_princeton_projects\\00_robotic_territories\\00_git\\compas_xr_robotic_territories\\dev\\performance_operations\\robots\\urdf_abbs\\abb_irb4600s_moveit_config\\config\\abb_irb4600s.srdf"
         },
         "ABB_IRB4600RR": {
+            "urdf" : "C:\\Users\\jk6372\\Desktop\\00_princeton_projects\\00_robotic_territories\\00_git\\compas_xr_robotic_territories\\dev\\performance_operations\\robots\\urdf_abbs\\abb_irb4600s_robots\\urdf\\abb_irb4600s.urdf",
+            "srdf" : "C:\\Users\\jk6372\\Desktop\\00_princeton_projects\\00_robotic_territories\\00_git\\compas_xr_robotic_territories\\dev\\performance_operations\\robots\\urdf_abbs\\abb_irb4600s_moveit_config\\config\\abb_irb4600s.srdf"
+        },
+        "UR3": {
             "urdf" : "PlaceHolder",
             "srdf" : "PlaceHolder"
         },
@@ -39,6 +39,7 @@
             "robot_name": "UR20",
             "robot_ip" : "192.168.1.10",
             "group": "manipulator",
+            "ee_link_name": "tool0",
             "vacum_io": "0",
             "speed": 0.6,
             "acceleration":0.1,
@@ -49,6 +50,34 @@
             "tool_info_fp": "C:\\Users\\jk6372\\Desktop\\00_princeton_projects\\00_robotic_territories\\00_git\\compas_xr_robotic_territories\\dev\\performance_operations\\robots\\setup_objects\\endeffectors\\ur20\\piab_gripper.json",
             "additional_collison_meshes_fp": "C:\\Users\\jk6372\\Desktop\\00_princeton_projects\\00_robotic_territories\\00_git\\compas_xr_robotic_territories\\dev\\performance_operations\\robots\\setup_objects\\table\\table_test.json"
             },
+        "ABB_IRB4600LL":{
+            "robot_name": "ABB_LL",
+            "robot_ip" : "192.168.0.102",
+            "group": "robLL_track",
+            "ee_link_name": "robLL/tool0",
+            "vacum_io": "LL_GRIPPER",
+            "abb_client_name" : "/robLL_track", 
+            "ros_ip": "127.0.0.1",
+            "ros_port":9090,
+            "speed":100, 
+            "nowait":false,
+            "tool_info_fp": "C:\\Users\\jk6372\\Desktop\\00_princeton_projects\\00_robotic_territories\\00_git\\compas_xr_robotic_territories\\dev\\performance_operations\\robots\\setup_objects\\endeffectors\\abb_robots\\SharedGripperABB-updated.json",
+            "additional_collison_meshes_fp": "C:\\Users\\jk6372\\Desktop\\00_princeton_projects\\00_robotic_territories\\00_git\\compas_xr_robotic_territories\\dev\\performance_operations\\robots\\setup_objects\\abb_collisions\\abb_static_collision_meshes.json"
+            },
+        "ABB_IRB4600RR":{
+            "robot_name": "ABB_RR",
+            "robot_ip" : "192.168.0.102",
+            "ee_link_name": "robRR/tool0",
+            "group": "robRR_track",
+            "vacum_io": "RR_GRIPPER",
+            "abb_client_name" : "/robRR_track", 
+            "ros_ip": "127.0.0.1",
+            "ros_port":9090,
+            "speed":100, 
+            "nowait":false,
+            "tool_info_fp": "C:\\Users\\jk6372\\Desktop\\00_princeton_projects\\00_robotic_territories\\00_git\\compas_xr_robotic_territories\\dev\\performance_operations\\robots\\setup_objects\\endeffectors\\abb_robots\\SharedGripperABB-updated.json",
+            "additional_collison_meshes_fp": "C:\\Users\\jk6372\\Desktop\\00_princeton_projects\\00_robotic_territories\\00_git\\compas_xr_robotic_territories\\dev\\performance_operations\\robots\\setup_objects\\abb_collisions\\abb_static_collision_meshes.json"
+        },
         "UR31":{
             "robot_name": "UR31",
             "robot_ip" : "PlaceHolder",
@@ -78,24 +107,6 @@
             "robot_name": "ABB1",
             "robot_ip" : "PlaceHolder",
             "abb_client_name" : "PlaceHolder", 
-            "ros_ip": "127.0.0.1",
-            "ros_port":9090,
-            "speed":100, 
-            "nowait":false
-            },
-        "ABB_IRB4600LL":{
-            "robot_name": "ABBLL",
-            "robot_ip" : "PlaceHolder",
-            "abb_client_name" : "robLL", 
-            "ros_ip": "127.0.0.1",
-            "ros_port":9090,
-            "speed":100, 
-            "nowait":false
-            },
-        "ABB_IRB4600RR":{
-            "robot_name": "ABBRR",
-            "robot_ip" : "PlaceHolder",
-            "abb_client_name" : "robRR", 
             "ros_ip": "127.0.0.1",
             "ros_port":9090,
             "speed":100, 
@@ -179,6 +190,27 @@
                 "xaxis": [1.0, 0.0, 0.0],
                 "yaxis": [0.0, 1.0, 0.0]
             }
-        }
+        },
+        "origin_location_rhino_abb_setup" : {
+            "data": {
+                "point": [
+                    -1.1844667203216894, 
+                    0.57010814371455665, 
+                    0.053499999135732654
+                ], 
+                "xaxis": [
+                    0.0, 
+                    -1.0, 
+                    0.0
+                ], 
+                "yaxis": [
+                    1.0, 
+                    0.0, 
+                    0.0
+                ]
+            }, 
+            "dtype": "compas.geometry/Frame", 
+            "guid": "bef70578-af67-462d-87e1-70849ddce0ac"
+            }
     }
 }
