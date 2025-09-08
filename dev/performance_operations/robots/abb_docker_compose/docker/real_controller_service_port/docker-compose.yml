@@ -1,0 +1,100 @@
+version: '2'
+services:
+    moveit-service:
+        image: xaialab/ros-abb_irb4600s-planner:0.1
+        container_name: moveit-demo
+        environment:
+            - ROS_HOSTNAME=moveit-demo
+            - ROS_MASTER_URI=http://ros-core:11311
+            # GUI: To forward the GUI to an external X11 server (eg. XMing), uncomment the following line
+            # - DISPLAY=host.docker.internal:0.0
+        depends_on:
+            - ros-core
+        command:
+            - roslaunch
+            - --wait
+            - abb_irb4600s_moveit_config
+            - demo.launch
+            # To launch the RVIZ GUI, change the following to true
+            - use_rviz:=false
+    
+    ros-core:
+        image: xaialab/ros-abb_irb4600s-planner:0.1
+        container_name: ros-core
+        ports:
+            - "11311:11311"
+        command:
+            - roscore
+
+    ros-bridge:
+        image: xaialab/ros-abb_irb4600s-planner:0.1
+        container_name: ros-bridge
+        environment:
+            - "ROS_HOSTNAME=ros-bridge"
+            - "ROS_MASTER_URI=http://ros-core:11311"
+        ports:
+            - "9090:9090"
+        depends_on:
+            - ros-core
+        command:
+            - roslaunch
+            - --wait
+            - rosbridge_server
+            - rosbridge_websocket.launch
+
+    ros-fileserver:
+        image: xaialab/ros-abb_irb4600s-planner:0.1
+        container_name: ros-fileserver
+        environment:
+            - ROS_HOSTNAME=ros-fileserver
+            - ROS_MASTER_URI=http://ros-core:11311
+        depends_on:
+            - ros-core
+        command:
+            - roslaunch
+            - --wait
+            - file_server
+            - file_server.launch
+
+
+    abb-driver-robLL_track:
+      image: xaialab/ros-abb_irb4600s-planner:0.1
+      container_name: abb-driver-robLL_track
+      environment:
+          - ROS_HOSTNAME=abb-driver-robLL_track
+          - ROS_MASTER_URI=http://ros-core:11311
+      depends_on:
+          - ros-core
+      command:
+          - roslaunch
+          - --wait
+          - compas_rrc_driver
+          - bringup.launch
+          # We define which robot to connect to with the robot_ip parameter
+          - robot_ip:=192.168.0.102
+          - robot_streaming_port:=30101
+          - robot_state_port:=30201
+          - namespace:=robLL_track
+
+    abb-driver-robRR_track:
+      image: xaialab/ros-abb_irb4600s-planner:0.1
+      container_name: abb-driver-robRR_track
+      environment:
+          - ROS_HOSTNAME=abb-driver-robRR_track
+          - ROS_MASTER_URI=http://ros-core:11311
+      depends_on:
+          - ros-core
+      command:
+          - roslaunch
+          - --wait
+          - compas_rrc_driver
+          - bringup.launch
+          # We define which robot to connect to with the robot_ip parameter
+          - robot_ip:=192.168.0.102
+          - robot_streaming_port:=30102
+          - robot_state_port:=30202
+          - namespace:=robRR_track
+
+    
+
+
