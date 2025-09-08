@@ -1,6 +1,6 @@
 {
     "firebase_config_fp": "C:\\Users\\jk6372\\Desktop\\00_princeton_projects\\00_robotic_territories\\00_git\\compas_xr_robotic_territories\\dev\\performance_operations\\fb_config\\robotic_territories_fb.json", 
-    "project_name": "rt_larget_zones_expiriment_test", 
+    "project_name": "rt_larget_zones_expiriment_test", TODO CHANGE ME
     "robot_transformations_fp": "C:\\Users\\jk6372\\Desktop\\00_princeton_projects\\00_robotic_territories\\00_git\\compas_xr_robotic_territories\\dev\\performance_operations\\robots\\transformations\\robot_transformation_info.json",
     "upload_geo_to_firebase": true,
     "goals_folder_file_path": "C:\\Users\\jk6372\\Desktop\\00_princeton_projects\\00_robotic_territories\\00_git\\compas_xr_robotic_territories\\dev\\performance_operations\\inference\\goals_2",
@@ -183,15 +183,6 @@
     },
     "optitrack_info" : {
         "origin_location_rhino" : {
-            "dtype": "compas.geometry/Frame",
-            "guid": "ebee5ed9-1a29-4b49-acfe-3c71cc386021",
-            "data": {
-                "point": [0.1524, -1.8192, 0.005],
-                "xaxis": [1.0, 0.0, 0.0],
-                "yaxis": [0.0, 1.0, 0.0]
-            }
-        },
-        "origin_location_rhino_abb_setup" : {
             "data": {
                 "point": [
                     -1.1844667203216894, 
@@ -211,6 +202,6 @@
             }, 
             "dtype": "compas.geometry/Frame", 
             "guid": "bef70578-af67-462d-87e1-70849ddce0ac"
-            }
+        }
     }
 }
