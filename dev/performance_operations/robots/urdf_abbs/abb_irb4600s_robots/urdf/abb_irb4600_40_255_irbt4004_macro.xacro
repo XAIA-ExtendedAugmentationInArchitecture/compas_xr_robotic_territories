@@ -1,0 +1,11 @@
+<?xml version="1.0" ?>
+  <robot name="abb_irb4600_robot" xmlns:xacro="http://ros.org/wiki/xacro">
+   <xacro:macro name="abb_irb4600_robot" params="prefix">
+
+    <xacro:include filename="$(find abb_irb4600s_robots)/urdf/abb_irb4600_40_255_macro.xacro"/>
+    <xacro:include filename="$(find abb_irb4600s_robots)/urdf/irbt4004_macro.xacro"/>
+
+    <xacro:abb_irb4600_40_255 prefix="${prefix}"/>
+    <xacro:irbt4004 prefix="${prefix}" connected_to="${prefix}base_link" orientation="${pi/2}"/>
+    </xacro:macro>
+  </robot>

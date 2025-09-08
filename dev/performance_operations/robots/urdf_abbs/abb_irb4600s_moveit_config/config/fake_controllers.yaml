@@ -1,0 +1,26 @@
+controller_list:
+  - name: fake_robRR_track_controller
+    type: $(arg fake_execution_type)
+    joints:
+      - robRR/track_carriage
+      - robRR/joint_1
+      - robRR/joint_2
+      - robRR/joint_3
+      - robRR/joint_4
+      - robRR/joint_5
+      - robRR/joint_6
+  - name: fake_robLL_track_controller
+    type: $(arg fake_execution_type)
+    joints:
+      - robLL/track_carriage
+      - robLL/joint_1
+      - robLL/joint_2
+      - robLL/joint_3
+      - robLL/joint_4
+      - robLL/joint_5
+      - robLL/joint_6
+initial:  # Define initial robot poses.
+  - group: robRR_track
+    pose: robRR_track_home
+  - group: robLL_track
+    pose: robLL_track_home

@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+    <robot xmlns:xacro="https://ros.org/wiki/xacro">
+        <xacro:macro name="irbt4004" params="prefix connected_to orientation">
+            <link name="${prefix}irbt4004">
+                <visual>
+                    <geometry>
+                        <mesh filename="package://abb_irb4600s_robots/meshes/visual/irbt4004.stl"/>
+                    </geometry>
+                </visual>
+                <collision>
+                    <geometry>
+                        <mesh filename="package://abb_irb4600s_robots/meshes/collision/irbt4004.stl"/>
+                    </geometry>
+                </collision>
+            </link>
+
+            <link name="${prefix}carriage">
+                <visual>
+                    <geometry>
+                        <mesh filename="package://abb_irb4600s_robots/meshes/visual/carriage.stl"/>
+                    </geometry>
+                </visual>
+                <collision>
+                    <geometry>
+                        <mesh filename="package://abb_irb4600s_robots/meshes/collision/carriage.stl"/>
+                    </geometry>
+                </collision>
+            </link>
+
+            <joint name="${prefix}robot_attachment" type="fixed">
+                <parent link="${prefix}carriage"/>
+                <child link="${connected_to}"/>
+                <origin xyz="0 0 0" rpy="0 0 ${orientation}"/>
+            </joint>
+
+            <joint name="${prefix}track_carriage" type="prismatic">
+                <parent link="${prefix}irbt4004"/>
+                <child link="${prefix}carriage"/>
+                <origin xyz="0 0 0" rpy="0 0 0"/>
+                <axis xyz="1 0 0"/>
+                <limit effort="0" lower="0.0" upper="3.9" velocity="1.0"/>
+            </joint>
+
+        </xacro:macro>
+    </robot>
+
