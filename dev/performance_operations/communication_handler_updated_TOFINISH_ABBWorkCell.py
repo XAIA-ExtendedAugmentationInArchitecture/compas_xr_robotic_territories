@@ -95,7 +95,7 @@ class CommunicationManager:
                                                  additional_static_collision_meshes_fp=robot_hardware_info_dict.get("additional_collison_meshes_fp"))                
             else:
                 raise ValueError(f"Unsupported backend type: {backend_type} for robot {robot_name}")
-        elif robot_name == "ABB1" or robot_name == "ABB2" or robot_name == "ABB_IRB4600LL" or robot_name == "ABB_IRB4600LL":
+        elif robot_name == "ABB1" or robot_name == "ABB2" or robot_name == "ABB_IRB4600LL" or robot_name == "ABB_IRB4600RR":
             if backend_type == 'PyBullet':
                 return ABBMimicHandlerPyB(robot_name, 
                                                   robot_ip=robot_hardware_info_dict["robot_ip"], 

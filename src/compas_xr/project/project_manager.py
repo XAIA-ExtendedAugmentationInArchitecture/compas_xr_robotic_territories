@@ -55,6 +55,10 @@ class ProjectManager(object):
         data = {"project_name": project_name, "storage_folder": storage_folder, "z_to_y_remap": z_to_y_remap}
         self.database.upload_data(data, "ApplicationSettings")
 
+    def applicaition_settings_writer_2(self, project_name, storage_folder="None", z_to_y_remap=False):
+        data = {"project_name": project_name, "storage_folder": storage_folder, "z_to_y_remap": z_to_y_remap}
+        self.database.upload_data(data, "ApplicationSettings2")
+
     def create_project_data_from_compas(self, assembly, building_plan, qr_frames_list):
         """
         Formats data structure from COMPAS Class Objects.
