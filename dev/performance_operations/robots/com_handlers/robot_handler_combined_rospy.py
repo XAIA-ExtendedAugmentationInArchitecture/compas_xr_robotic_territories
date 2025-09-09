@@ -1408,11 +1408,20 @@ class RobotHandlerCombinedBackends:
             return []
 
         # Plan per the required sequence
-        trajectories = self._ros_plan_trajectories_for_inference(
-            configurations=configs_for_planning,
-            placed_blocks_dict=transformed_completed_items_dict,
-            unplaced_blocks_dict=transformed_incompleted_items_dict
-        )
+        # Plan per the required sequence
+        try:
+            trajectories = self._ros_plan_trajectories_for_inference(
+                configurations=configs_for_planning,
+                placed_blocks_dict=transformed_completed_items_dict,
+                unplaced_blocks_dict=transformed_incompleted_items_dict,
+            )
+        except Exception as e:
+            print(
+                f"CombinedBackendHandler: [{self.robot_name}] "
+                f"Error while planning trajectories: {e}. Returning empty trajectory."
+            )
+            return []
+
         if len(trajectories) < 1:
             print(f"CombinedBackendHandler: [{self.robot_name}] No valid trajectories found for planning. Returning empty trajectory.")
             return []

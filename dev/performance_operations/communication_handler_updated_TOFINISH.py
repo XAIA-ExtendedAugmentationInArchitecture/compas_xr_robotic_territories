@@ -498,6 +498,13 @@ class CommunicationManager:
 
         closest_target_name, closest_target_frame = self._find_closest_incomplete_target_for_inference(transformed_incompleted_items_dict, transformed_target)
         #TODO: Compute if it should be within the robots reachability.... if not returen some messages.
+        this_dir = os.path.dirname(os.path.abspath(__file__))
+        fp = os.path.join(this_dir, "frames_for_scripted_policy_testing.json")
+        data = {}
+        data["closest_incomplet_block_frame"] = closest_target_frame
+        data["target_block_frame"] = transformed_target
+        json_dump(data=data, fp=fp, pretty=True)
+
 
         handler = self.handler
         trajectories = handler.handle_planning_for_inference(closest_target_frame, transformed_target, transformed_completed_items_dict, transformed_incompleted_items_dict, closest_target_name)
