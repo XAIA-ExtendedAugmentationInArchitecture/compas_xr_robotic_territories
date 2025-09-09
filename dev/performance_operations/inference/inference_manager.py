@@ -28,7 +28,7 @@ class InferenceManager:
         self.INFERED_GOAL = None
 
         self.simple_inference = SimpleInference()
-        self.camilla_inference = CamillaInference()
+        # self.camilla_inference = CamillaInference()
 
         self.TEMPORARY_SUB_GOALS_LIST = ['G0', 'G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7', 'G8']
 
@@ -328,8 +328,10 @@ class InferenceManager:
         data["geometry_frames_input_before_tx"] = geometry_frames_dict
 
         input_dat_array = self.create_input_dat_file(geometry_frames_dict)
-        inf_result = self.camilla_inference.perform_inference(input_dat_array)
-        print(f"Camilla inference result: {inf_result}")
+
+        #TODO: TESTINGGGGGG Camilla inference###########################################################################################
+        # inf_result = self.camilla_inference.perform_inference(input_dat_array)
+        # print(f"Camilla inference result: {inf_result}")
         print(f"Input .dat array for inference:\n{input_dat_array}")
 
         #Transform geometry frames to world frame for comparision wiht goals

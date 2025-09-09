@@ -499,7 +499,7 @@ class CamillaInference:
 
         # Array of Arrays 9 bolcks with x,y,rot
         self.inference_class.blocks = input_dat
-        (self.blocks[0]['x'], self.blocks[0]['y'], self.blocks[0]['theta'])
+        self.last_red_pos = (self.inference_class.blocks[0]['x'], self.inference_class.blocks[0]['y'], self.inference_class.blocks[0]['theta'])
         goal_suggested = self.inference_class.make_pomcp_suggestion()
         if goal_suggested:
             print ("Goal Suggested")
