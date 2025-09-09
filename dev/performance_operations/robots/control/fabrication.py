@@ -413,9 +413,9 @@ def send_to_single_trajectory(trajectory_configs, speed, accel, radius, nowait, 
 def send_to_single_trajectory_robotic_territories_TEST(trajectory_configs, speed, accel, radius, ip, io_begining_end_none, vaccum_io=None):
     print(f"URRealtimeMimicHandlerPyB: [{ip}] (Sim) Executing UR trajectory: {trajectory_configs} THIS SHOULD BE A TEST")
 
-def send_to_single_trajectory_robotic_territories(trajectory_configs, speed, accel, radius, ip, io_begining_end_none, vaccum_io=None):
+def send_to_single_trajectory_robotic_territories(trajectory_configs, speed, accel, radius, ur_c, io_begining_end_none, vaccum_io=None):
 
-    ur_c = RTDEControl(ip)
+    
     time_sleep_delay = 1.5
 
     #TODO: This means there is no IO connected...

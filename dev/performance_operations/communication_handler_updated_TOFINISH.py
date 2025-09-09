@@ -10,6 +10,7 @@ from robots.com_handlers.robot_handler_combined_rospy import URMimicHandlerCombi
 from compas.geometry import Rotation
 
 from inference.inference_manager import InferenceManager
+from robots.planning.play import ScriptedPolicy
 
 from compas.data import json_load, json_dump
 import os
@@ -40,6 +41,9 @@ class CommunicationManager:
 
         #Inference Manager
         self.inference_manager = InferenceManager(project_config_dict["goals_folder_file_path"])
+
+        #Scripted Policy for Raj
+        self.scripted_policy = ScriptedPolicy(render=False)
 
         _transformations_file_path = project_config_dict["robot_transformations_fp"]
         if not _transformations_file_path:

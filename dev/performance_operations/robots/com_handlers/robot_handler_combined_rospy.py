@@ -1595,7 +1595,8 @@ class URMimicHandlerCombined(RobotHandlerCombinedBackends):
 
     def _send_to_trajectory_RT(self, trajectory: JointTrajectory, io_begining_end_none):
         print(f"URCombinedBackendHandler: [{self.robot_name}] (Sim) Executing UR trajectory: {trajectory}")
-        rtde.send_to_single_trajectory_robotic_territories_TEST(trajectory, self.speed, self.acceleration, self.radius, self.robot_ip, io_begining_end_none, vaccum_io=self.io)
+        rtde.send_to_single_trajectory_robotic_territories(trajectory.points, self.speed, self.acceleration, self.radius, self.rtde_ctrl, 0, self.io)
+        # rtde.send_to_single_trajectory_robotic_territories_TEST(trajectory, self.speed, self.acceleration, self.radius, self.robot_ip, io_begining_end_none, vaccum_io=self.io)
         # rtde.send_to_single_trajectory_robotic_territories(trajectory, self.speed, self.acceleration, nowait=self.nowait, ip=self.robot_ip)
 
     def _toggle_tool_io(self, signal: int, value: int):
