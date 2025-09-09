@@ -6,8 +6,10 @@ import random
 import os
 import time
 import json
+import numpy as np
 
 from .simple_inference.inference import SimpleInference
+from .camilla.camilla_inference import CamillaInference
 
 class InferenceManager:
 
@@ -26,6 +28,7 @@ class InferenceManager:
         self.INFERED_GOAL = None
 
         self.simple_inference = SimpleInference()
+        self.camilla_inference = CamillaInference()
 
         self.TEMPORARY_SUB_GOALS_LIST = ['G0', 'G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7', 'G8']
 
@@ -324,6 +327,11 @@ class InferenceManager:
         data = {}
         data["geometry_frames_input_before_tx"] = geometry_frames_dict
 
+        input_dat_array = self.create_input_dat_file(geometry_frames_dict)
+        inf_result = self.camilla_inference.perform_inference(input_dat_array)
+        print(f"Camilla inference result: {inf_result}")
+        print(f"Input .dat array for inference:\n{input_dat_array}")
+
         #Transform geometry frames to world frame for comparision wiht goals
         T_anchor_to_world, inverse_T = self._construct_transformation_matrices(anchor_cube_frame)
         transformed_current_geometry_frames = self._transform_geometry_dict_for_inference(geometry_frames_dict, T_anchor_to_world)
@@ -394,4 +402,27 @@ class InferenceManager:
         transformed_target_frame = target_goal_entry.frame.transformed(inverse_T)
 
         return goal_is_correct, transformed_target_frame
+    
+    def create_input_dat_file(self, current_geometry_frames_dict):
+        expected_cubes = ["AnchorCube", "Cube01", "Cube02", "Cube03", "Cube04", "Cube05", "Cube06", "Cube07", "Cube08"]
+        cube_data_list = []
+
+        for cube_name in expected_cubes:
+            if cube_name not in current_geometry_frames_dict:
+                raise ValueError(f"create_input_dat_file: Missing expected cube '{cube_name}' in geometry frames.")
+            
+            current_frame = current_geometry_frames_dict[cube_name]
+            if not isinstance(current_frame, Frame):
+                raise ValueError(f"create_input_dat_file: Frame for '{cube_name}' is not a valid Frame object.")
+
+            x = current_frame.point.x
+            y = current_frame.point.y
+            eualer_angles = current_frame.euler_angles()
+            x_rot = eualer_angles[0]
+            y_rot = eualer_angles[1]
+            z_rot = eualer_angles[2]
+
+            array = np.array([x, y, x_rot])
+            cube_data_list.append(array)
         
+        return np.array(cube_data_list)
