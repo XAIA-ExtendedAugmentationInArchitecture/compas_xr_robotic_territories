@@ -109,6 +109,7 @@ class RobotTransformationsFromObserved:
         self.transformations[robot_name]["observed"]["transformation_to_urdf"] = transformation_to_urdf_base
         self.transformations[robot_name]["observed"]["inverse_transform_to_observed"] = inverse_transformation_to_observed_base
 
+        #TODO: I THINK THE TRANSFORMATIONS SHOULD BE UPLOADED TO FIREBASE AND PULLED ON THE ROBOT COMMUNICATION SIDE... THIS WOULD SLOW COMMUNICATION A BIT, BUT MAKES IT DYNAMIC.
         # Update the base frame on Firebase & save the transformations
         json_dump(self.transformations, self.transformations_fp, pretty=True)
         self.update_baseframe_on_firebase(robot_name, observed_base_frame)

@@ -135,6 +135,7 @@ class CommunicationManager:
         else:
             raise ValueError(f"Unsupported robot name: {robot_name}")
 
+    #TODO: I think this actually doesn't work??? I think it would load them at the begining, but not work if the robot moves... you should update this joseph...
     def _load_transformations_from_file_and_baseframes_from_file(self, file_path, robot_name):
         # Load the transformations from the JSON file
         all_robot_transforms = json_load(file_path)
