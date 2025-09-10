@@ -43,7 +43,7 @@ class CommunicationManager:
         self.inference_manager = InferenceManager(project_config_dict["goals_folder_file_path"])
 
         #Scripted Policy for Raj
-        # self.scripted_policy = ScriptedPolicy(render=False)
+        self.scripted_policy = ScriptedPolicy(render=False)
 
         _transformations_file_path = project_config_dict["robot_transformations_fp"]
         if not _transformations_file_path:
