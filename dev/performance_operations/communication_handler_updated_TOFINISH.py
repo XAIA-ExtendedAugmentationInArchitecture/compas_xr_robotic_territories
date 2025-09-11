@@ -59,31 +59,7 @@ class CommunicationManager:
 
     def _load_handler(self, robot_name, urdf_filepath, srdf_filepath, robot_hardware_info_dict, backend_type='PyBullet'):
         if robot_name == "UR20" or robot_name == "UR31" or robot_name == "UR32":
-            if backend_type == 'PyBullet':
-                return URMimicHandlerPyB(robot_name, 
-                                                 robot_ip=robot_hardware_info_dict["robot_ip"], 
-                                                 urdf_path=urdf_filepath, 
-                                                 srdf_path=srdf_filepath,
-                                                 group=robot_hardware_info_dict["group"],
-                                                 speed=robot_hardware_info_dict["speed"],
-                                                 acceleration=robot_hardware_info_dict["acceleration"],
-                                                 radius=robot_hardware_info_dict["radius"],
-                                                 nowait=robot_hardware_info_dict["nowait"],
-                                                 io=robot_hardware_info_dict["vacum_io"],
-                                                 tool_info_fp=robot_hardware_info_dict.get("tool_info_fp"),
-                                                 additional_static_collision_meshes_fp=robot_hardware_info_dict.get("additional_collison_meshes_fp"))
-            elif backend_type == 'ROS':
-                return URMimicHandlerROS(robot_name, 
-                                                 robot_ip=robot_hardware_info_dict["robot_ip"], 
-                                                 ros_ip=robot_hardware_info_dict["ros_ip"],
-                                                 ros_port=robot_hardware_info_dict["ros_port"],
-                                                 speed=robot_hardware_info_dict["speed"],
-                                                 acceleration=robot_hardware_info_dict["acceleration"],
-                                                 radius=robot_hardware_info_dict["radius"],
-                                                 nowait=robot_hardware_info_dict["nowait"],
-                                                 tool_info_fp=robot_hardware_info_dict.get("tool_info_fp"),
-                                                 additional_static_collision_meshes_fp=robot_hardware_info_dict.get("additional_collison_meshes_fp"))
-            elif backend_type == 'COMBINED':
+            if backend_type == 'COMBINED':
                 return URMimicHandlerCombined(robot_name, 
                                                  robot_ip=robot_hardware_info_dict["robot_ip"], 
                                                  urdf_path=urdf_filepath, 
@@ -101,26 +77,7 @@ class CommunicationManager:
             else:
                 raise ValueError(f"Unsupported backend type: {backend_type} for robot {robot_name}")
         elif robot_name == "ABB1" or robot_name == "ABB2" or robot_name == "ABB_IRB4600LL" or robot_name == "ABB_IRB4600LL":
-            if backend_type == 'PyBullet':
-                return ABBMimicHandlerPyB(robot_name, 
-                                                  robot_ip=robot_hardware_info_dict["robot_ip"], 
-                                                  urdf_path=urdf_filepath, 
-                                                  srdf_path=srdf_filepath,
-                                                  speed=robot_hardware_info_dict["speed"],
-                                                  nowait=robot_hardware_info_dict["nowait"],
-                                                  tool_info_fp=robot_hardware_info_dict.get("tool_info_fp"),
-                                                  additional_static_collision_meshes_fp=robot_hardware_info_dict.get("additional_attached_collison_meshes_fp"))
-            elif backend_type == 'ROS':
-                return ABBMimicHandlerROS(robot_name, 
-                                                  robot_ip=robot_hardware_info_dict["robot_ip"], 
-                                                  abb_client=robot_hardware_info_dict["robot_ip"],
-                                                  ros_ip=robot_hardware_info_dict["ros_ip"],
-                                                  ros_port=robot_hardware_info_dict["ros_port"],
-                                                  speed=robot_hardware_info_dict["speed"],
-                                                  nowait=robot_hardware_info_dict["nowait"],
-                                                  tool_info_fp=robot_hardware_info_dict.get("tool_info_fp"),
-                                                  additional_static_collision_meshes_fp=robot_hardware_info_dict.get("additional_attached_collison_meshes_fp"))
-            elif backend_type == 'COMBINED':
+            if backend_type == 'COMBINED':
                 return ABBMimicHandlerCombined(robot_name, 
                                                   robot_ip=robot_hardware_info_dict["robot_ip"], 
                                                   urdf_path=urdf_filepath, 
