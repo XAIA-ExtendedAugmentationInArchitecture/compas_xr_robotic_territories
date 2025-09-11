@@ -283,23 +283,21 @@ class SimpleBlockMover:
             best_goal = None
             best_score = -1
             
-            goal_names_list = ["Goal00", "Goal01", "Goal02", "Goal03", "Goal04","Goal05", "Goal06", "Goal07", "Goal08", "Goal09"]
             # Pure RL approach - no thresholds, just pick the best scoring goal
-            for i, goal, prob in enumerate(belief.items()):
+            for goal, prob in belief.items():
                 overlap = self.calculate_overlap(goal)
                 score = prob * overlap
                 if score > best_score:
                     best_score = score
                     best_goal = goal
-                    best_goal_name = goal_names_list[i]
-            
+
             # Always suggest if POMCP decided to suggest, regardless of overlap
             if best_goal:
                 move = self.find_beneficial_move(best_goal)
+                print (f"POMCP decided to suggest a move {move}")
                 self.suggested_goal = best_goal
                 self.suggested_move = move
                 self.suggestion_active = True
-                self.suggested_goal_name = best_goal_name
                 print(f"AI suggests goal '{best_goal}' (belief: {belief.get(best_goal, 0):.1%}, overlap: {self.calculate_overlap(best_goal):.1%})")
                 if move:
                     print(f"Suggested move: Block {move['block_idx']} to ({move['target_x']:.0f}, {move['target_y']:.0f})")
@@ -350,7 +348,7 @@ class SimpleBlockMover:
 
     def calculate_overlap(self, goal_name):
         """Calculate overlap percentage between current blocks and a goal shape"""
-        red = [b for b in self.blocks if b['color'] == 'red'][0]
+        red = self.blocks[0]  # Assume red block is always first
         x0, y0, theta = red['x'], red['y'], red['theta']
         
         goal_positions = []
@@ -375,7 +373,9 @@ class SimpleBlockMover:
 
     def find_beneficial_move(self, goal_name):
         """Find a move that would improve overlap for the given goal"""
-        red = [b for b in self.blocks if b['color'] == 'red'][0]
+        cube_names = ["AnchorCube", "Cube01", "Cube02", "Cube03", "Cube04", "Cube05", "Cube06", "Cube07", "Cube08"]
+
+        red = self.blocks[0]
         x0, y0, theta = red['x'], red['y'], red['theta']
         
         # Get goal positions
@@ -387,24 +387,32 @@ class SimpleBlockMover:
             goal_positions.append((X, Y))
         
         # Find unoccupied goal positions
-        overlap_threshold_dist = self.size * 0.7
+        overlap_threshold_dist = self.size * 0.2
         unoccupied_goals = []
         sub_goal_names = [f"G{i}" for i in range(9)]        
         occupied_goals_names = []
+        cubes_ocupying_goals = []
+        unoccupied_goal_names = []
 
-        for i, goal_x, goal_y in enumerate(goal_positions):
+        i = 0
+        for goal_x, goal_y in goal_positions:
             occupied = False
             for block in self.blocks:
                 dist = np.sqrt((block['x'] - goal_x)**2 + (block['y'] - goal_y)**2)
+                print (f"JOEEEEEE : Sub goal name ... {sub_goal_names[i]}", dist, overlap_threshold_dist)
                 if dist <= overlap_threshold_dist:
                     occupied = True
                     break
             if not occupied:
                 unoccupied_goals.append((goal_x, goal_y))
+                unoccupied_goal_names.append(sub_goal_names[i])
             else:
                 occupied_goals_names.append(sub_goal_names[i])
+                cubes_ocupying_goals.append(cube_names[i])
+            i += 1
         
         if not unoccupied_goals:
+            print("JOEEEEE : No unoccupied goal positions available for a move.")
             return None
             
         # Find non-overlapped blocks
@@ -420,17 +428,22 @@ class SimpleBlockMover:
                 non_overlapped_blocks.append(i)
         
         if not non_overlapped_blocks:
+            print("JOEEEEE : Not non_overlapped_blocks.")
             return None
             
         # Suggest moving a random non-overlapped block to a random unoccupied goal
         block_idx = np.random.choice(non_overlapped_blocks)
-        target_x, target_y = unoccupied_goals[np.random.randint(len(unoccupied_goals))]
+        target_coice = np.random.randint(len(unoccupied_goals))
+        target_x, target_y = unoccupied_goals[target_coice]
+        target_idx = unoccupied_goal_names[target_coice]
 
         return {
             'block_idx': block_idx,
+            'target_index': target_idx,
             'target_x': target_x,
             'target_y': target_y,
-            'occupied_goals': occupied_goals_names
+            'occupied_goals': occupied_goals_names,
+            'cubes_ocupying_goals': cubes_ocupying_goals
         }
 
     def accept_goal(self):
@@ -495,19 +508,36 @@ class CamillaInference:
         }
         return GOAL_SHAPES
 
-    def perform_inference(self, input_dat):
+    def format_blocks(self, input_dat):
+        cube_data_list = []
+        for i in range(9):
+            x = input_dat[i][0]
+            y = input_dat[i][1]
+            theta = input_dat[i][2]
+            data_dict = {"x": x, "y": y, "theta": theta}
+            cube_data_list.append(data_dict)
+        return cube_data_list
 
+    def perform_inference(self, input_dat, initial_request):
+
+        print (input_dat)
         # Array of Arrays 9 bolcks with x,y,rot
-        self.inference_class.blocks = input_dat
-        self.last_red_pos = (self.inference_class.blocks[0]['x'], self.inference_class.blocks[0]['y'], self.inference_class.blocks[0]['theta'])
+        self.inference_class.blocks = self.format_blocks(input_dat)
+
+        if initial_request:
+            self.last_red_pos = (self.inference_class.blocks[0]['x'], self.inference_class.blocks[0]['y'], self.inference_class.blocks[0]['theta'])
+
         goal_suggested = self.inference_class.make_pomcp_suggestion()
+        print(f"Goal suggested: {goal_suggested}")
         if goal_suggested:
             print ("Goal Suggested")
-            goal_name = self.inference_class.suggested_goal_name
+            goal_name = self.inference_class.suggested_goal
             suggested_move = self.inference_class.suggested_move
             if suggested_move:
-                target_name = suggested_move['target_idx']
-                target_name = f"G{target_name}"
+                target_name = suggested_move['target_index']
+                occupied_goals = suggested_move['occupied_goals']
+                cubes_ocupying_goals = suggested_move['cubes_ocupying_goals']
+            
             else:
                 target_name = None 
             print(f"Suggested Goal: {goal_name}, Suggested Target: {target_name}")
@@ -516,9 +546,7 @@ class CamillaInference:
             goal_name = None
             target_name = None
 
-
-        # return goal_name Goal09, target_name G1, satisfied_targets List[G0, G1, G2, ...], placed_blocks ["AnchorCube", "Cube01", ...]
-        pass
+        return goal_name, target_name, occupied_goals, cubes_ocupying_goals
 
     def process_user_reply(self, reply):
         pass

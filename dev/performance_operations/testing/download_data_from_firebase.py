@@ -38,6 +38,7 @@ if __name__ == "__main__":
     start = time.time()
     data = rt_db.get_data(reference_name=project_name)
     end = time.time()
+    print(f"type of data retrieved: {type(data)}")
     print(f"Retrieved data keys: {list(data.keys())}")
     print(f"Data retrieval took {end - start:.4f} seconds.")
     # TODO: Example : Data retrieval took 0.1171 seconds.

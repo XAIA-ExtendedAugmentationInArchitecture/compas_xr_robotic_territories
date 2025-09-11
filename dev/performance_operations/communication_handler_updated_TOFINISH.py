@@ -15,6 +15,7 @@ from robots.planning.play import ScriptedPolicy
 from compas.data import json_load, json_dump
 import os
 import math
+import time
 
 #TODO: FIX ME JOSEPH. START PLANNING....
 #TODO: Remove dumb inference loggining print and extra stuff in inference trajectory computation
@@ -43,7 +44,7 @@ class CommunicationManager:
         self.inference_manager = InferenceManager(project_config_dict["goals_folder_file_path"])
 
         #Scripted Policy for Raj
-        self.scripted_policy = ScriptedPolicy(render=False)
+        # self.scripted_policy = ScriptedPolicy(render=False)
 
         _transformations_file_path = project_config_dict["robot_transformations_fp"]
         if not _transformations_file_path:
@@ -484,7 +485,6 @@ class CommunicationManager:
             ))
             return
 
-
         print (f"Inference Result Dict: {inference_result_dict}")
 
         suggested_goal = inference_result_dict["suggested_goal"]
@@ -498,14 +498,6 @@ class CommunicationManager:
         transformed_incompleted_items_dict, transformed_completed_items_dict, transformed_target = self._transform_inference_information(geometry_frames_for_inference, incompleted_items_names, completed_items_names, suggested_target_frame)        
 
         closest_target_name, closest_target_frame = self._find_closest_incomplete_target_for_inference(transformed_incompleted_items_dict, transformed_target)
-        #TODO: Compute if it should be within the robots reachability.... if not returen some messages.
-        this_dir = os.path.dirname(os.path.abspath(__file__))
-        fp = os.path.join(this_dir, "frames_for_scripted_policy_testing.json")
-        data = {}
-        data["closest_incomplet_block_frame"] = closest_target_frame
-        data["target_block_frame"] = transformed_target
-        json_dump(data=data, fp=fp, pretty=True)
-
 
         handler = self.handler
         trajectories = handler.handle_planning_for_inference(closest_target_frame, transformed_target, transformed_completed_items_dict, transformed_incompleted_items_dict, closest_target_name)

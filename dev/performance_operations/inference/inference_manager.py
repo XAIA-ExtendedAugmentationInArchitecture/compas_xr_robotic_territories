@@ -28,7 +28,7 @@ class InferenceManager:
         self.INFERED_GOAL = None
 
         self.simple_inference = SimpleInference()
-        # self.camilla_inference = CamillaInference()
+        self.camilla_inference = CamillaInference()
 
         self.TEMPORARY_SUB_GOALS_LIST = ['G0', 'G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7', 'G8']
 
@@ -330,8 +330,8 @@ class InferenceManager:
         input_dat_array = self.create_input_dat_file(geometry_frames_dict)
 
         #TODO: TESTINGGGGGG Camilla inference###########################################################################################
-        # inf_result = self.camilla_inference.perform_inference(input_dat_array)
-        # print(f"Camilla inference result: {inf_result}")
+        inf_result = self.camilla_inference.perform_inference(input_dat_array, initial_request)
+        print(f"Camilla inference result: {inf_result}")
         print(f"Input .dat array for inference:\n{input_dat_array}")
 
         #Transform geometry frames to world frame for comparision wiht goals
@@ -423,6 +423,7 @@ class InferenceManager:
             x_rot = eualer_angles[0]
             y_rot = eualer_angles[1]
             z_rot = eualer_angles[2]
+            data_dict = {"x": x, "y": y, "theta": x_rot}
 
             array = np.array([x, y, x_rot])
             cube_data_list.append(array)
