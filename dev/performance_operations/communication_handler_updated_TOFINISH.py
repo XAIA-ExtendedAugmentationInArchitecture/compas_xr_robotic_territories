@@ -69,8 +69,8 @@ class CommunicationManager:
         #Realtime Database for Transformations
         self._RTDB_REFERENCE = RealtimeDatabase(project_config_dict["firebase_config_fp"])
         self._RTDB_Project_Name = project_config_dict["project_name"]
-        self.transformations_reference = self._RTDB_REFERENCE.construct_grandchild_refrence(self._RTDB_Project_Name, "robot_transformations", robot_name)
-
+        self.transformations_reference_list = [self._RTDB_Project_Name, "robot_transformations", robot_name]
+        print (f"JOEEEEEEEEEEEEEEEEEEEEEEEEEEEE : TRANSFORMATIONS REFERENCE : {self.transformations_reference_list}")
         #TODO: This needs to change...
         #Frame Transformations #TODO: I THINK THIS NEEDS TO CHANGE. This strategy only runs once at the beginning... which is not correct if the robot moves.
         self._transformations_file_path = project_config_dict["robot_transformations_fp"]
@@ -79,7 +79,7 @@ class CommunicationManager:
             self.transformations_robot_space_to_ar_space,
             self._urdf_baseframe,
             self._observed_urdf_baseframe
-        ) = self._load_transformations(file_path=self._transformations_file_path, robot_name=self.robot_name, transformations_reference=self.transformations_reference)
+        ) = self._load_transformations(file_path=self._transformations_file_path, robot_name=self.robot_name, transformations_reference_list=self.transformations_reference_list)
         print(f"CommunicationManager : [CommunicationManager] Loaded transformations for robot '{robot_name}': ARtoRobotTX : {self.transformation_ar_space_to_robot_space}, RobottoARTX {self.transformations_robot_space_to_ar_space}, URDF Baseframe: {self._urdf_baseframe}, Observed Baseframe: {self._observed_urdf_baseframe}")
         print(f"CommunicationManager : [CommunicationManager] Subscribed to: robotic_territories mimic topics for project '{project_name}' and robot '{robot_name}'")
 
@@ -121,9 +121,10 @@ class CommunicationManager:
         else:
             raise ValueError(f"Unsupported robot name: {robot_name}")
 
-    def _load_transformations(self, file_path, robot_name, transformations_reference):
+    def _load_transformations(self, file_path, robot_name, transformations_reference_list):
         try:
-            print(f"CommunicationManager : [CommunicationManager] Transformations file '{file_path}' not found. Attempting to load from RTDB.")
+            transformations_reference = self._RTDB_REFERENCE.construct_reference_from_list(transformations_reference_list)
+            print(f"CommunicationManager : [CommunicationManager] Loading Transformatoins From RTDB.")
             (
                 transformation_ar_space_to_robot_space,
                 transformations_robot_space_to_ar_space,
@@ -189,7 +190,6 @@ class CommunicationManager:
         return transformation_ar_space_to_robot_space, transformations_robot_space_to_ar_space, _urdf_baseframe, _observed_urdf_baseframe
 
     def _deserialize_transformations_from_database(self, transformation_dict, robot_name):
-        print ()
         robot_transformation = transformation_dict["observed"] #TODO: CHECK THIS
         if "inverse_transform_to_observed" not in robot_transformation or "transformation_to_urdf" not in robot_transformation:
             raise ValueError(f"CommunicationManager : Transformations for robot '{robot_name}' are incomplete in the file.")
@@ -214,13 +214,13 @@ class CommunicationManager:
         print (f"CommunicationManager : [CommunicationManager] Loaded transformations for robot '{robot_name}', types: {type(inverse_transform)}, {type(transform)}")
         return inverse_transform, transform, static_urdf_base_frame, observed_robot_base_frame
 
-    def __update_robot_transformations_to_rtdb(self):
+    def __update_robot_transformations_from_rtdb__(self):
         (
             self.transformation_ar_space_to_robot_space,
             self.transformations_robot_space_to_ar_space,
             self._urdf_baseframe,
             self._observed_urdf_baseframe
-        ) = self._load_transformations(_file_path=self._transformations_file_path, robot_name=self.robot_name, transformations_reference=self.transformations_reference)
+        ) = self._load_transformations(file_path=self._transformations_file_path, robot_name=self.robot_name, transformations_reference_list=self.transformations_reference_list)
 
     ######################################################################################################
     # TODO: MESSAGE LOGGING....
@@ -456,6 +456,10 @@ class CommunicationManager:
             print(f" CommunicationManager : [CommunicationManager] Signaling Application that Pybullet backend needs to change")
 
         else:
+            #TODO: Testing Updating the base frame dynamically....
+            if msg.point_index == 0:
+                self.__update_robot_transformations_from_rtdb__()
+
             msg.requested_robot_frame = self._transform_requested_frame_from_ar_space_to_robot_space(msg.requested_robot_frame)
             # ik_config = self.handler.handle_realtime_msg_request_ik_target(msg)
             # ik_config = self.handler.handle_realtime_msg_request_compas_fab_itter(msg)
@@ -486,6 +490,9 @@ class CommunicationManager:
         self.realtime_publisher.publish(result)
 
     def _on_message_user_initiated_mimic(self, msg: MimicTrajectoryRequestMessage):
+        #TODO: Testing updating base frames dynamically
+        self.__update_robot_transformations_from_rtdb__()
+
         # TODO: Set this to an empty list just to be safe... This will be my attribute for storing the trajectories to execute.
         self._user_initiated_mimic_trajectories_to_execute = []
 
@@ -566,6 +573,9 @@ class CommunicationManager:
     ####################################################################################################
 
     def _on_handle_inference_request(self, msg: InferenceRequestMessage):
+        #TODO: testing updating base frames dynamically
+        self.__update_robot_transformations_from_rtdb__()
+
         # Clear any previous executable trajectories (just to be safe)
         self._INFERENCE_EXACUTABLE_TRAJECTORIES = []
 
@@ -721,6 +731,9 @@ class CommunicationManager:
                 print(f"CommunicationManager : [CommunicationManager] Accept Target and Goal without Executable Trajectory reply from User : {msg.header.device_id} ': Reply : {user_reply}")
 
     def _on_handle_post_inference_request_target(self, msg: PostInferenceTargetRequestMessage):
+        #Todo: testing updating base frames dynamically
+        self.__update_robot_transformations_from_rtdb__()
+
         if len(self._post_inference_exacutable_trajectories) > 0 :
             self._post_inference_exacutable_trajectories = []
             self._POST_INFERENCE_PICK_INDEX_RAJ = None
