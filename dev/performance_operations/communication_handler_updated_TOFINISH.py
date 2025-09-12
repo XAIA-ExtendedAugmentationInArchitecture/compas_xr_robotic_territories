@@ -366,30 +366,43 @@ class CommunicationManager:
         handler = self.handler
         # self._save_requested_frame(msg)
 
-        msg.requested_robot_frame = self._transform_requested_frame_from_ar_space_to_robot_space(msg.requested_robot_frame)
-        # ik_config = self.handler.handle_realtime_msg_request_ik_target(msg)
-        # ik_config = self.handler.handle_realtime_msg_request_compas_fab_itter(msg)
-        # ik_config = self.handler.handle_realtime_msg_request_recursive_solver(msg)
-        # ik_config = self.handler.handle_realtime_msg_request(msg)
-        # ik_config = handler.handle_realtime_msg_request_fastest_ik(msg)
-        ik_config = handler.handle_realtime_msg_request_servoj_gate(msg)
-
-        if ik_config:
+        if self.connect_raj_to_pybullet == True:
             result = RealtimeMimicResultMessage(
                 robot_name=robot_name,
-                return_message=f"IK computed for {msg.point_index} with {robot_name} and an ik solution of {ik_config}",
-                configuration=ik_config,
-                pt_index=msg.point_index
-            )
-            print(f"CommunicationManager : [CommunicationManager] Published IK result for robot {robot_name}")
-        else:
-            result = RealtimeMimicResultMessage(
-                robot_name=robot_name,
-                return_message=f"IK computed for {msg.point_index} with {robot_name} and an ik solution of {ik_config}",
+                return_message=f"IK cannot be computed because it is the incorrect backend for {msg.point_index} with {robot_name}",
                 configuration=None,
-                pt_index=msg.point_index
+                pt_index=msg.point_index,
+                correct_backend=False
             )
-            print(f" CommunicationManager : [CommunicationManager] No result to publish for robot {robot_name}")
+            print(f" CommunicationManager : [CommunicationManager] Signaling Application that Pybullet backend needs to change")
+
+        else:
+            msg.requested_robot_frame = self._transform_requested_frame_from_ar_space_to_robot_space(msg.requested_robot_frame)
+            # ik_config = self.handler.handle_realtime_msg_request_ik_target(msg)
+            # ik_config = self.handler.handle_realtime_msg_request_compas_fab_itter(msg)
+            # ik_config = self.handler.handle_realtime_msg_request_recursive_solver(msg)
+            # ik_config = self.handler.handle_realtime_msg_request(msg)
+            # ik_config = handler.handle_realtime_msg_request_fastest_ik(msg)
+            ik_config = handler.handle_realtime_msg_request_servoj_gate(msg)
+
+            if ik_config:
+                result = RealtimeMimicResultMessage(
+                    robot_name=robot_name,
+                    return_message=f"IK computed for {msg.point_index} with {robot_name} and an ik solution of {ik_config}",
+                    configuration=ik_config,
+                    pt_index=msg.point_index,
+                    correct_backend=True
+                )
+                print(f"CommunicationManager : [CommunicationManager] Published IK result for robot {robot_name}")
+            else:
+                result = RealtimeMimicResultMessage(
+                    robot_name=robot_name,
+                    return_message=f"IK computed for {msg.point_index} with {robot_name} and an ik solution of {ik_config}",
+                    configuration=None,
+                    pt_index=msg.point_index,
+                    correct_backend=True
+                )
+                print(f" CommunicationManager : [CommunicationManager] No result to publish for robot {robot_name}")
 
         self.realtime_publisher.publish(result)
 

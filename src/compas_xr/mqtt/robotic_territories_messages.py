@@ -257,13 +257,14 @@ class RealtimeMimicResultMessage(Message):
         The header of the message.
     """
 
-    def __init__(self, robot_name, pt_index, return_message, configuration=None, header=None):
+    def __init__(self, robot_name, pt_index, return_message, correct_backend, configuration=None, header=None):
         super(RealtimeMimicResultMessage, self).__init__()
         self["header"] = header or Header()
         self["point_index"] = pt_index
         self["configuration"] = configuration
         self["robot_name"] = robot_name
         self["return_message"] = return_message
+        self["correct_backend"] = correct_backend
 
     @classmethod
     def parse(cls, value):
@@ -274,12 +275,16 @@ class RealtimeMimicResultMessage(Message):
         robot_name = value["robot_name"]
         return_message = value["return_message"]
         pt_index = value["point_index"]
+        correct_backend = value.get("correct_backend", None)
+        if correct_backend is None:
+            raise ValueError("RealtimeMimicResultMessage missing required field: correct_backend")
+
         configuration = value.get("configuration", None)
         if configuration is not None:
             configuration = Configuration.__from_data__(configuration)
         else:
             configuration = None
-        return cls(robot_name, return_message, header)
+        return cls(robot_name, return_message, correct_backend, configuration, header)
     
 class RealtimeMimicIOToggleRequestMessage(Message):
     """
