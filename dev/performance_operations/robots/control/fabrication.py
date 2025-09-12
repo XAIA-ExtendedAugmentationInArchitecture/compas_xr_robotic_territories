@@ -145,13 +145,6 @@ def pick_and_place(pick_frames, place_frames, speed, accel, ip, vaccum_io, safe_
         post_place_frame = place.transformed(Translation.from_vector(Vector(0,0,safe_dist)))
         move_to_target(post_place_frame, speed, accel, False, ip = ip)
 
-# def moveJ_to_path(path, speed, speed, radius, ip = "127.0.0.1", ur_c = None):
-#     # speed, accel, nowait bool
-#     ur_c.movePath(path, True)
-#     return path
-
-    
-
 def create_path(frames, speed, accel, radius):
     # speed rad/s, accel rad/s^2, nowait bool
     path = []
@@ -189,13 +182,6 @@ def get_tcp_frame(ip="127.0.0.1"):
     tcp = ur_r.getActualTCPPose()
     frame = Frame.from_axis_angle_vector(tcp[3:], point=tcp[0:3])
     return frame
-
-# def move_trajectory(configurations, speed, accel, blend, ur_c):
-#     path = []
-#     for config in configurations:
-#         path.append(config.joint_values + [speed, accel, blend])
-#     if len(path):
-#         ur_c.moveJ(path)
 
 def start_teach_mode(ip="127.0.0.1"):
     ur_c = RTDEControl(ip)
@@ -266,7 +252,6 @@ def send_trajectory(trajectory_points, speed, accel, ip):
 
         #move to configuration
         move_to_joints(point, speed, accel, 0 , ip)
-
 
 def send_trajectory_path(configurations, speed, accel, radius, ur_c):
 
