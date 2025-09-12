@@ -20,6 +20,14 @@ from dataclasses import dataclass
 
 from robots.planning.ur20_pick_place_orient_base_env import UR20PickandPlaceOrientBaseEnv
 
+#TODO: JOE ADDED FOR TESTING THE SCRIPTED POLICY
+import math
+from compas_fab.robots import JointTrajectory
+from compas_robots import Configuration
+from compas_fab.robots import JointTrajectory, JointTrajectoryPoint
+from compas.data import json_dump
+from compas.geometry import Frame, Vector, Translation
+
 @dataclass
 class Args:
     exp_name: str = os.path.basename(__file__)[: -len(".py")]
@@ -121,6 +129,12 @@ class ScriptedPolicy:
         self.env = UR20PickandPlaceOrientBaseEnv(render=render)
         self.action_dim = 5
 
+        #TODO: Joe Init:
+        self.joe_joint_names = ['shoulder_pan_joint', 'shoulder_lift_joint', 'elbow_joint', 'wrist_1_joint', 'wrist_2_joint', 'wrist_3_joint']
+        self.joe_joint_types = [0, 0, 0, 0, 0, 0]
+        self.joe_start_config_values = [-0.10790457, -0.29844413,  0.06922359, -1.36258329, -1.5687577 , -1.64426868]
+        self.joe_start_configuration = Configuration(joint_values=self.joe_start_config_values, joint_names=self.joe_joint_names, joint_types=self.joe_joint_types)
+
     def pick_and_place(self, init_cube_pos=None, init_cube_quat=None, target_cube_pos=None, target_cube_quat=None):
         obs, info = self.env.reset(init_cube_pos, init_cube_quat, target_cube_pos, target_cube_quat)
         done = False
@@ -134,7 +148,9 @@ class ScriptedPolicy:
 
         trajectory_joint_angles, trajectory_eef_pos, trajectory_eef_quat  = [], [], []
 
-        #TODO: need to know when isGrabbing (at least index of configuration should work)
+        #TODO: Joe added for pick index
+        pick_index = None
+        step_count = 0
 
         while not done:
             action = get_pick_and_place_action(obs[:3], info['current_gripper_yaw'], info['blocks_pos'], info['blocks_yaw'], self.env.grabbing, current_plan, init_cube_pos, init_cube_yaw, target_cube_pos, target_cube_yaw, target_quadrant)    
@@ -143,30 +159,72 @@ class ScriptedPolicy:
             trajectory_joint_angles.append( info['joint_poses'] )
             trajectory_eef_pos.append( info['current_position'] ) 
             trajectory_eef_quat.append( info['current_oreintation'] )
+            grabbing = info['is_grabbing']
 
+            if grabbing and pick_index is None:
+                pick_index = step_count
+
+            step_count += 1
             done = termination or truncation
             obs = next_obs
-            
-            time.sleep(0.01)
+            # time.sleep(0.01)
 
-        return trajectory_joint_angles, trajectory_eef_pos, trajectory_eef_quat
+        return trajectory_joint_angles, trajectory_eef_pos, trajectory_eef_quat, pick_index
 
+    #TODO: JOE ADDED THESE FUNCTIONS.
+    def offset_frame_by_dist_along_z(self, frame, dist):
+        v = Vector.Zaxis() * float(dist)
+        T = Translation.from_vector(v)
+        return frame.transformed(T)
 
-# sp = ScriptedPolicy()
+    def create_information_for_pick_and_place_from_frames(self, pick_box_location, place_box_location):
+        init_pos   = np.array([pick_box_location.point.x,  pick_box_location.point.y,  pick_box_location.point.z],  dtype=float)
+        target_pos = np.array([place_box_location.point.x, place_box_location.point.y, place_box_location.point.z], dtype=float)
 
-# random_initial_posyaw = np.random.uniform(sp.env._box_sample_min, sp.env._box_sample_max)   
-# random_initial_pos = random_initial_posyaw[:3]
-# random_initial_yaw = random_initial_posyaw[-1]
+        # yaw (about world +Z) from frame x-axis projected in XY
+        init_yaw   = math.atan2(pick_box_location.xaxis.y,  pick_box_location.xaxis.x)
+        target_yaw = math.atan2(place_box_location.xaxis.y, place_box_location.xaxis.x)
+        return init_pos, target_pos, init_yaw, target_yaw
 
-# random_initial_target_posyaw = np.random.uniform(low = sp.env._sample_min, high=sp.env._sample_max)
-# random_initial_target_pos = random_initial_target_posyaw[:3]
-# random_initial_target_yaw = random_initial_target_posyaw[-1]
+    def convert_to_trajectory(self, joint_angles, pick_index, attached_collision_mesh=None):
+        """Convert a sequence of np arrays into compas_fab Configuration objects."""
+        n = len(self.joe_joint_names)
+        jtps = []
+        for i, a in enumerate(joint_angles):
+            a = np.asarray(a, dtype=float).ravel()
+            if a.size != n:
+                raise ValueError(f"Waypoint {i}: got {a.size} joints, expected {n}")
+            jtp = JointTrajectoryPoint(joint_values=a.tolist(), joint_names=self.joe_joint_names, joint_types=self.joe_joint_types)
+            jtps.append(jtp)
+        
+        traj = JointTrajectory(trajectory_points=jtps, attached_collision_meshes=attached_collision_mesh, start_configuration=self.joe_start_configuration)
+        # path = os.path.join(os.path.dirname(__file__), f"pick_and_place_trajectory_{int(time.time())}.json")
+        # json_dump(fp=path, data=traj, pretty=True)
+        return traj, pick_index
 
-# trajectory_joint_angles, trajectory_eef_pos, trajectory_eef_quat = sp.pick_and_place(
-#                                                             random_initial_pos, 
-#                                                             random_initial_yaw,
-#                                                             random_initial_target_pos,
-#                                                             random_initial_target_yaw,
-#                                                         )
+    def plan_pick_and_place_joe_wrapper(self, closest_target_frame, transformed_target, attached_collision_mesh=None):
 
-# print( trajectory_joint_angles, trajectory_eef_pos, trajectory_eef_quat )
+        table_height = 0.7493
+        closest_target_offset = self.offset_frame_by_dist_along_z(closest_target_frame, table_height)
+        transformed_target_offset = self.offset_frame_by_dist_along_z(transformed_target, table_height)
+
+        init_pos, target_pos, init_yaw, target_yaw = self.create_information_for_pick_and_place_from_frames(closest_target_offset, transformed_target_offset)
+        trajectory_joint_angles, trajectory_eef_pos, trajectory_eef_quat, pick_index = self.pick_and_place(
+                                                                    init_cube_pos=init_pos, 
+                                                                    init_cube_quat=init_yaw,
+                                                                    target_cube_pos=target_pos,
+                                                                    target_cube_quat=target_yaw,
+                                                                )
+
+        trajectory, pick_index = self.convert_to_trajectory(trajectory_joint_angles, pick_index, attached_collision_mesh=attached_collision_mesh)
+
+        if pick_index is None:
+            trajectory = []
+            return trajectory, pick_index
+
+        elif len(trajectory.points) == 0:
+            pick_index = None
+            trajectory = []
+            return trajectory, pick_index        
+
+        return trajectory, pick_index

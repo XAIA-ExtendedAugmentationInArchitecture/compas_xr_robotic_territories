@@ -264,8 +264,8 @@ class UR20PickandPlaceOrientBaseEnv:
 
         if target_pos is not None:
             assert target_yaw is not None
-            assert np.all( target_pos >= self._sample_min[:3] ) and np.all( target_pos <= self._sample_max[:3])
-            assert target_yaw >= self._sample_min[-1] and target_yaw <= self._sample_max[-1] 
+            # assert np.all( target_pos >= self._sample_min[:3] ) and np.all( target_pos <= self._sample_max[:3])
+            # assert target_yaw >= self._sample_min[-1] and target_yaw <= self._sample_max[-1] 
 
             target_quat = p.getQuaternionFromEuler( np.array( [0, 0, target_yaw] ) )
             target = np.concatenate( [target_pos, np.array( [target_yaw] ) ] )
@@ -301,8 +301,8 @@ class UR20PickandPlaceOrientBaseEnv:
 
         for bid in self.block_ids:
             if block_position is not None:
-                assert np.all( block_position >= self._box_sample_min[:3] ) and np.all( block_position <= self._box_sample_max[:3])
-                assert block_yaw >= self._box_sample_min[-1] and block_yaw <= self._box_sample_max[-1] 
+                # assert np.all( block_position >= self._box_sample_min[:3] ) and np.all( block_position <= self._box_sample_max[:3])
+                # assert block_yaw >= self._box_sample_min[-1] and block_yaw <= self._box_sample_max[-1] 
 
                 pos = block_position
                 orn = p.getQuaternionFromEuler( np.array( [0, 0, block_yaw] ) )
@@ -515,7 +515,8 @@ class UR20PickandPlaceOrientBaseEnv:
             "target_yaw": self.episode_target[3],
             "success_easy": success_easy,
             "contact_points": contact_points,
-            "joint_poses": np.array([p.getJointState(self.robot_id, j["jointID"])[0] for j in self.joints])
+            "joint_poses": np.array([p.getJointState(self.robot_id, j["jointID"])[0] for j in self.joints]),
+            "is_grabbing": self.grabbing
         }
 
         if (termination or truncation):

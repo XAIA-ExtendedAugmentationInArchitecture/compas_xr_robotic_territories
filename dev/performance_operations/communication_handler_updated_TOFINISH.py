@@ -13,24 +13,33 @@ from inference.inference_manager import InferenceManager
 from robots.planning.play import ScriptedPolicy
 
 from compas.data import json_load, json_dump
+from compas_fab.robots import JointTrajectory
 import os
 import math
 import time
 
-#TODO: FIX ME JOSEPH. START PLANNING....
-#TODO: Remove dumb inference loggining print and extra stuff in inference trajectory computation
 class CommunicationManager:
 
-    def __init__(self, project_name, robot_name, project_config_dict, broker='localhost', mqtt_port=1883, backend_type='PyBullet'):
+    def __init__(self, project_name, robot_name, project_config_dict, pybullet_raj_or_joseph="JOSEPH", broker='localhost', mqtt_port=1883, backend_type='PyBullet'):
         self.mqtt = MqttTransport(broker, mqtt_port)
         self.project_name = project_name
         self.robot_name = robot_name
+
+        #TODO: This is a bit hacky, but just to create seperate ones.
+        if pybullet_raj_or_joseph == "JOSEPH":
+            self.connect_joe_to_pybullet = True
+            self.connect_raj_to_pybullet = False
+        elif pybullet_raj_or_joseph == "RAJ":
+            self.connect_joe_to_pybullet = False
+            self.connect_raj_to_pybullet = True
+        else:
+            raise ValueError("Invalid value for pybullet_raj_or_joseph. Use 'JOSEPH' or 'RAJ'.")
 
         #Robot Loading & Handleing
         _urdf_filepath = project_config_dict["urdf_fps"][robot_name]["urdf"]
         _srdf_filepath = project_config_dict["urdf_fps"][robot_name]["srdf"]
         _robot_hardware_info = project_config_dict["robot_hardware_info"][robot_name]
-        self.handler = self._load_handler(robot_name, _urdf_filepath, _srdf_filepath, _robot_hardware_info, backend_type=backend_type)
+        self.handler = self._load_handler(robot_name, _urdf_filepath, _srdf_filepath, _robot_hardware_info, pybullet_connect=self.connect_joe_to_pybullet, backend_type=backend_type)
 
         #Setting Publishers and Subscriber
         self._set_mimic_publishers_and_subscribers(self.project_name)
@@ -44,8 +53,12 @@ class CommunicationManager:
         self.inference_manager = InferenceManager(project_config_dict["goals_folder_file_path"])
 
         #Scripted Policy for Raj
-        # self.scripted_policy = ScriptedPolicy(render=False)
+        if self.connect_raj_to_pybullet:
+            self.scripted_policy = ScriptedPolicy(render=True)
+        else:
+            self.scripted_policy = None
 
+        #Frame Transformations #TODO: I THINK THIS NEEDS TO CHANGE. This strategy only runs once at the beginning... which is not correct if the robot moves.
         _transformations_file_path = project_config_dict["robot_transformations_fp"]
         if not _transformations_file_path:
             raise ValueError("Transformations file path is required in the project configuration.")
@@ -57,12 +70,13 @@ class CommunicationManager:
         ) = self._load_transformations_from_file_and_baseframes_from_file(_transformations_file_path, robot_name)
         print(f"CommunicationManager : [CommunicationManager] Subscribed to: robotic_territories mimic topics for project '{project_name}' and robot '{robot_name}'")
 
-    def _load_handler(self, robot_name, urdf_filepath, srdf_filepath, robot_hardware_info_dict, backend_type='PyBullet'):
+    def _load_handler(self, robot_name, urdf_filepath, srdf_filepath, robot_hardware_info_dict, pybullet_connect, backend_type='PyBullet'):
         if robot_name == "UR20" or robot_name == "UR31" or robot_name == "UR32":
             if backend_type == 'COMBINED':
                 return URMimicHandlerCombined(robot_name, 
                                                  robot_ip=robot_hardware_info_dict["robot_ip"], 
                                                  urdf_path=urdf_filepath, 
+                                                 pybullet_connect=pybullet_connect,
                                                  srdf_path=srdf_filepath,
                                                  ros_ip=robot_hardware_info_dict["ros_ip"],
                                                  ros_port=robot_hardware_info_dict["ros_port"],
@@ -82,6 +96,7 @@ class CommunicationManager:
                                                   robot_ip=robot_hardware_info_dict["robot_ip"], 
                                                   urdf_path=urdf_filepath, 
                                                   srdf_path=srdf_filepath,
+                                                  pybullet_connect=pybullet_connect,
                                                   ros_ip=robot_hardware_info_dict["ros_ip"],
                                                   ros_port=robot_hardware_info_dict["ros_port"],
                                                   speed=robot_hardware_info_dict["speed"],
@@ -129,7 +144,6 @@ class CommunicationManager:
     ####################################################################################################
 
     # def _inference_message_logging(self, msgInfReq: InferenceRequestMessage, msgInfResult: InferenceResultMessage, msgPostInf: PostInferenceTargetRequestMessage):
-
 
     ######################################################################################################
     # Set Publisers and Subscribers for Inference
@@ -297,6 +311,20 @@ class CommunicationManager:
         print(f"CommunicationManager : [CommunicationManager] Closest target found: {closest_item_name} at distance {min_distance}")
         return closest_item_name, closest_item_frame
 
+    ###################################################################################################
+    # Inference RL Trajectory HELPERS #TODO: This subsamples the trajectory to not be so massive...
+    ###################################################################################################
+
+    def _subsample_trajectory(self, trajectory, modulus=5):
+        if not trajectory or not trajectory.points:
+            return []
+        points = trajectory.points
+        subsampled = points[::modulus]
+        if subsampled[-1] is not points[-1]:
+            subsampled.append(points[-1])
+        joint_trajectory = JointTrajectory(trajectory_points=subsampled, start_configuration=trajectory.start_configuration, attached_collision_meshes=trajectory.attached_collision_meshes)
+        return joint_trajectory
+        
     ######################################################################################################
     # Message Handlers for Realtime Mimic and User Initiated Mimic
     ####################################################################################################
@@ -416,7 +444,6 @@ class CommunicationManager:
     # Message Handlers for Inference Requests and Results
     ####################################################################################################
 
-    #TODO: FIX THE PLANNING (INVERTED FRAMES and MISSING TX I think)
     def _on_handle_inference_request(self, msg: InferenceRequestMessage):
         # Clear any previous executable trajectories (just to be safe)
         self._INFERENCE_EXACUTABLE_TRAJECTORIES = []
@@ -456,9 +483,23 @@ class CommunicationManager:
 
         closest_target_name, closest_target_frame = self._find_closest_incomplete_target_for_inference(transformed_incompleted_items_dict, transformed_target)
 
+        #TODO: UPDATED BY JOSEPH
         handler = self.handler
-        trajectories = handler.handle_planning_for_inference(closest_target_frame, transformed_target, transformed_completed_items_dict, transformed_incompleted_items_dict, closest_target_name)
-        if len(trajectories) == 0:
+        if self.connect_joe_to_pybullet:
+            trajectories = handler.handle_planning_for_inference(closest_target_frame, transformed_target, transformed_completed_items_dict, transformed_incompleted_items_dict, closest_target_name)
+            traj_len = len(trajectories)
+        elif self.connect_raj_to_pybullet:
+            #TODO: PLEASE FIX ME.....
+            # attached_collision_meshes_list = handler.ros_robot.get_attached_tool_collision_meshes()
+            # ee_collision_mesh = attached_collision_meshes_list[0] if attached_collision_meshes_list else None
+            trajectories, pick_index = self.scripted_policy.plan_pick_and_place_joe_wrapper(closest_target_frame, transformed_target, attached_collision_mesh=None)
+            traj_len = len(trajectories.points)
+            if traj_len > 100:
+                trajectories = self._subsample_trajectory(trajectories, modulus=3)
+                traj_len = len(trajectories.points)
+            print (f"CommunicationManager : [CommunicationManager] Raj planned {traj_len} trajectory points for inference.")
+
+        if traj_len == 0:
             print(f"CommunicationManager : [CommunicationManager] No trajectories computed for inference request for robot '{robot_name}'.")
             self.inference_result_publisher.publish(InferenceResultMessage(
                 inference_guess=suggested_goal,
@@ -469,6 +510,10 @@ class CommunicationManager:
                 robot_name=robot_name
             ))
             return
+        #TODO: Wrap this for RAJ
+        elif self.connect_raj_to_pybullet:
+            trajectories = [trajectories]  # Wrap single trajectory in a list for Raj
+            
 
         #TODO: Tranformation is from the URDF baseframe to make sure that everything is correct with the urdf baseframe to the real world. (also where I can add extra transformatoin if needed because of the poor structure of some URDFs)
         #TODO: TESTING THIS...
@@ -491,11 +536,16 @@ class CommunicationManager:
             robot_base_frame=robot_base_frame,
             robot_name=robot_name
         )
-        self._INFERENCE_EXACUTABLE_TRAJECTORIES = trajectories
+
+        if self.connect_raj_to_pybullet:
+            self._INFERENCE_EXACUTABLE_TRAJECTORIES_RAJ = trajectories
+            self._INFERENCE_PICK_INDEX_RAJ = pick_index
+        elif self.connect_joe_to_pybullet:
+            self._INFERENCE_EXACUTABLE_TRAJECTORIES = trajectories
+
         self.inference_result_publisher.publish(result)
         print(f"CommunicationManager : [CommunicationManager] Published inference result with {len(trajectories)} trajectories for robot {robot_name}")
 
-    #TODO: UPDATE THIS TO HANDLE REPLIES IN THE INFERENCE MODEL
     def _on_handle_inference_user_reply(self, msg: InferenceReplyMessage):
         # robot_name = msg.robot_name
         user_reply = msg.goal_status_reply
@@ -503,25 +553,47 @@ class CommunicationManager:
         self.inference_manager._process_user_reply(goal_name=msg.current_goal_name, suggested_target_name=msg.suggested_target_name, goal_status_reply=msg.goal_status_reply, timestamp=msg.header.time_stamp)
 
         if user_reply == 0:
-            print(f"CommunicationManager : [CommunicationManager] Reject Goal & Targer reply from User : {msg.header.device_id} ': Reply : {user_reply}")
+            print(f"CommunicationManager : [CommunicationManager] Reject Goal & Target reply from User : {msg.header.device_id} ': Reply : {user_reply}")
         elif user_reply == 1:
             if msg.includes_executable_trajectory:
-                if len(self._INFERENCE_EXACUTABLE_TRAJECTORIES) > 0:
-                    handler = self.handler
-                    handler._execute_inference_pick_and_place(self._INFERENCE_EXACUTABLE_TRAJECTORIES)
+                #TODO: THIS IS FOR FIXING WITH RAJ AND JOSEPH'S CODE
+                if self.connect_joe_to_pybullet:
+                    if len(self._INFERENCE_EXACUTABLE_TRAJECTORIES) > 0:
+                        handler = self.handler
+                        handler._execute_inference_pick_and_place(self._INFERENCE_EXACUTABLE_TRAJECTORIES)
+                    else:
+                        raise ValueError("No executable trajectories available to execute for inference pick-and-place.")
+                    print(f"CommunicationManager : [CommunicationManager] Accept Target and Reject Goal with Executable Trajectory reply from User : {msg.header.device_id} ': Reply : {user_reply}")
+                elif self.connect_raj_to_pybullet:
+                    if len(self._INFERENCE_EXACUTABLE_TRAJECTORIES_RAJ) > 0:
+                        handler = self.handler
+                        handler._execute_inference_pick_and_place_raj(self._INFERENCE_EXACUTABLE_TRAJECTORIES_RAJ, self._INFERENCE_PICK_INDEX_RAJ)
+                    else:
+                        raise ValueError("No executable trajectories available to execute for inference pick-and-place.")
+                    print(f"CommunicationManager : [CommunicationManager] Accept Target and Reject Goal with Executable Trajectory reply from User : {msg.header.device_id} ': Reply : {user_reply}")
                 else:
-                    raise ValueError("No executable trajectories available to execute for inference pick-and-place.")
-                print(f"CommunicationManager : [CommunicationManager] Accept Target and Reject Goal with Executable Trajectory reply from User : {msg.header.device_id} ': Reply : {user_reply}")
+                    raise ValueError("Neither Joe nor Raj is connected to PyBullet for executing trajectories.")
             else:
                 print(f"CommunicationManager : [CommunicationManager] Accept Target and Reject Goal without Executable Trajectory reply from User : {msg.header.device_id} ': Reply : {user_reply}")
         elif user_reply == 2:
             if msg.includes_executable_trajectory:
-                print(f"CommunicationManager : [CommunicationManager] Accept Target and Goal with Executable Trajectory reply from User : {msg.header.device_id} ': Reply : {user_reply}")
-                if len(self._INFERENCE_EXACUTABLE_TRAJECTORIES) > 0:
-                    handler = self.handler
-                    handler._execute_inference_pick_and_place(self._INFERENCE_EXACUTABLE_TRAJECTORIES)
+                #TODO: THIS IS FOR FIXTING WITH RAJ AND JOSEPH'S CODE
+                if self.connect_joe_to_pybullet:
+                    print(f"CommunicationManager : [CommunicationManager] Accept Target and Goal with Executable Trajectory reply from User : {msg.header.device_id} ': Reply : {user_reply}")
+                    if len(self._INFERENCE_EXACUTABLE_TRAJECTORIES) > 0:
+                        handler = self.handler
+                        handler._execute_inference_pick_and_place(self._INFERENCE_EXACUTABLE_TRAJECTORIES)
+                    else:
+                        raise ValueError("No executable trajectories available to execute for inference pick-and-place.")
+                elif self.connect_raj_to_pybullet:
+                    print(f"CommunicationManager : [CommunicationManager] Accept Target and Goal with Executable Trajectory reply from User : {msg.header.device_id} ': Reply : {user_reply}")
+                    if len(self._INFERENCE_EXACUTABLE_TRAJECTORIES_RAJ) > 0:
+                        handler = self.handler
+                        handler._execute_inference_pick_and_place_raj(self._INFERENCE_EXACUTABLE_TRAJECTORIES_RAJ, self._INFERENCE_PICK_INDEX_RAJ)
+                    else:
+                        raise ValueError("No executable trajectories available to execute for inference pick-and-place.")
                 else:
-                    raise ValueError("No executable trajectories available to execute for inference pick-and-place.")
+                    raise ValueError("Neither Joe nor Raj is connected to PyBullet for executing trajectories.")    
             else:
                 print(f"CommunicationManager : [CommunicationManager] Accept Target and Goal without Executable Trajectory reply from User : {msg.header.device_id} ': Reply : {user_reply}")
 
@@ -617,10 +689,16 @@ PROJECT_NAME = PROJECT_CONFIG_DICT["project_name"]
 # BACKEND_TYPE = "PyBullet"  # or "ROS", depending on the backend you want to use
 BACKEND_TYPE = "COMBINED"
 # BACKEND_TYPE = "ROS"
+
+
+#TODO: This is the quickest fix to avoid the dual pybullet issues....
+WHOSE_PYBULLET = "RAJ"
+# WHOSE_PYBULLET = "JOSEPH"
+
 requested_frames = []
 
 if __name__ == "__main__":
-    manager = CommunicationManager(project_name=PROJECT_NAME, robot_name=ROBOT_NAME, project_config_dict=PROJECT_CONFIG_DICT, broker=BROKER, mqtt_port=MQTT_PORT, backend_type=BACKEND_TYPE)
+    manager = CommunicationManager(project_name=PROJECT_NAME, pybullet_raj_or_joseph=WHOSE_PYBULLET, robot_name=ROBOT_NAME, project_config_dict=PROJECT_CONFIG_DICT, broker=BROKER, mqtt_port=MQTT_PORT, backend_type=BACKEND_TYPE)
     print("[CommunicationManager] Listening for mimic requests... (Press Ctrl+C to exit)")
     try:
         while True:

@@ -10,6 +10,14 @@ from compas_fab.robots import to_degrees
 import math
 from compas_fab.robots import JointTrajectory
 
+def SEND_TO_STATIC_CONFIG_FOR_RAJ(speed, accel, ur_c):
+    joe_joint_names = ['shoulder_pan_joint', 'shoulder_lift_joint', 'elbow_joint', 'wrist_1_joint', 'wrist_2_joint', 'wrist_3_joint']
+    joe_joint_types = [0, 0, 0, 0, 0, 0]
+    joe_start_config_values = [-0.10790457, -0.29844413,  0.06922359, -1.36258329, -1.5687577 , -1.64426868]
+    joe_start_configuration = Configuration(joint_values=joe_start_config_values, joint_names=joe_joint_names, joint_types=joe_joint_types)
+    move_to_joints_urc(joe_start_configuration, speed, accel, False, ur_c)
+    print("SENT TO STATIC CONFIG FOR RAJ")
+
 def get_config(ip="127.0.0.1"):
     ur_r = RTDEReceive(ip)
     robot_joints = ur_r.getActualQ()
@@ -41,6 +49,9 @@ def normalize_joint_values_to_pi(config):
         config.joint_values[i]=v
     return config
 
+def move_to_joints_urc(config, speed, accel, nowait, ur_c):
+    # speed rad/s, accel rad/s^2, nowait bool
+    ur_c.moveJ(config.joint_values, speed, accel, nowait)
 
 def move_to_joints(config, speed, accel, nowait, ip="127.0.0.1"):
     # speed rad/s, accel rad/s^2, nowait bool
@@ -392,6 +403,50 @@ def send_pick_and_place_trajectory_RT_inference(trajectory_list, speed, accel, u
         print(e)
         raise
     print("All trajectories sent successfully.")
+
+def send_pick_and_place_trajectory_RT_inference_raj(trajectory, pick_index, speed, accel, ur_c, radius, robot_ip):
+    # always list of length 1
+    traj = trajectory[0]
+    configs = traj.points
+    n = len(configs)
+
+    # guard pick_index
+    if not isinstance(pick_index, int) or pick_index < 0 or pick_index >= n:
+        # no split; just run once, IO never toggled
+        path = [cfg.joint_values + [speed, accel, radius] for cfg in configs]
+        print(f"Move trajectory (no pick) of {n} points")
+        ur_c.moveJ(path)
+        return
+
+    # split: include pick_index in the first segment
+    seg_before = configs[:pick_index + 1]
+    seg_after  = configs[pick_index + 1:]
+
+    paths = []
+    if seg_before:
+        paths.append([cfg.joint_values + [speed, accel, radius] for cfg in seg_before])
+    if seg_after:
+        paths.append([cfg.joint_values + [speed, accel, radius] for cfg in seg_after])
+
+    print(f"Move trajectory split at {pick_index}: segments = {[len(p) for p in paths]}")
+
+    for j, path in enumerate(paths):
+        # toggle ON just before the second segment (after pick)
+        if j == 1:
+            time.sleep(1.0)
+            set_tool_digital_io(1, True, ip=robot_ip)   # ON
+            time.sleep(1.0)
+
+        ur_c.moveJ(path)
+
+    # toggle OFF only if we had a second segment (i.e., we turned it ON)
+    if len(paths) >= 2:
+        time.sleep(1.0)
+        set_tool_digital_io(1, False, ip=robot_ip)      # OFF
+        time.sleep(1.0)
+
+    SEND_TO_STATIC_CONFIG_FOR_RAJ(speed, accel, ur_c)
+
 
 def send_to_single_trajectory(trajectory_configs, speed, accel, radius, nowait, ip, vaccum_io=None):
 

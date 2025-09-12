@@ -36,7 +36,7 @@ from compas_fab.backends import RosClient
 
 class RobotHandlerCombinedBackends:
 
-    def __init__(self, robot_name, urdf_path, tool_info_fp, ros_ip='127.0.0.1', ros_port=9090, additional_static_collision_meshes_fp=None, group="manipulator", srdf_path=None):
+    def __init__(self, robot_name, urdf_path, tool_info_fp,  pybullet_connect, ros_ip='127.0.0.1', ros_port=9090, additional_static_collision_meshes_fp=None, group="manipulator", srdf_path=None):
         self.robot_name = robot_name
         
         #Things for both backends
@@ -50,12 +50,16 @@ class RobotHandlerCombinedBackends:
         else:
             self.srdf_path = None
 
-        self.pyb_client = PyBulletClient()
-        self.pyb_client.__enter__()
-        self.pyb_robot = self._pyb_load_robot()
-        self.pyb_semantics = self._pyb_load_semantics()
+        if pybullet_connect:
+            self.pyb_client = PyBulletClient()
+            self.pyb_client.__enter__()
+            self.pyb_robot = self._pyb_load_robot()
+            self.pyb_semantics = self._pyb_load_semantics()
+            print (f"CombinedBackendHandler: [{robot_name}] PyBullet connection established.")
+            self._attach_tool_to_robot(tool=self.tool, robot=self.pyb_robot, backendname="PyBullet")
+        else:
+            print(f"CombinedBackendHandler: [{robot_name}] PyBullet connection not established.")
 
-        self._attach_tool_to_robot(tool=self.tool, robot=self.pyb_robot, backendname="PyBullet")
         if additional_static_collision_meshes_fp:
             self.additional_static_collison_meshes = self._load_additional_static_collision_meshes(additional_static_collision_meshes_fp)
         else:
@@ -75,7 +79,8 @@ class RobotHandlerCombinedBackends:
 
         #Post Processing Things for both Robots
         if self.additional_static_collison_meshes:
-            self._pyb_add_additional_static_collision_meshes_to_scene(self.additional_static_collison_meshes)
+            if pybullet_connect:
+                self._pyb_add_additional_static_collision_meshes_to_scene(self.additional_static_collison_meshes)
             self._ros_add_additional_static_collision_meshes_to_scene(self.additional_static_collison_meshes)
         else:
             print(f"CombinedBackendHandler: [{robot_name}] No additional static collision meshes to add to either backend")
@@ -401,7 +406,6 @@ class RobotHandlerCombinedBackends:
             return None
 
         return ik_config
-
 
     ####################################################################################################
     # Planning and Multi-Configuration Solving
@@ -847,7 +851,10 @@ class RobotHandlerCombinedBackends:
 
     def _execute_inference_pick_and_place(self, trajectory_list: List[JointTrajectory]):
         raise NotImplementedError("This method should be implemented on the child classes.")
-    
+
+    def _execute_inference_pick_and_place_raj(self, trajectory, pick_index):
+        raise NotImplementedError("This method should be implemented on the child classes.")
+
     ####################################################################################################
     # MESSAGE HANDLERS RealtimeMimicResquestMessage
     ####################################################################################################
@@ -1440,8 +1447,8 @@ class RobotHandlerCombinedBackends:
 
 class URMimicHandlerCombined(RobotHandlerCombinedBackends):
 
-    def __init__(self, robot_name, robot_ip, urdf_path, tool_info_fp, ros_ip='127.0.0.1', ros_port=9090, additional_static_collision_meshes_fp=None, group="manipulator", srdf_path=None, io=0, speed=0.6, acceleration=0.1, radius=0.006, nowait=False):
-        super().__init__(robot_name, urdf_path, tool_info_fp, ros_ip=ros_ip, ros_port=ros_port, additional_static_collision_meshes_fp=additional_static_collision_meshes_fp, group=group, srdf_path=srdf_path)
+    def __init__(self, robot_name, robot_ip, urdf_path, tool_info_fp, pybullet_connect, ros_ip='127.0.0.1', ros_port=9090, additional_static_collision_meshes_fp=None, group="manipulator", srdf_path=None, io=0, speed=0.6, acceleration=0.1, radius=0.006, nowait=False):
+        super().__init__(robot_name, urdf_path, tool_info_fp, ros_ip=ros_ip, pybullet_connect=pybullet_connect, ros_port=ros_port, additional_static_collision_meshes_fp=additional_static_collision_meshes_fp, group=group, srdf_path=srdf_path)
 
         self.robot_state_streamer = RTDEStateStreamer(robot_ip=robot_ip, poll_delay=0.001, sim=False)
         self.robot_state_streamer.start()
@@ -1458,84 +1465,6 @@ class URMimicHandlerCombined(RobotHandlerCombinedBackends):
         self.rtde_ctrl = RTDEControl(self.robot_ip)
         self.rtde_recv = RTDEReceive(self.robot_ip)
         # TODO: Commented out to test the combined handler without RTDE connections
-
-        # # create one gate instance using your JSON speed/accel
-        # self.movej_gate = MoveJGate(
-        #     self.rtde_ctrl,
-        #     speed=self.speed,
-        #     accel=self.acceleration,
-        #     nowait=True,          # async so your loop doesn’t block
-        #     min_dt=0.18,          # ~5–6 Hz max send rate
-        #     min_dq=0.015          # ~0.86° deadband
-        # )
-    
-        # self.movej_gate = MoveJGate(
-        #     self.rtde_ctrl,
-        #     speed=self.speed,
-        #     accel=self.acceleration,
-        #     nowait=True,
-        #     min_dt=0.18,     # still used when blending can't flush yet
-        #     min_dq=0.015,
-        #     blend_radius=0.01,   # 10 mm is a good start
-        #     blend_batch=4,       # 3–5 points works well
-        #     blend_every=0.35     # flush ~3×/s
-        # )
-
-        #TODO: THIS WAS THE BEST...... I don't know if I use this or not, but it was the best for MoveJGate. Comment back in if you want to use
-        # self.movej_gate = MoveJGate(self.rtde_ctrl,
-        #     speed=self.speed, accel=0.9,
-        #     min_dt=999,            # disable single sends
-        #     min_dq=1e9,            # disable single sends
-        #     blend_radius=0.012,    # 12 mm blend
-        #     blend_batch=4,         # 3–5 points
-        #     blend_every=0.40       # ~2.5 Hz flush
-        # )
-        #TODO: THIS WAS THE BEST...... I don't know if I use this or not, but it was the best for MoveJGate.
-
-        # self.servo_gate = ServoJGate(
-        #     rtde_ctrl=self.rtde_ctrl,
-        #     rtde_recv=self.rtde_recv,
-        #     speed_cap=max(0.4, min(0.9, self.speed if self.speed else 0.8)),  # rad/s
-        #     accel_cap=max(0.8, min(1.8, self.acceleration if self.acceleration else 1.5)),  # rad/s^2
-        #     dt_nominal=1/125.0,
-        #     lookahead=0.10,
-        #     gain=280,
-        #     target_alpha=0.25,   # smoothing on targets
-        #     k_speed=1.6,         # adaptive speed scaling
-        #     tau=0.30,            # accel ≈ speed / tau
-        #     cmd_alpha=0.35,      # smoothing on caps
-        #     min_dt_send=0.010,   # don’t spam faster than 100 Hz
-        #     min_dq=0.0,
-        #     verbose=False
-        # )
-
-
-        # last attempt to make it smoother.
-        #TODO: Commented in before actual execution...
-        # self.servo_gate = ServoJGate(
-        #     rtde_ctrl=self.rtde_ctrl,
-        #     rtde_recv=self.rtde_recv,
-        #     # caps a bit lower → smoother
-        #     speed_cap=0.65,          # was 0.8
-        #     accel_cap=1.10,          # was 1.5
-
-        #     # UR controller
-        #     dt_nominal=1/125.0,
-        #     lookahead=0.12,          # was 0.10
-        #     gain=240,                # was 280
-
-        #     # filtering + adaptive scaling
-        #     target_alpha=0.18,       # LOWER = more smoothing (was 0.25)
-        #     k_speed=1.2,             # was 1.6
-        #     tau=0.38,                # accel = speed/tau (bigger tau = softer accel), was 0.30
-        #     cmd_alpha=0.55,          # smoother speed/acc commands (was 0.35)
-
-        #     # sending cadence + deadband
-        #     min_dt_send=0.012,       # was 0.010
-        #     min_dq=0.01,             # ~0.57° joint deadband to avoid chatter
-        #     verbose=False
-        # )
-        # #TODO: Commented in before actual execution...
 
         pace = 0.5  # 50% speed
         self.servo_gate = ServoJGate(
@@ -1614,8 +1543,13 @@ class URMimicHandlerCombined(RobotHandlerCombinedBackends):
 
     def _execute_inference_pick_and_place(self, trajectory_list: List[JointTrajectory]):
         print (f"URCombinedBackendHandler: [{self.robot_name}] Executing inference pick-and-place trajectories of Length {len(trajectory_list)}.")
-        print (f"URCOMBINEDBACKENDHANDLER: IMPLEMENT THE ACTUAL EXECUTION HERE....through RTDE custom routine.")
         rtde.send_pick_and_place_trajectory_RT_inference(trajectory_list, self.speed, self.acceleration, self.rtde_ctrl, self.radius, self.robot_ip)
+
+    def _execute_inference_pick_and_place_raj(self, trajectory, pick_index):
+        print (f"URCombinedBackendHandler: [{self.robot_name}] Executing inference pick-and-place trajectories of Length {len(trajectory)}.")
+        print (f"URCOMBINEDBACKENDHANDLER: IMPLEMENT THE ACTUAL EXECUTION HERE....through RTDE custom routine.")
+        rtde.send_pick_and_place_trajectory_RT_inference_raj(trajectory, pick_index, self.speed, self.acceleration, self.rtde_ctrl, self.radius, self.robot_ip)
+
     ####################################################################################################
     # Implemented through Streamer Class Interface
     ####################################################################################################
