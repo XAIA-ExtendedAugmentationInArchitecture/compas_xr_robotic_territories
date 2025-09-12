@@ -113,6 +113,7 @@ class RobotTransformationsFromObserved:
         # Update the base frame on Firebase & save the transformations
         json_dump(self.transformations, self.transformations_fp, pretty=True)
         self.update_baseframe_on_firebase(robot_name, observed_base_frame)
+        self.update_robot_transformations_on_firebase(robot_name, self.transformations[robot_name])
         print(f"Updated observed transformations for {robot_name} with base frame: {observed_base_frame}")
 
     # ========================================================================================
@@ -233,12 +234,30 @@ class RobotTransformationsFromObserved:
         :param robot_name: Name of the robot.
         :param transformed_frame: The transformed frame to be updated.
         """
-        # Placeholder for Firebase update logic
         database_reference = self.rtdb_reference
         ref_list = [self.project_name, "robot_base_frame", robot_name]
         print(f"Reference list for {robot_name}: {ref_list}")
         database_reference.upload_data_to_deep_reference(tansformed_frame.__data__, ref_list)
         print(f"Updating base frame for {robot_name} on Firebase with frame: {tansformed_frame}")
+
+    def update_robot_transformations_on_firebase(self, robot_name, transformations_dict):
+        """
+        Update the robot transformations on Firebase.
+        
+        :param robot_name: Name of the robot.
+        :param transformations_dict: The dictionary of transformations to be updated.
+        """
+        database_reference = self.rtdb_reference
+        ref_list = [self.project_name, "robot_transformations", robot_name]
+        print(f"Reference list for {robot_name} transformations: {ref_list}")
+        serializable_transformations = {}
+        for key, value in transformations_dict.items():
+            if isinstance(value, Transformation):
+                serializable_transformations[key] = value.__data__
+            else:
+                serializable_transformations[key] = value
+        database_reference.upload_data_to_deep_reference(serializable_transformations, ref_list)
+        print(f"Updating transformations for {robot_name} on Firebase with data: {serializable_transformations}")
 
 #TODO: ##################################################################C
 

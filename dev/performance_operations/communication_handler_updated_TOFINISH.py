@@ -18,6 +18,10 @@ import os
 import math
 import time
 
+from compas_xr.realtime_database import RealtimeDatabase
+from compas.geometry import Frame, Transformation
+import logging
+
 class CommunicationManager:
 
     def __init__(self, project_name, robot_name, project_config_dict, pick_and_place_xaxis_tolerance, pick_and_place_zaxis_tolerance, pybullet_raj_or_joseph="JOSEPH", broker='localhost', mqtt_port=1883, backend_type='PyBullet'):
@@ -62,16 +66,21 @@ class CommunicationManager:
         else:
             self.scripted_policy = None
 
+        #Realtime Database for Transformations
+        self._RTDB_REFERENCE = RealtimeDatabase(project_config_dict["firebase_config_fp"])
+        self._RTDB_Project_Name = project_config_dict["project_name"]
+        self.transformations_reference = self._RTDB_REFERENCE.construct_grandchild_refrence(self._RTDB_Project_Name, "robot_transformations", robot_name)
+
+        #TODO: This needs to change...
         #Frame Transformations #TODO: I THINK THIS NEEDS TO CHANGE. This strategy only runs once at the beginning... which is not correct if the robot moves.
-        _transformations_file_path = project_config_dict["robot_transformations_fp"]
-        if not _transformations_file_path:
-            raise ValueError("Transformations file path is required in the project configuration.")
+        self._transformations_file_path = project_config_dict["robot_transformations_fp"]
         (
             self.transformation_ar_space_to_robot_space,
             self.transformations_robot_space_to_ar_space,
             self._urdf_baseframe,
             self._observed_urdf_baseframe
-        ) = self._load_transformations_from_file_and_baseframes_from_file(_transformations_file_path, robot_name)
+        ) = self._load_transformations(file_path=self._transformations_file_path, robot_name=self.robot_name, transformations_reference=self.transformations_reference)
+        print(f"CommunicationManager : [CommunicationManager] Loaded transformations for robot '{robot_name}': ARtoRobotTX : {self.transformation_ar_space_to_robot_space}, RobottoARTX {self.transformations_robot_space_to_ar_space}, URDF Baseframe: {self._urdf_baseframe}, Observed Baseframe: {self._observed_urdf_baseframe}")
         print(f"CommunicationManager : [CommunicationManager] Subscribed to: robotic_territories mimic topics for project '{project_name}' and robot '{robot_name}'")
 
     def _load_handler(self, robot_name, urdf_filepath, srdf_filepath, robot_hardware_info_dict, pybullet_connect, backend_type='PyBullet'):
@@ -112,7 +121,29 @@ class CommunicationManager:
         else:
             raise ValueError(f"Unsupported robot name: {robot_name}")
 
-    #TODO: I think this actually doesn't work??? I think it would load them at the begining, but not work if the robot moves... you should update this joseph...
+    def _load_transformations(self, file_path, robot_name, transformations_reference):
+        try:
+            print(f"CommunicationManager : [CommunicationManager] Transformations file '{file_path}' not found. Attempting to load from RTDB.")
+            (
+                transformation_ar_space_to_robot_space,
+                transformations_robot_space_to_ar_space,
+                _urdf_baseframe,
+                _observed_urdf_baseframe
+            ) = self._get_robot_transformations_from_rtdb(transformations_reference, robot_name)
+            return transformation_ar_space_to_robot_space, transformations_robot_space_to_ar_space, _urdf_baseframe, _observed_urdf_baseframe
+        except Exception as e:
+            logging.warning(
+                f"CommunicationManager: Failed to load transformations from RTDB ({e}). "
+                "Loading from file path instead, but the data may be stale..."
+            )            
+            (
+                transformation_ar_space_to_robot_space,
+                transformations_robot_space_to_ar_space,
+                _urdf_baseframe,
+                _observed_urdf_baseframe
+            ) = self._load_transformations_from_file_and_baseframes_from_file(file_path=file_path, robot_name=robot_name)
+            return transformation_ar_space_to_robot_space, transformations_robot_space_to_ar_space, _urdf_baseframe, _observed_urdf_baseframe
+
     def _load_transformations_from_file_and_baseframes_from_file(self, file_path, robot_name):
         # Load the transformations from the JSON file
         all_robot_transforms = json_load(file_path)
@@ -142,6 +173,54 @@ class CommunicationManager:
         transform = robot_transformation["transformation_to_urdf"]
         print (f"CommunicationManager : [CommunicationManager] Loaded transformations for robot '{robot_name}' from {file_path}, types: {type(inverse_transform)}, {type(transform)}")
         return inverse_transform, transform, static_urdf_base_frame, observed_robot_base_frame
+
+    def _get_robot_transformations_from_rtdb(self, transformations_reference, robot_name):
+        transformatins_dict = self._RTDB_REFERENCE.get_data_from_reference(transformations_reference)
+        if not transformatins_dict:
+            raise ValueError(f"CommunicationManager : No transformations found in RTDB for robot '{robot_name}' at reference '{transformations_reference}'")
+        else:
+            print(f"CommunicationManager : [CommunicationManager] Retrieved transformations from RTDB for robot '{robot_name}': {transformatins_dict}")
+            (
+                transformation_ar_space_to_robot_space,
+                transformations_robot_space_to_ar_space,
+                _urdf_baseframe,
+                _observed_urdf_baseframe
+            ) = self._deserialize_transformations_from_database(transformatins_dict, robot_name)
+        return transformation_ar_space_to_robot_space, transformations_robot_space_to_ar_space, _urdf_baseframe, _observed_urdf_baseframe
+
+    def _deserialize_transformations_from_database(self, transformation_dict, robot_name):
+        print ()
+        robot_transformation = transformation_dict["observed"] #TODO: CHECK THIS
+        if "inverse_transform_to_observed" not in robot_transformation or "transformation_to_urdf" not in robot_transformation:
+            raise ValueError(f"CommunicationManager : Transformations for robot '{robot_name}' are incomplete in the file.")
+
+        # Extract robot_base_frame for transformations back to the real world
+        observed_robot_base_frame = Frame.__from_data__(robot_transformation["urdf_base_frame"]["data"])
+        print(f"CommunicationManager : URDF BASEFRAME TYPE: {type(observed_robot_base_frame)}")
+        static_urdf_base_frame = Frame.__from_data__(transformation_dict["static"]["urdf_base_frame"]["data"])
+
+        if not static_urdf_base_frame:
+            raise ValueError(f"CommunicationManager : Static URDF base frame for '{robot_name}' is not defined in the transformations file.")
+        else:
+            print(f"CommunicationManager : [CommunicationManager] Loaded static URDF base frame for '{robot_name}': {static_urdf_base_frame}")
+
+        if not observed_robot_base_frame:
+            raise ValueError(f"CommunicationManager : Robot base frame for '{robot_name}' is not defined in the transformations file.")
+        else:
+            print(f"CommunicationManager : [CommunicationManager] Loaded robot base frame for '{robot_name}': {observed_robot_base_frame}")
+
+        inverse_transform = Transformation.__from_data__(robot_transformation["inverse_transform_to_observed"]["data"])
+        transform = Transformation.__from_data__(robot_transformation["transformation_to_urdf"]["data"])
+        print (f"CommunicationManager : [CommunicationManager] Loaded transformations for robot '{robot_name}', types: {type(inverse_transform)}, {type(transform)}")
+        return inverse_transform, transform, static_urdf_base_frame, observed_robot_base_frame
+
+    def __update_robot_transformations_to_rtdb(self):
+        (
+            self.transformation_ar_space_to_robot_space,
+            self.transformations_robot_space_to_ar_space,
+            self._urdf_baseframe,
+            self._observed_urdf_baseframe
+        ) = self._load_transformations(_file_path=self._transformations_file_path, robot_name=self.robot_name, transformations_reference=self.transformations_reference)
 
     ######################################################################################################
     # TODO: MESSAGE LOGGING....
