@@ -10,7 +10,7 @@ from compas_fab.robots import to_degrees
 import math
 from compas_fab.robots import JointTrajectory
 
-def SEND_TO_STATIC_CONFIG_FOR_RAJ(speed, accel, ur_c):
+def SEND_TO_STATIC_CONFIG_FOR_INFERENCE(speed, accel, ur_c):
     joe_joint_names = ['shoulder_pan_joint', 'shoulder_lift_joint', 'elbow_joint', 'wrist_1_joint', 'wrist_2_joint', 'wrist_3_joint']
     joe_joint_types = [0, 0, 0, 0, 0, 0]
     # joe_start_config_values = [-0.10790457, -0.29844413,  0.06922359, -1.36258329, -1.5687577 , -1.64426868]
@@ -401,7 +401,7 @@ def send_pick_and_place_trajectory_RT_inference(trajectory_list, speed, accel, u
                 time.sleep(0.5)
                 set_tool_digital_io(1, False, ip=ip)
                 time.sleep(1.0)
-        SEND_TO_STATIC_CONFIG_FOR_RAJ(speed, accel, ur_c)
+        SEND_TO_STATIC_CONFIG_FOR_INFERENCE(speed, accel, ur_c)
 
     except Exception as e:
         print(e)
@@ -495,7 +495,7 @@ def send_pick_and_place_trajectory_RT_inference_raj(
         for j, chunk in enumerate(chunks):
             print(f"  chunk {j+1}/{len(chunks)}: {len(chunk)} pts")
             send_trajectory_path(chunk, speed, accel, radius, ur_c)
-        SEND_TO_STATIC_CONFIG_FOR_RAJ(speed, accel, ur_c)
+        SEND_TO_STATIC_CONFIG_FOR_INFERENCE(speed, accel, ur_c)
         print("All chunks sent successfully.")
         return
 
@@ -528,7 +528,7 @@ def send_pick_and_place_trajectory_RT_inference_raj(
             set_tool_digital_io(1, False, ip=ip)  # vacuum OFF
             time.sleep(0.5)
 
-        SEND_TO_STATIC_CONFIG_FOR_RAJ(speed, accel, ur_c)
+        SEND_TO_STATIC_CONFIG_FOR_INFERENCE(speed, accel, ur_c)
         print("All chunks sent successfully.")
     except Exception as e:
         print(f"Error while sending chunks: {e}")
