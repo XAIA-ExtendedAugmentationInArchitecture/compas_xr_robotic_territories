@@ -324,7 +324,7 @@ class CommunicationManager:
             subsampled.append(points[-1])
         joint_trajectory = JointTrajectory(trajectory_points=subsampled, start_configuration=trajectory.start_configuration, attached_collision_meshes=trajectory.attached_collision_meshes)
         return joint_trajectory
-        
+
     ######################################################################################################
     # Message Handlers for Realtime Mimic and User Initiated Mimic
     ####################################################################################################
@@ -489,14 +489,12 @@ class CommunicationManager:
             trajectories = handler.handle_planning_for_inference(closest_target_frame, transformed_target, transformed_completed_items_dict, transformed_incompleted_items_dict, closest_target_name)
             traj_len = len(trajectories)
         elif self.connect_raj_to_pybullet:
-            #TODO: PLEASE FIX ME.....
-            # attached_collision_meshes_list = handler.ros_robot.get_attached_tool_collision_meshes()
-            # ee_collision_mesh = attached_collision_meshes_list[0] if attached_collision_meshes_list else None
-            trajectories, pick_index = self.scripted_policy.plan_pick_and_place_joe_wrapper(closest_target_frame, transformed_target, attached_collision_mesh=None)
+            attached_collision_meshes_list = handler.ros_robot.get_attached_tool_collision_meshes()
+            ee_collision_mesh = attached_collision_meshes_list[0] if attached_collision_meshes_list else None
+            trajectories, pick_index = self.scripted_policy.plan_pick_and_place_joe_wrapper(closest_target_frame, transformed_target, attached_collision_mesh=ee_collision_mesh)
             traj_len = len(trajectories.points)
             if traj_len > 100:
-                trajectories = self._subsample_trajectory(trajectories, modulus=3)
-                traj_len = len(trajectories.points)
+                vis_trajectory = self._subsample_trajectory(trajectories, modulus=3)
             print (f"CommunicationManager : [CommunicationManager] Raj planned {traj_len} trajectory points for inference.")
 
         if traj_len == 0:
@@ -513,7 +511,10 @@ class CommunicationManager:
         #TODO: Wrap this for RAJ
         elif self.connect_raj_to_pybullet:
             trajectories = [trajectories]  # Wrap single trajectory in a list for Raj
-            
+            vis_trajectory = [vis_trajectory] if traj_len > 100 else trajectories
+        elif self.connect_joe_to_pybullet:
+            trajectories = trajectories
+            vis_trajectory = trajectories
 
         #TODO: Tranformation is from the URDF baseframe to make sure that everything is correct with the urdf baseframe to the real world. (also where I can add extra transformatoin if needed because of the poor structure of some URDFs)
         #TODO: TESTING THIS...
@@ -532,7 +533,7 @@ class CommunicationManager:
             inference_guess=suggested_goal,
             suggested_target_name=suggested_target_name,
             completed_goals_list=completed_goal_names,
-            trajectories=trajectories,
+            trajectories=vis_trajectory,
             robot_base_frame=robot_base_frame,
             robot_name=robot_name
         )
@@ -663,7 +664,7 @@ class CommunicationManager:
         )
         self.inference_post_inference_target_result_publisher.publish(result)
         print(f"CommunicationManager : [CommunicationManager] Published Post Inference Target result with {len(trajectories)} trajectories for robot {robot_name}")
-    
+
     def _on_handle_post_inference_execute_target(self, msg: PostInferenceExecuteTrajectoryMessage):
         robot_name = msg.robot_name
         goal_name = msg.inference_goal_name

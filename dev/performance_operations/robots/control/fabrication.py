@@ -13,10 +13,11 @@ from compas_fab.robots import JointTrajectory
 def SEND_TO_STATIC_CONFIG_FOR_RAJ(speed, accel, ur_c):
     joe_joint_names = ['shoulder_pan_joint', 'shoulder_lift_joint', 'elbow_joint', 'wrist_1_joint', 'wrist_2_joint', 'wrist_3_joint']
     joe_joint_types = [0, 0, 0, 0, 0, 0]
-    joe_start_config_values = [-0.10790457, -0.29844413,  0.06922359, -1.36258329, -1.5687577 , -1.64426868]
+    # joe_start_config_values = [-0.10790457, -0.29844413,  0.06922359, -1.36258329, -1.5687577 , -1.64426868]
+    joe_start_config_values = [-0.10790457000000009, -1.26844413, 1.0792235899999998, -2.8625832899999999, -1.5687576999999999, -1.6442686799999999]
     joe_start_configuration = Configuration(joint_values=joe_start_config_values, joint_names=joe_joint_names, joint_types=joe_joint_types)
-    move_to_joints_urc(joe_start_configuration, speed, accel, False, ur_c)
-    print("SENT TO STATIC CONFIG FOR RAJ")
+    move_to_joints_urc(joe_start_configuration, speed, accel, True, ur_c)
+    print("SENT TO STATIC CONFIG")
 
 def get_config(ip="127.0.0.1"):
     ur_r = RTDEReceive(ip)
@@ -384,6 +385,8 @@ def send_pick_and_place_trajectory_RT_inference(trajectory_list, speed, accel, u
 
     # ur_c = RTDEControl(ip)
     try:
+        complete_trajectory_length = sum([len(t.points) for t in trajectory_list])
+        print(f"Sending pick-and-place trajectory with {complete_trajectory_length} points in {len(trajectory_list)} segments")
         for i, trajectory in enumerate(trajectory_list):
             print(f"Sending trajectory {i+1} of {len(trajectory_list)}")
 
@@ -398,55 +401,140 @@ def send_pick_and_place_trajectory_RT_inference(trajectory_list, speed, accel, u
                 time.sleep(0.5)
                 set_tool_digital_io(1, False, ip=ip)
                 time.sleep(1.0)
+        SEND_TO_STATIC_CONFIG_FOR_RAJ(speed, accel, ur_c)
 
     except Exception as e:
         print(e)
         raise
     print("All trajectories sent successfully.")
 
-def send_pick_and_place_trajectory_RT_inference_raj(trajectory, pick_index, speed, accel, ur_c, radius, robot_ip):
-    # always list of length 1
-    traj = trajectory[0]
-    configs = traj.points
-    n = len(configs)
+#TODO: ADDED RAJJJJJ FUNCTIONS HERE....... #############################################################
 
-    # guard pick_index
-    if not isinstance(pick_index, int) or pick_index < 0 or pick_index >= n:
-        # no split; just run once, IO never toggled
-        path = [cfg.joint_values + [speed, accel, radius] for cfg in configs]
-        print(f"Move trajectory (no pick) of {n} points")
-        ur_c.moveJ(path)
+def _evenly_spaced_indices(start, end, k):
+    """k indices in [start, end] inclusive, evenly spaced."""
+    if k <= 0 or end < start:
+        return []
+    if k == 1:
+        return [start + (end - start) // 2]
+    span = end - start
+    return [start + int(round(t * span / (k - 1))) for t in range(k)]
+
+def _decimate_keep_start_pick_end(configs, pick_idx, max_pts):
+    n = len(configs)
+    if n == 0:
+        return [], None
+    pick_idx = max(0, min(int(pick_idx), n - 1))
+    if max_pts >= n:
+        return configs, pick_idx
+
+    anchors = sorted({0, pick_idx, n - 1})
+    remaining = max_pts - len(anchors)
+    if remaining <= 0:
+        kept_idx = anchors
+        return [configs[i] for i in kept_idx], kept_idx.index(pick_idx)
+
+    before_len = max(0, pick_idx - 1)              # 1..pick-1
+    after_len  = max(0, (n - 2) - pick_idx)        # pick+1..n-2
+    total_between = before_len + after_len
+
+    keep_idx = set(anchors)
+    if total_between > 0 and remaining > 0:
+        # proportional allocation
+        slots_before = int(round(remaining * (before_len / total_between))) if total_between else 0
+        slots_before = min(slots_before, before_len)
+        slots_after  = remaining - slots_before
+        slots_after  = min(slots_after, after_len)
+        # fix leftover if any due to min()
+        leftover = remaining - (slots_before + slots_after)
+        if leftover > 0 and before_len - slots_before > 0:
+            add = min(leftover, before_len - slots_before)
+            slots_before += add
+            leftover -= add
+        if leftover > 0 and after_len - slots_after > 0:
+            slots_after += min(leftover, after_len - slots_after)
+
+        # sample evenly in each interval (inclusive)
+        if slots_before > 0:
+            idx_beg = 1
+            idx_end = pick_idx - 1
+            for i in _evenly_spaced_indices(idx_beg, idx_end, slots_before):
+                keep_idx.add(i)
+        if slots_after > 0:
+            idx_beg = pick_idx + 1
+            idx_end = n - 2
+            for i in _evenly_spaced_indices(idx_beg, idx_end, slots_after):
+                keep_idx.add(i)
+
+    kept_idx = sorted(keep_idx)
+    new_pick = kept_idx.index(pick_idx)
+    return [configs[i] for i in kept_idx], new_pick
+
+def send_pick_and_place_trajectory_RT_inference_raj(
+    trajectory,               # [JointTrajectory] (len=1) or JointTrajectory
+    pick_index,               # int index in traj.points where pick happens
+    speed, accel, ur_c, radius, ip,
+    chunk_size=50,            # 25–75 is a good range
+    target_points=100         # decimate to at most this many points
+):
+    traj = trajectory[0] if isinstance(trajectory, (list, tuple)) else trajectory
+    configs = list(traj.points)
+    n = len(configs)
+    if n == 0:
+        print("Empty trajectory.")
         return
 
-    # split: include pick_index in the first segment
-    seg_before = configs[:pick_index + 1]
-    seg_after  = configs[pick_index + 1:]
+    # decimate but keep start/pick/end
+    configs, pick_index = _decimate_keep_start_pick_end(configs, pick_index, target_points)
+    n = len(configs)
+    print(f"Sending chunked pick-and-place: {n} pts after decimation (target={target_points}, chunk={chunk_size})")
 
-    paths = []
-    if seg_before:
-        paths.append([cfg.joint_values + [speed, accel, radius] for cfg in seg_before])
-    if seg_after:
-        paths.append([cfg.joint_values + [speed, accel, radius] for cfg in seg_after])
+    has_pick = isinstance(pick_index, int) and 0 <= pick_index < n
+    if not has_pick:
+        chunks = [configs[i:i+chunk_size] for i in range(0, n, chunk_size)]
+        print(f"  → {len(chunks)} chunks (no pick index)")
+        for j, chunk in enumerate(chunks):
+            print(f"  chunk {j+1}/{len(chunks)}: {len(chunk)} pts")
+            send_trajectory_path(chunk, speed, accel, radius, ur_c)
+        SEND_TO_STATIC_CONFIG_FOR_RAJ(speed, accel, ur_c)
+        print("All chunks sent successfully.")
+        return
 
-    print(f"Move trajectory split at {pick_index}: segments = {[len(p) for p in paths]}")
+    pre  = configs[:pick_index+1]
+    post = configs[pick_index+1:]
 
-    for j, path in enumerate(paths):
-        # toggle ON just before the second segment (after pick)
-        if j == 1:
-            time.sleep(1.0)
-            set_tool_digital_io(1, True, ip=robot_ip)   # ON
-            time.sleep(1.0)
+    pre_chunks  = [pre[i:i+chunk_size]   for i in range(0, len(pre),  chunk_size)] if pre  else []
+    post_chunks = [post[i:i+chunk_size]  for i in range(0, len(post), chunk_size)] if post else []
 
-        ur_c.moveJ(path)
+    print(f"  pre-pick:  {len(pre)} pts → {len(pre_chunks)} chunks")
+    print(f"  post-pick: {len(post)} pts → {len(post_chunks)} chunks")
 
-    # toggle OFF only if we had a second segment (i.e., we turned it ON)
-    if len(paths) >= 2:
-        time.sleep(1.0)
-        set_tool_digital_io(1, False, ip=robot_ip)      # OFF
-        time.sleep(1.0)
+    # --- send ---
+    try:
+        for j, chunk in enumerate(pre_chunks):
+            print(f"  pre {j+1}/{len(pre_chunks)}: {len(chunk)} pts")
+            send_trajectory_path(chunk, speed, accel, radius, ur_c)
 
-    SEND_TO_STATIC_CONFIG_FOR_RAJ(speed, accel, ur_c)
+        if post_chunks:
+            time.sleep(0.5)
+            set_tool_digital_io(1, True, ip=ip)   # vacuum ON
+            time.sleep(0.5)
 
+        for j, chunk in enumerate(post_chunks):
+            print(f"  post {j+1}/{len(post_chunks)}: {len(chunk)} pts")
+            send_trajectory_path(chunk, speed, accel, radius, ur_c)
+
+        if post_chunks:
+            time.sleep(0.5)
+            set_tool_digital_io(1, False, ip=ip)  # vacuum OFF
+            time.sleep(0.5)
+
+        SEND_TO_STATIC_CONFIG_FOR_RAJ(speed, accel, ur_c)
+        print("All chunks sent successfully.")
+    except Exception as e:
+        print(f"Error while sending chunks: {e}")
+        raise
+
+#TODO: ADDED RAJJJJJ FUNCTIONS HERE....... #############################################################
 
 def send_to_single_trajectory(trajectory_configs, speed, accel, radius, nowait, ip, vaccum_io=None):
 
@@ -607,7 +695,6 @@ def release_pick_and_place_stick_trajectories(exit_trajectory, move_to_pick_traj
     except Exception as e:
         print(e)
         raise
-        
 
 def pick_and_place_stick_trajectories(move_to_pick_trajectory, pick_trajectory, move_trajectory, place_trajectory, speed, accel, radius, ip, vaccum_io):
     

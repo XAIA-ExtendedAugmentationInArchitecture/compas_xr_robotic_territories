@@ -131,6 +131,13 @@ class RobotHandlerCombinedBackends:
         if not visual_mesh or not collision_mesh or not tcf_frame:
             raise ValueError("Tool information must contain 'visual_mesh' and 'collision_mesh' and 'tcf'.")
 
+        if not visual_mesh.is_trimesh():
+            visual_mesh.quads_to_triangles()
+        if not collision_mesh.is_trimesh():
+            collision_mesh.quads_to_triangles()
+        print (f"Visual MESH IS TRYMESH : {visual_mesh.is_trimesh()}")
+        print (f"Collision MESH IS TRYMESH : {collision_mesh.is_trimesh()}")
+
         tool = Tool(visual=visual_mesh, collision=collision_mesh, frame_in_tool0_frame=tcf_frame, connected_to="tool0")
         print(f"CombinedBackendHandler: [{self.robot_name}] Loading tool from {tool_info} for both backends")
         return tool
@@ -1547,8 +1554,7 @@ class URMimicHandlerCombined(RobotHandlerCombinedBackends):
 
     def _execute_inference_pick_and_place_raj(self, trajectory, pick_index):
         print (f"URCombinedBackendHandler: [{self.robot_name}] Executing inference pick-and-place trajectories of Length {len(trajectory)}.")
-        print (f"URCOMBINEDBACKENDHANDLER: IMPLEMENT THE ACTUAL EXECUTION HERE....through RTDE custom routine.")
-        rtde.send_pick_and_place_trajectory_RT_inference_raj(trajectory, pick_index, self.speed, self.acceleration, self.rtde_ctrl, self.radius, self.robot_ip)
+        rtde.send_pick_and_place_trajectory_RT_inference_raj(trajectory, pick_index, self.speed, self.acceleration, self.rtde_ctrl, self.radius, self.robot_ip, target_points=70)
 
     ####################################################################################################
     # Implemented through Streamer Class Interface
