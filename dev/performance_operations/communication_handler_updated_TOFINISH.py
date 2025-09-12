@@ -7,7 +7,7 @@ from compas_xr.mqtt import InferenceRequestMessage, InferenceResultMessage, Infe
 from robots.com_handlers.realtime_mimic_pbhandler import URMimicHandlerPyB, ABBMimicHandlerPyB #TODO: This needs to be wrapped into one handler for both Mimics
 from robots.com_handlers.realtime_mimic_roshandler import URMimicHandlerROS, ABBMimicHandlerROS #TODO: This needs to be wrapped into one handler for both Mimics
 from robots.com_handlers.robot_handler_combined_rospy import URMimicHandlerCombined, ABBMimicHandlerCombined
-from compas.geometry import Rotation
+from compas.geometry import Rotation, Translation
 
 from inference.inference_manager import InferenceManager
 from robots.planning.play import ScriptedPolicy
@@ -20,10 +20,14 @@ import time
 
 class CommunicationManager:
 
-    def __init__(self, project_name, robot_name, project_config_dict, pybullet_raj_or_joseph="JOSEPH", broker='localhost', mqtt_port=1883, backend_type='PyBullet'):
+    def __init__(self, project_name, robot_name, project_config_dict, pick_and_place_xaxis_tolerance, pick_and_place_zaxis_tolerance, pybullet_raj_or_joseph="JOSEPH", broker='localhost', mqtt_port=1883, backend_type='PyBullet'):
         self.mqtt = MqttTransport(broker, mqtt_port)
         self.project_name = project_name
         self.robot_name = robot_name
+
+        #TODO: Transformation Tolerances to avoid markers and pick and place issues if needed.
+        self._PICK_AND_PLACE_XAXIS_TOLERANCE = pick_and_place_xaxis_tolerance
+        self._PICK_AND_PLACE_ZAXIS_TOLERANCE = pick_and_place_zaxis_tolerance
 
         #TODO: This is a bit hacky, but just to create seperate ones.
         if pybullet_raj_or_joseph == "JOSEPH":
@@ -284,6 +288,31 @@ class CommunicationManager:
         transformed_target_frame = self._transform_requested_frame_from_ar_space_to_robot_space(target_frame)
         return transformed_completed_items_dict, transformed_incomplete_items_dict, transformed_target_frame, incompleted_goals
 
+    # HELPER TRANSFORMATIONS ##################################################################################
+
+    def _offset_frame_along_vector(self, frame, vector, distance):
+        translation_vector = vector.unitized() * distance
+        translation = Translation.from_vector(translation_vector)
+        offsetted_frame = frame.transformed(translation)
+        return offsetted_frame
+
+    def _accomodate_pick_and_place_tolerances(self, pick_frame, place_frame):
+        # Accommodate X-Axis Tolerance
+        if self._PICK_AND_PLACE_XAXIS_TOLERANCE is not None:
+            pick_x_axis = pick_frame.xaxis
+            place_x_axis = place_frame.xaxis
+            pick_frame = self._offset_frame_along_vector(pick_frame, pick_x_axis, self._PICK_AND_PLACE_XAXIS_TOLERANCE)
+            place_frame = self._offset_frame_along_vector(place_frame, place_x_axis, self._PICK_AND_PLACE_XAXIS_TOLERANCE)
+
+        # Accommodate Z-Axis Tolerance
+        if self._PICK_AND_PLACE_ZAXIS_TOLERANCE is not None:
+            pick_z_axis = pick_frame.zaxis
+            place_z_axis = place_frame.zaxis
+            pick_frame = self._offset_frame_along_vector(pick_frame, pick_z_axis, self._PICK_AND_PLACE_ZAXIS_TOLERANCE)
+            place_frame = self._offset_frame_along_vector(place_frame, place_z_axis, self._PICK_AND_PLACE_ZAXIS_TOLERANCE)
+
+        return pick_frame, place_frame
+
     ###################################################################################################
     # Inference Target Finding Helpers
     ###################################################################################################
@@ -470,7 +499,6 @@ class CommunicationManager:
             return
 
         print (f"Inference Result Dict: {inference_result_dict}")
-
         suggested_goal = inference_result_dict["suggested_goal"]
         completed_goal_names = inference_result_dict["completed_goals"]
         suggested_target_frame = inference_result_dict["suggested_target"]
@@ -479,9 +507,11 @@ class CommunicationManager:
         suggested_target_name = inference_result_dict["suggested_target_name"]
         print(f"CommunicationManager : [CommunicationManager] Inference suggested goal: {suggested_goal}, completed goals: {completed_goal_names}, target frame: {suggested_target_frame}, completed items: {completed_items_names}, incompleted items: {incompleted_items_names}")
 
-        transformed_incompleted_items_dict, transformed_completed_items_dict, transformed_target = self._transform_inference_information(geometry_frames_for_inference, incompleted_items_names, completed_items_names, suggested_target_frame)        
-
+        transformed_incompleted_items_dict, transformed_completed_items_dict, transformed_target = self._transform_inference_information(geometry_frames_for_inference, incompleted_items_names, completed_items_names, suggested_target_frame)
         closest_target_name, closest_target_frame = self._find_closest_incomplete_target_for_inference(transformed_incompleted_items_dict, transformed_target)
+
+        if self._PICK_AND_PLACE_XAXIS_TOLERANCE is not None or self._PICK_AND_PLACE_ZAXIS_TOLERANCE is not None:
+            closest_target_frame, transformed_target = self._accomodate_pick_and_place_tolerances(closest_target_frame, transformed_target)
 
         #TODO: UPDATED BY JOSEPH
         handler = self.handler
@@ -601,6 +631,7 @@ class CommunicationManager:
     def _on_handle_post_inference_request_target(self, msg: PostInferenceTargetRequestMessage):
         if len(self._post_inference_exacutable_trajectories) > 0 :
             self._post_inference_exacutable_trajectories = []
+            self._POST_INFERENCE_PICK_INDEX_RAJ = None
 
         robot_name = msg.robot_name
         geometry_frames_dict = msg.geometry_frames
@@ -608,6 +639,7 @@ class CommunicationManager:
         completed_goals = msg.completed_goals
         goal_name = msg.inference_goal_name
 
+        print(f"CommunicationManager : [CommunicationManager] Received Post Inference Target request for robot '{robot_name}': Goal Name: {goal_name}, Target Name: {target_frame_name}, Completed Goals: {completed_goals}, Number of Geometry Frames: {len(geometry_frames_dict)}")
         goal_is_correct, transformed_target_frame = self.inference_manager._validate_and_compute_target_location(goal_name, geometry_frames_dict, target_frame_name)
         if not goal_is_correct:
             print(f"CommunicationManager : [CommunicationManager] Inference goal '{goal_name}' is not correct based on current geometry frames and completed goals.")
@@ -625,6 +657,11 @@ class CommunicationManager:
         #TODO: Kind of hacky, but just need to return an incompleted_goals list for the transformation function.
         transformed_completed_items_dict, transformed_incomplete_items_dict, transformed_target_frame, incompleted_goals = self._transform_post_inference_geometry_frames_dict_to_robot_space(geometry_frames_dict, transformed_target_frame, completed_goals)
         closest_item_name, closest_item_frame = self._find_closest_incomplete_target_for_inference(transformed_incomplete_items_dict, transformed_target_frame)
+
+        #TODO: Accomodate Tolerances
+        if self._PICK_AND_PLACE_XAXIS_TOLERANCE is not None or self._PICK_AND_PLACE_ZAXIS_TOLERANCE is not None:
+            closest_item_frame, transformed_target_frame = self._accomodate_pick_and_place_tolerances(closest_item_frame, transformed_target_frame)
+
         if closest_item_name is None or closest_item_frame is None:
             print(f"CommunicationManager : [CommunicationManager] No closest target found for post-inference request for robot '{robot_name}'.")
             self.inference_post_inference_target_result_publisher.publish(PostInferenceTrajectoryResultMessage(
@@ -635,9 +672,22 @@ class CommunicationManager:
                 target_name=target_frame_name,
             ))
             return
+
         print(f"CommunicationManager : [CommunicationManager] Closest target for post-inference request: {closest_item_name}")
-        trajectories = self.handler.handle_planning_for_inference(closest_item_frame, transformed_target_frame, transformed_completed_items_dict, transformed_incomplete_items_dict, closest_item_name)
-        if len(trajectories) == 0:
+        handler = self.handler
+        if self.connect_joe_to_pybullet:
+            trajectories = handler.handle_planning_for_inference(closest_item_frame, transformed_target_frame, transformed_completed_items_dict, transformed_incomplete_items_dict, closest_item_name)
+            traj_len = len(trajectories)
+        elif self.connect_raj_to_pybullet:
+            attached_collision_meshes_list = handler.ros_robot.get_attached_tool_collision_meshes()
+            ee_collision_mesh = attached_collision_meshes_list[0] if attached_collision_meshes_list else None
+            trajectories, pick_index = self.scripted_policy.plan_pick_and_place_joe_wrapper(closest_item_frame, transformed_target_frame, attached_collision_mesh=ee_collision_mesh)
+            traj_len = len(trajectories.points)
+            if traj_len > 100:
+                vis_trajectory = self._subsample_trajectory(trajectories, modulus=3)
+            print (f"CommunicationManager : [CommunicationManager] Raj planned {traj_len} trajectory points for inference.")
+
+        if traj_len == 0:
             print(f"CommunicationManager : [CommunicationManager] No trajectories computed for post-inference request for robot '{robot_name}'.")
             self.inference_post_inference_target_result_publisher.publish(PostInferenceTrajectoryResultMessage(
                 robot_name=robot_name,
@@ -647,9 +697,17 @@ class CommunicationManager:
                 target_name=target_frame_name,
             ))
             return
+        
+        #TODO: Wrap this for RAJ
+        elif self.connect_raj_to_pybullet:
+            trajectories = [trajectories]  # Wrap single trajectory in a list for Raj
+            vis_trajectory = [vis_trajectory] if traj_len > 100 else trajectories
+        elif self.connect_joe_to_pybullet:
+            trajectories = trajectories
+            vis_trajectory = trajectories
+
         print(f"CommunicationManager : [CommunicationManager] Computed {len(trajectories)} trajectories for post-inference request for robot '{robot_name}'.")
         # Robot base frame transformation
-        self._post_inference_exacutable_trajectories = trajectories
         _urdf_baseframe = self._urdf_baseframe
         rotation = Rotation.from_axis_and_angle(_urdf_baseframe.zaxis, math.radians(180), _urdf_baseframe.point)
         rotated_frame = _urdf_baseframe.transformed(rotation)
@@ -657,7 +715,7 @@ class CommunicationManager:
 
         result = PostInferenceTrajectoryResultMessage(
             robot_name=robot_name,
-            trajectories=trajectories,
+            trajectories=vis_trajectory,
             robot_base_frame=robot_base_frame,
             inference_goal_name=goal_name,
             target_name=target_frame_name,
@@ -665,13 +723,22 @@ class CommunicationManager:
         self.inference_post_inference_target_result_publisher.publish(result)
         print(f"CommunicationManager : [CommunicationManager] Published Post Inference Target result with {len(trajectories)} trajectories for robot {robot_name}")
 
+        if self.connect_raj_to_pybullet:
+            self._post_inference_exacutable_trajectories = trajectories
+            self._POST_INFERENCE_PICK_INDEX_RAJ = pick_index
+        elif self.connect_joe_to_pybullet:
+            self._post_inference_exacutable_trajectories = trajectories
+
     def _on_handle_post_inference_execute_target(self, msg: PostInferenceExecuteTrajectoryMessage):
         robot_name = msg.robot_name
         goal_name = msg.inference_goal_name
         target_name = msg.target_name
 
         handler = self.handler
-        handler._execute_inference_pick_and_place(self._post_inference_exacutable_trajectories)
+        if self.connect_raj_to_pybullet:
+            handler._execute_inference_pick_and_place_raj(self._post_inference_exacutable_trajectories, self._POST_INFERENCE_PICK_INDEX_RAJ)
+        elif self.connect_joe_to_pybullet:
+            handler._execute_inference_pick_and_place(self._post_inference_exacutable_trajectories)
         print(f"CommunicationManager : [CommunicationManager] Received Post Inference Execute Target Message: {msg}")
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -691,15 +758,29 @@ PROJECT_NAME = PROJECT_CONFIG_DICT["project_name"]
 BACKEND_TYPE = "COMBINED"
 # BACKEND_TYPE = "ROS"
 
+#TODO: PICK & PLACE FRAMES TOLERANCE VALUES
+PICK_AND_PLACE_XAXIS_TOLERANCE = 0.04  # Meters
+PICK_AND_PLACE_ZAXIS_TOLERANCE = None  # Meters
+
 
 #TODO: This is the quickest fix to avoid the dual pybullet issues....
-WHOSE_PYBULLET = "RAJ"
-# WHOSE_PYBULLET = "JOSEPH"
+# WHOSE_PYBULLET = "RAJ"
+WHOSE_PYBULLET = "JOSEPH"
 
 requested_frames = []
 
 if __name__ == "__main__":
-    manager = CommunicationManager(project_name=PROJECT_NAME, pybullet_raj_or_joseph=WHOSE_PYBULLET, robot_name=ROBOT_NAME, project_config_dict=PROJECT_CONFIG_DICT, broker=BROKER, mqtt_port=MQTT_PORT, backend_type=BACKEND_TYPE)
+    manager = CommunicationManager(
+        project_name=PROJECT_NAME,
+        robot_name=ROBOT_NAME,
+        project_config_dict=PROJECT_CONFIG_DICT,
+        pybullet_raj_or_joseph=WHOSE_PYBULLET,
+        broker=BROKER,
+        mqtt_port=MQTT_PORT,
+        backend_type=BACKEND_TYPE,
+        pick_and_place_xaxis_tolerance=PICK_AND_PLACE_XAXIS_TOLERANCE,
+        pick_and_place_zaxis_tolerance=PICK_AND_PLACE_ZAXIS_TOLERANCE,
+    )
     print("[CommunicationManager] Listening for mimic requests... (Press Ctrl+C to exit)")
     try:
         while True:

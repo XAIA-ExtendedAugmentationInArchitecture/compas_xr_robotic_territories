@@ -119,7 +119,6 @@ class SimpleInference:
         completed_items_names = [it for (it, _) in assignments]
         return completed_target_names, completed_items_names, assignments, total_pos_err, total_ang_err
 
-
     def perform_inference(
         self,
         goals_dict: Dict[str, dict],
