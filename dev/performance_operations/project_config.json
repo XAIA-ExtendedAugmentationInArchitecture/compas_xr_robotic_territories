@@ -1,13 +1,13 @@
 {
-    "firebase_config_fp": "C:\\Users\\jk6372\\Desktop\\00_princeton_projects\\00_robotic_territories\\00_git\\compas_xr_robotic_territories\\dev\\performance_operations\\fb_config\\robotic_territories_fb.json", 
+    "firebase_config_fp": "fb_config\\robotic_territories_fb.json", 
     "project_name": "rt_larget_zones_expiriment_test", 
-    "robot_transformations_fp": "C:\\Users\\jk6372\\Desktop\\00_princeton_projects\\00_robotic_territories\\00_git\\compas_xr_robotic_territories\\dev\\performance_operations\\robots\\transformations\\robot_transformation_info.json",
+    "robot_transformations_fp": "robots\\transformations\\robot_transformation_info.json",
     "upload_geo_to_firebase": true,
-    "goals_folder_file_path": "C:\\Users\\jk6372\\Desktop\\00_princeton_projects\\00_robotic_territories\\00_git\\compas_xr_robotic_territories\\dev\\performance_operations\\inference\\goals_2",
+    "goals_folder_file_path": "inference\\goals_2",
     "urdf_fps" : {
         "UR20": {
-            "urdf" : "C:\\Users\\jk6372\\Desktop\\00_princeton_projects\\00_robotic_territories\\00_git\\compas_xr_robotic_territories\\dev\\scripts\\urdf\\ur_description\\urdf\\ur20.urdf",
-            "srdf" : "C:\\Users\\jk6372\\Desktop\\00_princeton_projects\\00_robotic_territories\\00_git\\compas_xr_robotic_territories\\dev\\scripts\\urdf\\ur_description\\urdf\\ur20.srdf"
+            "urdf" : "robots\\urdf\\ur_description\\urdf\\ur20.urdf",
+            "srdf" : "robots\\urdf\\ur_description\\urdf\\ur20.srdf"
         },
         "UR3": {
             "urdf" : "PlaceHolder",
@@ -46,8 +46,8 @@
             "nowait": true,
             "ros_ip": "127.0.0.1",
             "ros_port":9090,
-            "tool_info_fp": "C:\\Users\\jk6372\\Desktop\\00_princeton_projects\\00_robotic_territories\\00_git\\compas_xr_robotic_territories\\dev\\performance_operations\\robots\\setup_objects\\endeffectors\\ur20\\piab_gripper.json",
-            "additional_collison_meshes_fp": "C:\\Users\\jk6372\\Desktop\\00_princeton_projects\\00_robotic_territories\\00_git\\compas_xr_robotic_territories\\dev\\performance_operations\\robots\\setup_objects\\table\\table_test.json"
+            "tool_info_fp": "setup_objects\\endeffectors\\ur20\\piab_gripper.json",
+            "additional_collison_meshes_fp": "setup_objects\\table\\table_test.json"
             },
         "UR31":{
             "robot_name": "UR31",
@@ -103,8 +103,8 @@
             }
         },
     "sounds" : {
-        "robot_moved" : "C:\\Users\\jk6372\\Desktop\\00_princeton_projects\\00_robotic_territories\\00_git\\compas_xr_robotic_territories\\dev\\performance_operations\\sounds\\5.wav",
-        "object_moved" : "C:\\Users\\jk6372\\Desktop\\00_princeton_projects\\00_robotic_territories\\00_git\\compas_xr_robotic_territories\\dev\\performance_operations\\sounds\\17.wav"
+        "robot_moved" : "sounds\\5.wav",
+        "object_moved" : "sounds\\17.wav"
     },
     "geometry_transformations": {
         "rhino": {

@@ -124,6 +124,10 @@ class RobotHandlerCombinedBackends:
         if not tool_info_fp:
             raise ValueError("Tool information file path is required.")
 
+        __dir_path = os.path.dirname(os.path.realpath(__file__))
+        __parent_dir_path = os.path.dirname(__dir_path)
+        tool_info_fp = os.path.join(__parent_dir_path, tool_info_fp)
+
         tool_info = json_load(tool_info_fp)
         visual_mesh = tool_info.get("visual_mesh", None)
         collision_mesh = tool_info.get("collision_mesh", None)
@@ -145,6 +149,10 @@ class RobotHandlerCombinedBackends:
     def _load_additional_static_collision_meshes(self, additional_attached_collision_meshes_fp):
         if not additional_attached_collision_meshes_fp:
             raise ValueError("Additional collision meshes file path is required.")
+        __dir_path = os.path.dirname(os.path.realpath(__file__))
+        __parent_dir_path = os.path.dirname(__dir_path)
+        additional_attached_collision_meshes_fp = os.path.join(__parent_dir_path, additional_attached_collision_meshes_fp)
+
         additional_meshes = json_load(additional_attached_collision_meshes_fp)
         print(f"CombinedBackendHandler: [{self.robot_name}] Loading additional collision meshes from {additional_meshes}")
 

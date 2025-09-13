@@ -25,6 +25,10 @@ import logging
 class CommunicationManager:
 
     def __init__(self, project_name, robot_name, project_config_dict, pick_and_place_xaxis_tolerance, pick_and_place_zaxis_tolerance, pybullet_raj_or_joseph="JOSEPH", broker='localhost', mqtt_port=1883, backend_type='PyBullet'):
+        __dir_path = os.path.dirname(os.path.realpath(__file__))
+        print (f"JOEEEEEEEEEEEEE : DIR PATH: {__dir_path}")
+
+
         self.mqtt = MqttTransport(broker, mqtt_port)
         self.project_name = project_name
         self.robot_name = robot_name
@@ -44,8 +48,8 @@ class CommunicationManager:
             raise ValueError("Invalid value for pybullet_raj_or_joseph. Use 'JOSEPH' or 'RAJ'.")
 
         #Robot Loading & Handleing
-        _urdf_filepath = project_config_dict["urdf_fps"][robot_name]["urdf"]
-        _srdf_filepath = project_config_dict["urdf_fps"][robot_name]["srdf"]
+        _urdf_filepath = os.path.join(__dir_path, project_config_dict["urdf_fps"][robot_name]["urdf"])
+        _srdf_filepath = os.path.join(__dir_path, project_config_dict["urdf_fps"][robot_name]["srdf"])
         _robot_hardware_info = project_config_dict["robot_hardware_info"][robot_name]
         self.handler = self._load_handler(robot_name, _urdf_filepath, _srdf_filepath, _robot_hardware_info, pybullet_connect=self.connect_joe_to_pybullet, backend_type=backend_type)
 
@@ -58,7 +62,8 @@ class CommunicationManager:
         self._post_inference_exacutable_trajectories = []
 
         #Inference Manager
-        self.inference_manager = InferenceManager(project_config_dict["goals_folder_file_path"])
+        goals_folder_fp = os.path.join(__dir_path, project_config_dict["goals_folder_file_path"])
+        self.inference_manager = InferenceManager(goals_folder_fp)
 
         #Scripted Policy for Raj
         if self.connect_raj_to_pybullet:
@@ -67,13 +72,14 @@ class CommunicationManager:
             self.scripted_policy = None
 
         #Realtime Database for Transformations
-        self._RTDB_REFERENCE = RealtimeDatabase(project_config_dict["firebase_config_fp"])
+        firebase_fp = os.path.join(__dir_path, project_config_dict["firebase_config_fp"])
+        print (f"JOE FIREBASE FP: {firebase_fp}")
+        self._RTDB_REFERENCE = RealtimeDatabase(firebase_fp)
         self._RTDB_Project_Name = project_config_dict["project_name"]
         self.transformations_reference_list = [self._RTDB_Project_Name, "robot_transformations", robot_name]
-        print (f"JOEEEEEEEEEEEEEEEEEEEEEEEEEEEE : TRANSFORMATIONS REFERENCE : {self.transformations_reference_list}")
         #TODO: This needs to change...
         #Frame Transformations #TODO: I THINK THIS NEEDS TO CHANGE. This strategy only runs once at the beginning... which is not correct if the robot moves.
-        self._transformations_file_path = project_config_dict["robot_transformations_fp"]
+        self._transformations_file_path = os.path.join(__dir_path, project_config_dict["robot_transformations_fp"])
         (
             self.transformation_ar_space_to_robot_space,
             self.transformations_robot_space_to_ar_space,
