@@ -96,7 +96,7 @@ geometry_manager = GeometryManager(
     BOX_SIZE[0],
     BOX_SIZE[1],
     BOX_SIZE[2],
-    firebase_upload=UPLOAD_TO_FIREBASE
+    firebase_upload=False
 )
 
 # Storage Directories file names and paths

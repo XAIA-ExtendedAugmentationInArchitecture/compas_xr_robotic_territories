@@ -14,11 +14,20 @@ class RobotTransformationsFromObserved:
         Initialize the RobotTransformationsFromObserved class with a file path to the transformations.
         :param transformations_fp: File path to the transformations JSON file.
         """
+        _script_dir = os.path.dirname(__file__)
+        _parent_dir = os.path.abspath(os.path.join(_script_dir, os.pardir))
+        _grandparent_dir = os.path.abspath(os.path.join(_parent_dir, os.pardir))
+        print (f"JOEEEEE : _script_dir: {_script_dir}, _parent_dir: {_parent_dir}, _grandparent_dir: {_grandparent_dir}")
 
         self._project_config_dict = self._load_project_config_dict(project_config_fp)
-        self.transformations_fp = self._project_config_dict.get("robot_transformations_fp", None)
+
+        tx_path = self._project_config_dict.get("robot_transformations_fp", None)
+        self.transformations_fp = os.path.join(_grandparent_dir, tx_path)
+
         self.project_name = self._project_config_dict.get("project_name", None)
-        self.fb_config_fp = self._project_config_dict.get("firebase_config_fp", None)
+
+        fb_path = self._project_config_dict.get("firebase_config_fp", None)
+        self.fb_config_fp = os.path.join(_grandparent_dir, fb_path)
         # self.optitrack_info_dict = self._project_config_dict.get("optitrack_info", None)
 
         if not os.path.exists(self.fb_config_fp):

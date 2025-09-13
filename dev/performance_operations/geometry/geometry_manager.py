@@ -89,10 +89,13 @@ class GeometryManager:
         return active_data, passive_data
 
     def _setup_realtime_database(self, project_config_dict):
+        dir_path = os.path.dirname(__file__)
+        parent_dir = os.path.abspath(os.path.join(dir_path, os.pardir))
         rt_db_config_fp = project_config_dict.get("firebase_config_fp", {})
         if not rt_db_config_fp:
             raise ValueError("No 'firebase_config_fp' found in project_config.json")
             return None, None
+        rt_db_config_fp = os.path.join(parent_dir, rt_db_config_fp)
         rt_db = RealtimeDatabase(rt_db_config_fp)
         project_name = project_config_dict["project_name"]
         goal_geometry_reference_list = [project_name, "geometry", "goals_list"] 
