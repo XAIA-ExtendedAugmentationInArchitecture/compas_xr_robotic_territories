@@ -5,6 +5,7 @@ from compas_fab.backends import PyBulletClient
 from compas_robots import Configuration
 from compas_fab.robots import JointTrajectory, JointTrajectoryPoint
 from compas_fab.backends.pybullet.exceptions import CollisionError
+from compas_robots.resources import LocalPackageMeshLoader
 
 from rtde_control import RTDEControlInterface as RTDEControl
 from rtde_receive import RTDEReceiveInterface as RTDEReceive
@@ -27,7 +28,7 @@ from typing import List, Optional
 import math
 import numpy as np
 
-from compas_fab.robots import Tool, CollisionMesh
+from compas_fab.robots import Tool, CollisionMesh, AttachedCollisionMesh
 from compas_fab.robots import PlanningScene
 from compas_fab.backends.pybullet.planner import PyBulletPlanner
 
@@ -58,6 +59,7 @@ class RobotHandlerCombinedBackends:
             self.pyb_semantics = self._pyb_load_semantics()
             print (f"CombinedBackendHandler: [{robot_name}] PyBullet connection established.")
             self._attach_tool_to_robot(tool=self.tool, robot=self.pyb_robot, backendname="PyBullet")
+            # self._attach_tool_as_attached_collision_mesh_for_pybullet(acm_for_pyb=self.acm_for_pyb, robot=self.pyb_robot)
         else:
             print(f"CombinedBackendHandler: [{robot_name}] PyBullet connection not established.")
 
@@ -101,9 +103,50 @@ class RobotHandlerCombinedBackends:
     # LOAD ROBOT AND SEMANTICS
     ####################################################################################################
 
+    # def _pyb_load_robot(self):
+    #     # urdf_file = compas_fab.get(self.urdf_path)
+    #     # print (f"CombinedBackendHandler: [{self.robot_name}] Loading URDF from {urdf_file}")
+    #     # print (f"CombinedBackendHandler: [{self.robot_name}] Loading meshes from {os.path.dirname(self.urdf_path)}")
+    #     # urdf_dir_name = os.path.dirname(self.urdf_path)
+    #     # _urdf_parent_dir = os.path.dirname(urdf_dir_name)
+
+    #     # print (f"CompasFab : loading meshes from {_urdf_parent_dir}")
+    #     # loader = LocalPackageMeshLoader(compas_fab.get(_urdf_parent_dir), '')
+    #     # robot = self.pyb_client.load_robot(urdf_file, [loader])
+    #     # return robot
+    #         # absolute path to the URDF file you want to load
+    #     urdf_file = self.urdf_path  # e.g. ...\ur_description\urdf\ur20.urdf
+    #     urdf_dir  = os.path.dirname(urdf_file)        # ...\ur_description\urdf
+    #     pkg_root  = os.path.dirname(urdf_dir)         # ...\ur_description  (this must contain 'meshes' and 'urdf')
+
+    #     print(f"CombinedBackendHandler: [{self.robot_name}] Loading URDF from {urdf_file}")
+    #     print(f"CombinedBackendHandler: [{self.robot_name}] Package root (ur_description) = {pkg_root}")
+
+    #     # map the package name used in the URDF to its on-disk folder
+    #     # loader = LocalPackageMeshLoader(compas_fab.get(pkg_root), '')
+    #     loader = LocalPackageMeshLoader(pkg_root, 'ur_description')
+    #     # loader = LocalPackageMeshLoader({'ur_description': pkg_root})
+    #     test = loader.can_load_mesh('package://ur_description/meshes/ur20/collision/base.stl')  # → True expected
+    #     print("Resolved base.stl ->", test, "exists:", os.path.isfile(test))
+
+    #     # load with the package-mapped loader
+    #     robot = self.pyb_client.load_robot(urdf_file, [loader])
+    #     return robot
+
     def _pyb_load_robot(self):
-        urdf_file = compas_fab.get(self.urdf_path)
-        robot = self.pyb_client.load_robot(urdf_file)
+
+        urdf_file = os.path.abspath(self.urdf_path)   # ...\ur_description\urdf\ur20.urdf
+        urdf_dir  = os.path.dirname(urdf_file)        # ...\ur_description\urdf
+        pkg_root  = os.path.dirname(urdf_dir)         # ...\ur_description
+        entire_root = os.path.dirname(pkg_root)  # ...\dev\performance_operations\robots
+
+        print(f"CombinedBackendHandler: [{self.robot_name}] Loading URDF from {urdf_file}")
+        print(f"CombinedBackendHandler: [{self.robot_name}] Package root (ur_description) = {pkg_root}")
+
+        loader = LocalPackageMeshLoader(entire_root, '')
+        resolved = loader.can_load_mesh('package://ur_description/meshes/ur20/collision/base.stl')
+        robot = self.pyb_client.load_robot(urdf_file, [loader])
+        print(f"CombinedBackendHandler: [{self.robot_name}] loaded robot with LockalPackageMeshLoader from {entire_root}")
         return robot
 
     def _pyb_load_semantics(self):
@@ -177,6 +220,16 @@ class RobotHandlerCombinedBackends:
     def _attach_tool_to_robot(self, tool, robot, backendname="PyBullet"):
         robot.attach_tool(tool, self.group)
         print(f"CombinedBackend: [{self.robot_name}] Attched Tool in Backend : {backendname}")
+
+    def _attach_tool_as_attached_collision_mesh_for_pybullet(self, tool_info_dict, robot):
+        # robot.attach_tool(tool, self.group)
+        # print(f"CombinedBackend: [{self.robot_name}] Attched Tool in Backend : {backendname}")
+        print (f" JOEEEEE ATTACHED COLLISION MESH OBJECTS {self.pyb_client.attached_collision_objects}")
+        print (f"JOEEEEE attached tool for pybullet {self.pyb_robot.attached_tools}")
+        collision_mesh = CollisionMesh(mesh=collision_mesh, id='tool_collision_mesh', frame=tcf_frame)
+        acm_for_pybullet = AttachedCollisionMesh(collision_mesh=collision_mesh, link_name="tool0")
+        self.pyb_client.add_attached_collision_mesh(acm_for_pyb, {'mass': 0.5, 'robot': robot})
+        print (f" JOEEEEE ATTACHED COLLISION MESH OBJECTS AFTER ADDING {self.pyb_client.attached_collision_objects}")
 
     def _pyb_add_additional_static_collision_meshes_to_scene(self, additional_collision_meshes):
         if not additional_collision_meshes:
