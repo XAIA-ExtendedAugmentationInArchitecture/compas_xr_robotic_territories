@@ -359,17 +359,22 @@ class CommunicationManager:
 
         return transformed_incompleted_items_dict, transformed_completed_items_dict, transformed_target_frame
 
-    def _transform_post_inference_geometry_frames_dict_to_robot_space(self, geometry_frames_dict, target_frame, completed_goals):
+    def _transform_post_inference_geometry_frames_dict_to_robot_space(self, geometry_frames_dict, target_frame, completed_goals, completed_object_names):
         incompleted_goals = []
         transformed_incomplete_items_dict = {}
         transformed_completed_items_dict = {}
+        print(f"CommunicationManaager : [CommunicatoinManager] Completed Goals: {completed_object_names}")
         for item_name, original_frame in geometry_frames_dict.items():
+            print(f"CommunicationManager : [CommunicationManager] Transforming frame for item '{item_name}'")
             transformed_frame = self._transform_requested_frame_from_ar_space_to_robot_space(original_frame)
-            if item_name not in completed_goals:
+            if item_name not in completed_object_names:
+                print (f"CommunicationManager : [CommunicationManager] Item '{item_name}' is incomplete. Adding to incompleted items.")
                 incompleted_goals.append(item_name)
                 transformed_incomplete_items_dict[item_name] = transformed_frame
             else:
                 transformed_completed_items_dict[item_name] = transformed_frame
+                print (f"CommunicationManager : [CommunicationManager] Item '{item_name}' is completed. Adding to completed items.")
+
         transformed_target_frame = self._transform_requested_frame_from_ar_space_to_robot_space(target_frame)
         return transformed_completed_items_dict, transformed_incomplete_items_dict, transformed_target_frame, incompleted_goals
 
@@ -749,6 +754,9 @@ class CommunicationManager:
         target_frame_name = msg.target_name
         completed_goals = msg.completed_goals
         goal_name = msg.inference_goal_name
+        completed_object_names = msg.completed_object_names
+
+        print (f"JOEEEEEEEE : Message Completed Object Names: {completed_object_names}, Message Completed Goals: {completed_goals}, Goal Name: {goal_name}, Target Frame Name: {target_frame_name}")
 
         print(f"CommunicationManager : [CommunicationManager] Received Post Inference Target request for robot '{robot_name}': Goal Name: {goal_name}, Target Name: {target_frame_name}, Completed Goals: {completed_goals}, Number of Geometry Frames: {len(geometry_frames_dict)}")
         goal_is_correct, transformed_target_frame = self.inference_manager._validate_and_compute_target_location(goal_name, geometry_frames_dict, target_frame_name)
@@ -764,9 +772,11 @@ class CommunicationManager:
             return
         else:
             print(f"CommunicationManager : [CommunicationManager] Inference goal '{goal_name}' validated successfully.")
-
+        print (f"Message Completed Goals: {msg.completed_goals}, Goal Name: {msg.inference_goal_name}, Target Frame: {transformed_target_frame}")
         #TODO: Kind of hacky, but just need to return an incompleted_goals list for the transformation function.
-        transformed_completed_items_dict, transformed_incomplete_items_dict, transformed_target_frame, incompleted_goals = self._transform_post_inference_geometry_frames_dict_to_robot_space(geometry_frames_dict, transformed_target_frame, completed_goals)
+        transformed_completed_items_dict, transformed_incomplete_items_dict, transformed_target_frame, incompleted_goals = self._transform_post_inference_geometry_frames_dict_to_robot_space(geometry_frames_dict, transformed_target_frame, completed_goals, completed_object_names)
+        print (f"CommunicationManager : [CommunicationManager] Completed Goals: {completed_goals}, incompleted_goals: {incompleted_goals}]")
+        print (f"CommunicationManager : [CommunicationManager] Transformed Completed Items Dict Keys: {list(transformed_completed_items_dict.keys())}, Transformed Incomplete Items Dict Keys: {list(transformed_incomplete_items_dict.keys())}]")
         closest_item_name, closest_item_frame = self._find_closest_incomplete_target_for_inference(transformed_incomplete_items_dict, transformed_target_frame)
 
         #TODO: Accomodate Tolerances

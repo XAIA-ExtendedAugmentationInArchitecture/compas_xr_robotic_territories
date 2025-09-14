@@ -269,7 +269,8 @@ class InferenceManager:
         target_goal_entry = goal_data["cube_locations"].get(target_frame)
         if not target_goal_entry:
             raise ValueError(f"GoalManager : Target '{target_frame}' not found in goal '{goal_name}' cube_locations.")
-
+        else:
+            print(f"GoalManager : Found target '{target_frame}' in goal '{goal_name}' cube_locations.")
         #Transform geometry frames to world frame for comparision wiht goals
         T_anchor_to_world, inverse_T = self._construct_transformation_matrices(anchor_cube_frame)
         transformed_target_frame = target_goal_entry.frame.transformed(inverse_T)

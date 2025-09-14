@@ -493,10 +493,11 @@ class InferenceReplyMessage(Message):
         return cls(goal_status_reply, current_goal_name, suggested_target_name, includes_executable_trajectory, header)
 
 class PostInferenceTargetRequestMessage(Message):
-    def __init__(self, completed_goals_list=None, inference_goal_name=None, target_name=None, robot_name=None, geometry_frames_dict=None, header=None):
+    def __init__(self, completed_goals_list=None, completed_object_names=None, inference_goal_name=None, target_name=None, robot_name=None, geometry_frames_dict=None, header=None):
         super(PostInferenceTargetRequestMessage, self).__init__()
         self["header"] = header or Header()
         self["completed_goals"] = list(completed_goals_list or [])
+        self["completed_object_names"] = list(completed_object_names or [])
         self["inference_goal_name"] = inference_goal_name
         self["target_name"] = target_name
         self["geometry_frames"] = dict(geometry_frames_dict or {})
@@ -510,6 +511,12 @@ class PostInferenceTargetRequestMessage(Message):
         if not isinstance(completed_goals, list):
             completed_goals = []
 
+        completed_object_names = value.get("completed_object_names") or []
+        print (f"PostInferenceTargetRequestMessage: Raw Completed Object Names: {completed_object_names}")
+        if not isinstance(completed_object_names, list):
+            completed_object_names = []
+        print (f"PostInferenceTargetRequestMessage: Completed Object Names: {completed_object_names}")
+
         gf_raw = value.get("geometry_frames") or {}
         geometry_frames = {}
         if isinstance(gf_raw, dict):
@@ -521,6 +528,7 @@ class PostInferenceTargetRequestMessage(Message):
 
         return cls(
             completed_goals_list=completed_goals,
+            completed_object_names=completed_object_names,
             inference_goal_name=value.get("inference_goal_name"),
             target_name=value.get("target_name"),
             robot_name=value.get("robot_name"),
