@@ -369,6 +369,57 @@ class RobotHandlerCombinedBackends:
         print(f"CombinedBackendHandler: [{self.robot_name}] IK failed.")
         return None
 
+    def pyb_plan_ik_for_frames_list_ik_fast(self,
+                                            frames_list,
+                                            start_config=None,
+                                            do_collision_check=True,
+                                            extra_seed=True,
+                                            visual_hz=30) -> List:
+        """
+        Solve IK along a list of Frames using pyb_try_fast_ik.
+        - Uses the last successful solution as the next seed.
+        - On failure, prints a notice and skips that frame (continues).
+        - Returns the list of successful IK configurations (order-aligned to successes only).
+
+        Args:
+            frames_list: iterable of compas.geometry.Frame
+            start_config: initial Configuration seed (optional)
+            do_collision_check: pass-through to pyb_try_fast_ik
+            extra_seed: pass-through to pyb_try_fast_ik (use last good)
+            visual_hz: pass-through to pyb_try_fast_ik
+
+        Returns:
+            List[Configuration]: successful IK solutions in sequence
+        """
+        if not frames_list:
+            return []
+
+        # choose initial seed
+        seed = (start_config
+                or self._get_latest_joint_values_from_stream_as_configuration(backend="PyBullet")
+                or self.pyb_robot.zero_configuration())
+
+        solutions = []
+        for i, frame in enumerate(frames_list):
+            try:
+                ik = self.pyb_try_fast_ik(frame,
+                                        start_config=seed,
+                                        do_collision_check=do_collision_check,
+                                        extra_seed=extra_seed,
+                                        visual_hz=visual_hz)
+                if ik:
+                    solutions.append(ik)
+                    seed = ik  # chain next seed to keep path smooth
+                else:
+                    print(f"[{self.robot_name}] IK skip: could not solve frame {i}/{len(frames_list)-1}.")
+                    # keep previous seed; continue to next frame
+            except Exception as e:
+                print(f"[{self.robot_name}] IK exception on frame {i}: {e} — skipping.")
+                # keep previous seed; continue to next frame
+                continue
+
+        return solutions
+
     def pyb_log_self_collisions(self, ignored_pairs=None, threshold=0.001):
         """Log all robot self-collisions within a given distance threshold,
         ignoring specific link pairs if provided.
@@ -794,6 +845,155 @@ class RobotHandlerCombinedBackends:
             i += 1
 
         return traj
+
+    ####################################################################################################
+    # FRAME HELPERS
+    ####################################################################################################
+
+    def _quat_from_matrix(self, M: np.ndarray) -> np.ndarray:
+        """
+        Convert a proper rotation matrix (3x3) to quaternion [w, x, y, z].
+        """
+        m = M
+        trace = m[0, 0] + m[1, 1] + m[2, 2]
+        if trace > 0.0:
+            s = math.sqrt(trace + 1.0) * 2.0
+            w = 0.25 * s
+            x = (m[2, 1] - m[1, 2]) / s
+            y = (m[0, 2] - m[2, 0]) / s
+            z = (m[1, 0] - m[0, 1]) / s
+        elif (m[0, 0] > m[1, 1]) and (m[0, 0] > m[2, 2]):
+            s = math.sqrt(1.0 + m[0, 0] - m[1, 1] - m[2, 2]) * 2.0
+            w = (m[2, 1] - m[1, 2]) / s
+            x = 0.25 * s
+            y = (m[0, 1] + m[1, 0]) / s
+            z = (m[0, 2] + m[2, 0]) / s
+        elif m[1, 1] > m[2, 2]:
+            s = math.sqrt(1.0 + m[1, 1] - m[0, 0] - m[2, 2]) * 2.0
+            w = (m[0, 2] - m[2, 0]) / s
+            x = (m[0, 1] + m[1, 0]) / s
+            y = 0.25 * s
+            z = (m[1, 2] + m[2, 1]) / s
+        else:
+            s = math.sqrt(1.0 + m[2, 2] - m[0, 0] - m[1, 1]) * 2.0
+            w = (m[1, 0] - m[0, 1]) / s
+            x = (m[0, 2] + m[2, 0]) / s
+            y = (m[1, 2] + m[2, 1]) / s
+            z = 0.25 * s
+
+        q = np.array([w, x, y, z], dtype=float)
+        return q / np.linalg.norm(q)
+
+    def _matrix_from_quat(self, q: np.ndarray) -> np.ndarray:
+        """
+        Quaternion [w, x, y, z] -> rotation matrix (3x3).
+        """
+        w, x, y, z = q
+        xx, yy, zz = x*x, y*y, z*z
+        xy, xz, yz = x*y, x*z, y*z
+        wx, wy, wz = w*x, w*y, w*z
+
+        return np.array([
+            [1 - 2*(yy + zz),     2*(xy - wz),       2*(xz + wy)],
+            [2*(xy + wz),         1 - 2*(xx + zz),   2*(yz - wx)],
+            [2*(xz - wy),         2*(yz + wx),       1 - 2*(xx + yy)]
+        ], dtype=float)
+
+    def _quat_slerp(self, q0: np.ndarray, q1: np.ndarray, t: float) -> np.ndarray:
+        """
+        Spherical linear interpolation between quaternions q0 -> q1 at t in [0,1].
+        """
+        q0 = q0 / np.linalg.norm(q0)
+        q1 = q1 / np.linalg.norm(q1)
+
+        # Ensure shortest path
+        dot = float(np.dot(q0, q1))
+        if dot < 0.0:
+            q1 = -q1
+            dot = -dot
+
+        # If very close, fall back to lerp to avoid numerical issues
+        if dot > 0.9995:
+            q = q0 + t*(q1 - q0)
+            return q / np.linalg.norm(q)
+
+        theta0 = math.acos(dot)
+        sin_theta0 = math.sin(theta0)
+        theta = theta0 * t
+        sin_theta = math.sin(theta)
+
+        s0 = math.sin(theta0 - theta) / sin_theta0
+        s1 = sin_theta / sin_theta0
+        return (s0 * q0) + (s1 * q1)
+
+    def _interpolage_frames_helper(self, frame_1: Frame,
+                               frame_2: Frame,
+                               dist: float = 0.10,
+                               include_start: bool = True,
+                               include_end: bool = True) -> List[Frame]:
+        """
+        Interpolate frames between frame_1 and frame_2 with approximately `dist` spacing.
+        Position is linear; orientation uses quaternion slerp.
+
+        Args:
+            frame_1: compas.geometry.Frame
+            frame_2: compas.geometry.Frame
+            dist: desired spacing (same units as your frames, e.g., meters)
+            include_start: include frame_1 in the result
+            include_end: include frame_2 in the result
+
+        Returns:
+            List[Frame]: interpolated frames in order from frame_1 to frame_2
+        """
+        print (f" JOEEEEE LOOOK HEEERE.... {frame_1.point}")
+        p1 = np.asarray(frame_1.point)
+        p2 = np.asarray(frame_2.point)
+
+        # --- spacing / parameterization ---
+        seg_len = float(np.linalg.norm(p2 - p1))
+        if seg_len == 0.0:
+            # Same origin: only interpolate orientation
+            t_values = [0.0, 1.0] if include_start or include_end else [0.5]
+        else:
+            steps = max(1, int(math.floor(seg_len / max(1e-12, dist))))
+            # set up [0..1] including endpoints; trim per include_* flags
+            t_values = np.linspace(0.0, 1.0, steps + 1).tolist()
+            if not include_start and t_values and t_values[0] == 0.0:
+                t_values = t_values[1:]
+            if not include_end and t_values and t_values[-1] == 1.0:
+                t_values = t_values[:-1]
+            if not t_values:
+                # fallback: a single interior sample if everything got trimmed
+                t_values = [0.5]
+
+        # --- orientation as quaternion (slerp) ---
+        # Build rotation matrices from Frame axes (columns are x,y,z)
+        R1 = np.column_stack([np.asarray(frame_1.xaxis.unitized()),
+                            np.asarray(frame_1.yaxis.unitized()),
+                            np.asarray(frame_1.zaxis.unitized())])
+        R2 = np.column_stack([np.asarray(frame_2.xaxis.unitized()),
+                            np.asarray(frame_2.yaxis.unitized()),
+                            np.asarray(frame_2.zaxis.unitized())])
+
+        q1 = self._quat_from_matrix(R1)
+        q2 = self._quat_from_matrix(R2)
+
+        frames: List[Frame] = []
+        for t in t_values:
+            # position: straight-line lerp
+            p = (1.0 - t) * p1 + t * p2
+
+            # orientation: quaternion slerp
+            qt = self._quat_slerp(q1, q2, t)
+            Rt = self._matrix_from_quat(qt)
+
+            # axes are columns of Rt
+            x = Vector(*Rt[:, 0])
+            y = Vector(*Rt[:, 1])
+
+            frames.append(Frame(p.tolist(), x, y))
+
+        return frames
 
     ####################################################################################################
     # Configuration HELPERS
@@ -1564,6 +1764,13 @@ class URMimicHandlerCombined(RobotHandlerCombinedBackends):
         print (f"URCombinedBackendHandler: [{self.robot_name}] Executing inference pick-and-place trajectories of Length {len(trajectory)}.")
         rtde.send_pick_and_place_trajectory_RT_inference_raj(trajectory, pick_index, self.speed, self.acceleration, self.rtde_ctrl, self.radius, self.robot_ip, target_points=70)
 
+    def __send_to_realtime_mimic_start_position(self, ik_solutions: List[Configuration]):
+        if not ik_solutions:
+            print(f"URCombinedBackendHandler: [{self.robot_name}] No IK solutions provided for initial position.")
+            return
+        # rtde.send_trajectory_path_TEST(configurations=ik_solutions, speed=self.speed, accel=self.acceleration, radius=self.radius, ur_c=self.rtde_ctrl)
+        rtde.send_trajectory_path(configurations=ik_solutions, speed=0.9, accel=0.19, radius=0.012, ur_c=self.rtde_ctrl)
+
     ####################################################################################################
     # Implemented through Streamer Class Interface
     ####################################################################################################
@@ -1579,11 +1786,36 @@ class URMimicHandlerCombined(RobotHandlerCombinedBackends):
             json_dump(self.realtime_mimic_ik_solutions, fp, pretty=True)
             self.realtime_mimic_ik_solutions = []
 
+        if msg.initial_request:
+            print(f"[{self.robot_name}] Intepolating move to first target.")
+            current_config = self._get_latest_joint_values_from_stream_as_configuration()
+            if current_config is None:
+                current_config = self.pyb_robot.zero_configuration()
+                print(f"[{self.robot_name}] (SIM) No stream data yet, using zero configuration as seed.")
+            current_tcp = self.pyb_robot.forward_kinematics(configuration=current_config, options=dict(link_name="tool0"), group=self.group)
+            if current_tcp is None:
+                raise ValueError(f"[{self.robot_name}] (SIM) Could not compute current TCP from stream configuration.")
+            print(f"JOEEEEEEEEEE: current tcp {current_tcp} of type {type(current_tcp)}")
+            print (f"JOEEEEEEEEEE: Frame.point {current_tcp.point} target tcp {frame} of type {type(frame)}")
+            frames_list = self._interpolage_frames_helper(current_tcp, frame, include_start=True, include_end=True)
+            print(f"[{self.robot_name}] Interpolated {len(frames_list)} frames for smooth entry.")
+            initial_ik_solutions = self.pyb_plan_ik_for_frames_list_ik_fast(frames_list=frames_list, start_config=current_config, do_collision_check=True, extra_seed=True, visual_hz=30)
+            print(f"[{self.robot_name}] Computed {len(initial_ik_solutions)} initial IK solutions for smooth entry.")
+            data = {}
+            data["current_tcp"] = current_tcp
+            data["first_target_frame"] = frame
+            data["interpolated_frames"] = frames_list
+            data["current_config"] = current_config
+            data["initial_ik_solutions"] = initial_ik_solutions
+            json_dump(data, os.path.join(os.path.dirname(__file__), "interpolated_frames_debug.json"), pretty=True)
+            self.__send_to_realtime_mimic_start_position(initial_ik_solutions)
+
         # choose seed: current joints if no history, else last good
         if msg.initial_request or not self.realtime_mimic_ik_solutions:
             start_cfg = self._get_latest_joint_values_from_stream_as_configuration()
             if start_cfg is None:
                 start_cfg = self.pyb_robot.zero_configuration()
+                print(f"[{self.robot_name}] (SIM) No stream data yet, using zero configuration as seed.")
         else:
             start_cfg = self.realtime_mimic_ik_solutions[-1]
 
@@ -1595,23 +1827,23 @@ class URMimicHandlerCombined(RobotHandlerCombinedBackends):
                             visual_hz=30)
 
         if ik:
-            # # #TODO: Comment me in if you want to run on sim only....
-            self.realtime_mimic_ik_solutions.append(ik)
-            print(f"[{self.robot_name}] (SIM) would send with servoj, skipping actual send.")
-            fp = os.path.join(os.path.dirname(__file__), "realtime_mimic_ik_solutions.json")
-            json_dump(self.realtime_mimic_ik_solutions, fp, pretty=True)
-            return ik 
-            # # #TODO: Comment me in if you want to run on sim only....
+            # # # #TODO: Comment me in if you want to run on sim only....
+            # self.realtime_mimic_ik_solutions.append(ik)
+            # print(f"[{self.robot_name}] (SIM) would send with servoj, skipping actual send.")
+            # fp = os.path.join(os.path.dirname(__file__), "realtime_mimic_ik_solutions.json")
+            # json_dump(self.realtime_mimic_ik_solutions, fp, pretty=True)
+            # return ik 
+            # # # #TODO: Comment me in if you want to run on sim only....
             # remember and command through servoj
             self.realtime_mimic_ik_solutions.append(ik)
             self.servo_gate.set_target(ik.joint_values)
             self.servo_gate.tick()
             return ik
-        # # #TODO: Comment me in if you want to run on sim only...
-        # IK failed: keep feeding servo with last known good (or current measured)
-        print(f"[{self.robot_name}] (SIM) IK failed, would normally keep feeding servo — skipping send.")
-        return None
-        # # #TODO: Comment me in if you want to run on sim only...
+        # # # #TODO: Comment me in if you want to run on sim only...
+        # # IK failed: keep feeding servo with last known good (or current measured)
+        # print(f"[{self.robot_name}] (SIM) IK failed, would normally keep feeding servo — skipping send.")
+        # return None
+        # # # #TODO: Comment me in if you want to run on sim only...
         # # IK failed: keep feeding servo with last known good (or current measured)
         if self.realtime_mimic_ik_solutions:
             self.servo_gate.set_target(self.realtime_mimic_ik_solutions[-1].joint_values)

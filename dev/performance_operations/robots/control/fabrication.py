@@ -264,6 +264,17 @@ def send_trajectory_path(configurations, speed, accel, radius, ur_c):
     if len(path):
         ur_c.moveJ(path)
 
+def send_trajectory_path_TEST(configurations, speed, accel, radius, ur_c):
+
+    print(f"Move trajectory of {len(configurations)} points with speed {speed}, accel {accel} and blend {radius}")
+    path = []
+   
+    for config in configurations:
+        path.append(config.joint_values + [speed, accel, radius])
+    print("PATH TO SEND", path)
+    # if len(path):
+    #     ur_c.moveJ(path)
+
 def send_trajectory_path_joint_values_only(joint_values, speed, accel, radius, ur_c):
 
     print(f"Move trajectory of {len(joint_values)} points with speed {speed}, accel {accel} and blend {radius}")
