@@ -42,7 +42,7 @@ class RobotHandlerCombinedBackends:
         self.robot_name = robot_name
         
         #Things for both backends
-        self.tool = self._load_and_create_tool_for_backends(tool_info_fp)
+        self.tool, self.acm_for_pyb = self._load_and_create_tool_for_backends(tool_info_fp)
         self.group = group
 
         #Pybullet Inputs
@@ -59,7 +59,7 @@ class RobotHandlerCombinedBackends:
             self.pyb_semantics = self._pyb_load_semantics()
             print (f"CombinedBackendHandler: [{robot_name}] PyBullet connection established.")
             self._attach_tool_to_robot(tool=self.tool, robot=self.pyb_robot, backendname="PyBullet")
-            # self._attach_tool_as_attached_collision_mesh_for_pybullet(acm_for_pyb=self.acm_for_pyb, robot=self.pyb_robot)
+            self._attach_tool_as_attached_collision_mesh_for_pybullet(acm_for_pyb=self.acm_for_pyb, robot=self.pyb_robot)
         else:
             print(f"CombinedBackendHandler: [{robot_name}] PyBullet connection not established.")
 
@@ -190,8 +190,10 @@ class RobotHandlerCombinedBackends:
         print (f"Collision MESH IS TRYMESH : {collision_mesh.is_trimesh()}")
 
         tool = Tool(visual=visual_mesh, collision=collision_mesh, frame_in_tool0_frame=tcf_frame, connected_to="tool0")
+        collision_mesh = CollisionMesh(mesh=collision_mesh, id='tool_collision_mesh', frame=tcf_frame)
+        acm_for_pybullet = AttachedCollisionMesh(collision_mesh=collision_mesh, link_name="tool0")
         print(f"CombinedBackendHandler: [{self.robot_name}] Loading tool from {tool_info} for both backends")
-        return tool
+        return tool, acm_for_pybullet
 
     def _load_additional_static_collision_meshes(self, additional_attached_collision_meshes_fp):
         if not additional_attached_collision_meshes_fp:
@@ -221,13 +223,11 @@ class RobotHandlerCombinedBackends:
         robot.attach_tool(tool, self.group)
         print(f"CombinedBackend: [{self.robot_name}] Attched Tool in Backend : {backendname}")
 
-    def _attach_tool_as_attached_collision_mesh_for_pybullet(self, tool_info_dict, robot):
+    def _attach_tool_as_attached_collision_mesh_for_pybullet(self, acm_for_pyb, robot):
         # robot.attach_tool(tool, self.group)
         # print(f"CombinedBackend: [{self.robot_name}] Attched Tool in Backend : {backendname}")
         print (f" JOEEEEE ATTACHED COLLISION MESH OBJECTS {self.pyb_client.attached_collision_objects}")
         print (f"JOEEEEE attached tool for pybullet {self.pyb_robot.attached_tools}")
-        collision_mesh = CollisionMesh(mesh=collision_mesh, id='tool_collision_mesh', frame=tcf_frame)
-        acm_for_pybullet = AttachedCollisionMesh(collision_mesh=collision_mesh, link_name="tool0")
         self.pyb_client.add_attached_collision_mesh(acm_for_pyb, {'mass': 0.5, 'robot': robot})
         print (f" JOEEEEE ATTACHED COLLISION MESH OBJECTS AFTER ADDING {self.pyb_client.attached_collision_objects}")
 
