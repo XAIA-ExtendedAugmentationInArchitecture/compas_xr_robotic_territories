@@ -28,6 +28,7 @@ import math
 import numpy as np
 
 from compas_fab.robots import Tool, CollisionMesh
+from compas_fab.robots import PlanningScene
 from compas_fab.backends.pybullet.planner import PyBulletPlanner
 
 from pybullet_planning import plan_joint_motion, set_joint_positions
@@ -61,7 +62,7 @@ class RobotHandlerCombinedBackends:
             print(f"CombinedBackendHandler: [{robot_name}] PyBullet connection not established.")
 
         if additional_static_collision_meshes_fp:
-            self.additional_static_collison_meshes = self._load_additional_static_collision_meshes(additional_static_collision_meshes_fp)
+            self.additional_static_collison_meshes, self.additional_collision_mesh_names = self._load_additional_static_collision_meshes(additional_static_collision_meshes_fp)
         else:
             self.additional_static_collison_meshes = None
 
@@ -76,6 +77,9 @@ class RobotHandlerCombinedBackends:
             print(f"CombinedBackendHandler: [{robot_name}] Connected to ROS at {ros_ip}:{ros_port}")
         self.ros_robot = self._ros_load_robot()
         self._attach_tool_to_robot(tool=self.tool, robot=self.ros_robot, backendname="ROS")
+
+        #Create Planning Scene for the Ros Client
+        self.ros_planning_scene = PlanningScene(self.ros_robot)
 
         #Post Processing Things for both Robots
         if self.additional_static_collison_meshes:
@@ -154,7 +158,21 @@ class RobotHandlerCombinedBackends:
         additional_attached_collision_meshes_fp = os.path.join(__parent_dir_path, additional_attached_collision_meshes_fp)
 
         additional_meshes = json_load(additional_attached_collision_meshes_fp)
-        print(f"CombinedBackendHandler: [{self.robot_name}] Loading additional collision meshes from {additional_meshes}")
+        collision_meshes = []
+        names = []
+        for mesh in additional_meshes:
+            if not mesh.get("mesh", None) or not mesh.get("name", None):
+                raise ValueError("Each additional collision mesh must contain 'mesh', 'frame', and 'name'.")
+            individual_mesh = mesh["mesh"]
+            individual_name = mesh["name"]
+            if not individual_mesh or not individual_name:
+                raise ValueError("Each additional collision mesh must contain 'mesh', 'frame', and 'name'.")
+            cm = CollisionMesh(mesh=individual_mesh, id=individual_name)
+            collision_meshes.append(cm)
+            names.append(individual_name)
+
+        print(f"CombinedBackendHandler: [{self.robot_name}] Loading additional collision meshes {len(collision_meshes)} with names {names}")
+        return collision_meshes, names
 
     def _attach_tool_to_robot(self, tool, robot, backendname="PyBullet"):
         robot.attach_tool(tool, self.group)
@@ -164,18 +182,21 @@ class RobotHandlerCombinedBackends:
         if not additional_collision_meshes:
             return
 
-        print(f"CombinedBackend: [{self.robot_name}] Adding additional static collision meshes to PyBullet scene")
+        print(f"CombinedBackend: [{self.robot_name}] Adding and additional {len(additional_collision_meshes)} static collision meshes to PyBullet scene")
 
-        # for mesh_info in additional_collision_meshes:
-        #     mesh = CollisionMesh(mesh_info["mesh"], frame=mesh_info["frame"])
-        #     self.pyb_client.add_collision_mesh(mesh)
-        #     print(f"CombinedBackend: [{self.robot_name}] Added additional static collision mesh to PyBullet scene: {mesh_info['mesh']}")
+        for mesh_info in additional_collision_meshes:
+            self.pyb_client.add_collision_mesh(mesh_info)
+            print(f"CombinedBackend: [{self.robot_name}] Added additional static collision mesh to PyBullet scene: {mesh_info.id}")
 
     def _ros_add_additional_static_collision_meshes_to_scene(self, additional_collision_meshes):
         if not additional_collision_meshes:
             return
 
         print(f"CombinedBackend: [{self.robot_name}] Adding additional static collision meshes to ROS scene")
+
+        for mesh_info in additional_collision_meshes:
+            self.ros_planning_scene.add_collision_mesh(mesh_info)
+            print(f"CombinedBackend: [{self.robot_name}] Added additional static collision mesh to PyBullet scene: {mesh_info.id}")
 
         #TODO: I am not sure if I need to add as Scene for the collision objects this should be checked.
         # for mesh_info in additional_collision_meshes:
@@ -336,6 +357,8 @@ class RobotHandlerCombinedBackends:
                 self.pyb_client.set_robot_configuration(self.pyb_robot, cfg)
                 try:
                     self.pyb_client.check_robot_self_collision(self.pyb_robot)  # raises on collision
+                    self.pyb_client.step_simulation()
+                    self.pyb_client.check_collision_with_objects(self.pyb_robot)  # raises on collision
                     collides = False
                 except Exception as e:
                     collides = (e.__class__.__name__ == "CollisionError") or True
@@ -1795,20 +1818,10 @@ class URMimicHandlerCombined(RobotHandlerCombinedBackends):
             current_tcp = self.pyb_robot.forward_kinematics(configuration=current_config, options=dict(link_name="tool0"), group=self.group)
             if current_tcp is None:
                 raise ValueError(f"[{self.robot_name}] (SIM) Could not compute current TCP from stream configuration.")
-            print(f"JOEEEEEEEEEE: current tcp {current_tcp} of type {type(current_tcp)}")
-            print (f"JOEEEEEEEEEE: Frame.point {current_tcp.point} target tcp {frame} of type {type(frame)}")
             frames_list = self._interpolage_frames_helper(current_tcp, frame, include_start=True, include_end=True)
-            print(f"[{self.robot_name}] Interpolated {len(frames_list)} frames for smooth entry.")
             initial_ik_solutions = self.pyb_plan_ik_for_frames_list_ik_fast(frames_list=frames_list, start_config=current_config, do_collision_check=True, extra_seed=True, visual_hz=30)
-            print(f"[{self.robot_name}] Computed {len(initial_ik_solutions)} initial IK solutions for smooth entry.")
-            data = {}
-            data["current_tcp"] = current_tcp
-            data["first_target_frame"] = frame
-            data["interpolated_frames"] = frames_list
-            data["current_config"] = current_config
-            data["initial_ik_solutions"] = initial_ik_solutions
-            json_dump(data, os.path.join(os.path.dirname(__file__), "interpolated_frames_debug.json"), pretty=True)
-            self.__send_to_realtime_mimic_start_position(initial_ik_solutions)
+            #TODO: Comment me out if you want to run on sim only....
+            # self.__send_to_realtime_mimic_start_position(initial_ik_solutions)
 
         # choose seed: current joints if no history, else last good
         if msg.initial_request or not self.realtime_mimic_ik_solutions:
@@ -1828,11 +1841,11 @@ class URMimicHandlerCombined(RobotHandlerCombinedBackends):
 
         if ik:
             # # # #TODO: Comment me in if you want to run on sim only....
-            # self.realtime_mimic_ik_solutions.append(ik)
-            # print(f"[{self.robot_name}] (SIM) would send with servoj, skipping actual send.")
-            # fp = os.path.join(os.path.dirname(__file__), "realtime_mimic_ik_solutions.json")
-            # json_dump(self.realtime_mimic_ik_solutions, fp, pretty=True)
-            # return ik 
+            self.realtime_mimic_ik_solutions.append(ik)
+            print(f"[{self.robot_name}] (SIM) would send with servoj, skipping actual send.")
+            fp = os.path.join(os.path.dirname(__file__), "realtime_mimic_ik_solutions.json")
+            json_dump(self.realtime_mimic_ik_solutions, fp, pretty=True)
+            return ik 
             # # # #TODO: Comment me in if you want to run on sim only....
             # remember and command through servoj
             self.realtime_mimic_ik_solutions.append(ik)
@@ -1840,9 +1853,9 @@ class URMimicHandlerCombined(RobotHandlerCombinedBackends):
             self.servo_gate.tick()
             return ik
         # # # #TODO: Comment me in if you want to run on sim only...
-        # # IK failed: keep feeding servo with last known good (or current measured)
-        # print(f"[{self.robot_name}] (SIM) IK failed, would normally keep feeding servo — skipping send.")
-        # return None
+        # IK failed: keep feeding servo with last known good (or current measured)
+        print(f"[{self.robot_name}] (SIM) IK failed, would normally keep feeding servo — skipping send.")
+        return None
         # # # #TODO: Comment me in if you want to run on sim only...
         # # IK failed: keep feeding servo with last known good (or current measured)
         if self.realtime_mimic_ik_solutions:
