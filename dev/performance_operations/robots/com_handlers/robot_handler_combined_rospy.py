@@ -1842,7 +1842,10 @@ class URMimicHandlerCombined(RobotHandlerCombinedBackends):
 
         # choose seed: current joints if no history, else last good
         if msg.initial_request or not self.realtime_mimic_ik_solutions:
-            start_cfg = self._get_latest_joint_values_from_stream_as_configuration()
+            if not initial_ik_solutions:
+                start_cfg = self._get_latest_joint_values_from_stream_as_configuration()
+            else:
+                start_cfg = initial_ik_solutions[-1]
             if start_cfg is None:
                 start_cfg = self.pyb_robot.zero_configuration()
                 print(f"[{self.robot_name}] (SIM) No stream data yet, using zero configuration as seed.")
