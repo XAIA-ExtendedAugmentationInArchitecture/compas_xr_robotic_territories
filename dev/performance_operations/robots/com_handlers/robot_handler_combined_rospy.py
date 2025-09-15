@@ -103,36 +103,6 @@ class RobotHandlerCombinedBackends:
     # LOAD ROBOT AND SEMANTICS
     ####################################################################################################
 
-    # def _pyb_load_robot(self):
-    #     # urdf_file = compas_fab.get(self.urdf_path)
-    #     # print (f"CombinedBackendHandler: [{self.robot_name}] Loading URDF from {urdf_file}")
-    #     # print (f"CombinedBackendHandler: [{self.robot_name}] Loading meshes from {os.path.dirname(self.urdf_path)}")
-    #     # urdf_dir_name = os.path.dirname(self.urdf_path)
-    #     # _urdf_parent_dir = os.path.dirname(urdf_dir_name)
-
-    #     # print (f"CompasFab : loading meshes from {_urdf_parent_dir}")
-    #     # loader = LocalPackageMeshLoader(compas_fab.get(_urdf_parent_dir), '')
-    #     # robot = self.pyb_client.load_robot(urdf_file, [loader])
-    #     # return robot
-    #         # absolute path to the URDF file you want to load
-    #     urdf_file = self.urdf_path  # e.g. ...\ur_description\urdf\ur20.urdf
-    #     urdf_dir  = os.path.dirname(urdf_file)        # ...\ur_description\urdf
-    #     pkg_root  = os.path.dirname(urdf_dir)         # ...\ur_description  (this must contain 'meshes' and 'urdf')
-
-    #     print(f"CombinedBackendHandler: [{self.robot_name}] Loading URDF from {urdf_file}")
-    #     print(f"CombinedBackendHandler: [{self.robot_name}] Package root (ur_description) = {pkg_root}")
-
-    #     # map the package name used in the URDF to its on-disk folder
-    #     # loader = LocalPackageMeshLoader(compas_fab.get(pkg_root), '')
-    #     loader = LocalPackageMeshLoader(pkg_root, 'ur_description')
-    #     # loader = LocalPackageMeshLoader({'ur_description': pkg_root})
-    #     test = loader.can_load_mesh('package://ur_description/meshes/ur20/collision/base.stl')  # → True expected
-    #     print("Resolved base.stl ->", test, "exists:", os.path.isfile(test))
-
-    #     # load with the package-mapped loader
-    #     robot = self.pyb_client.load_robot(urdf_file, [loader])
-    #     return robot
-
     def _pyb_load_robot(self):
 
         urdf_file = os.path.abspath(self.urdf_path)   # ...\ur_description\urdf\ur20.urdf
@@ -250,12 +220,6 @@ class RobotHandlerCombinedBackends:
         for mesh_info in additional_collision_meshes:
             self.ros_planning_scene.add_collision_mesh(mesh_info)
             print(f"CombinedBackend: [{self.robot_name}] Added additional static collision mesh to PyBullet scene: {mesh_info.id}")
-
-        #TODO: I am not sure if I need to add as Scene for the collision objects this should be checked.
-        # for mesh_info in additional_collision_meshes:
-        #     mesh = CollisionMesh(mesh_info["mesh"], frame=mesh_info["frame"])
-        #     self.ros_client.add_collision_mesh(mesh)
-        #     print(f"CombinedBackend: [{self.robot_name}] Added additional static collision mesh to ROS scene: {mesh_info['mesh']}")
 
     ####################################################################################################
     # Configuration & IK Solvers
