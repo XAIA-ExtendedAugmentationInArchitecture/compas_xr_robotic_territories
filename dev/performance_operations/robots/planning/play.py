@@ -198,6 +198,12 @@ class ScriptedPolicy:
         self.action_dim = 5
         self.succeeded = 0
 
+        #TODO: Joe Init:
+        self.joe_joint_names = ['shoulder_pan_joint', 'shoulder_lift_joint', 'elbow_joint', 'wrist_1_joint', 'wrist_2_joint', 'wrist_3_joint']
+        self.joe_joint_types = [0, 0, 0, 0, 0, 0]
+        self.joe_start_config_values = [-0.10790457, -0.29844413,  0.06922359, -1.36258329, -1.5687577 , -1.64426868]
+        self.joe_start_configuration = Configuration(joint_values=self.joe_start_config_values, joint_names=self.joe_joint_names, joint_types=self.joe_joint_types)
+
     def pick_and_place(self, init_cube_pos=None, init_cube_quat=None, target_cube_pos=None, target_cube_quat=None):
         self.succeeded = 0
         obs, info = self.env.reset(init_cube_pos, init_cube_quat, target_cube_pos, target_cube_quat)
@@ -213,8 +219,9 @@ class ScriptedPolicy:
 
         trajectory_joint_angles, trajectory_eef_pos, trajectory_eef_quat  = [], [], []
 
+        #TODO: Joe added this.
         step_count = 0
-        pick_index = 0
+        pick_index = None
 
         while not done:
             action, base_joint_ctrl_flag, base_joint_ctrl = get_pick_and_place_action(info['current_base_ctrl'], obs[:3], info['current_gripper_yaw'], info['blocks_pos'], info['blocks_yaw'], self.env.grabbing, current_plan, init_cube_pos, init_cube_yaw, target_cube_pos, target_cube_yaw, target_quadrant)    
@@ -233,6 +240,7 @@ class ScriptedPolicy:
 
             #TODO: Joe Added this
             grabbing = info['is_grabbing']
+            print (f"Step: {step_count}, Grabbing: {grabbing}, Pick Index: {pick_index}, Current Plan: {current_plan}, Current Gripper Pos: {obs[:3]}, Current Gripper Yaw: {info['current_gripper_yaw']}, Cube Pos: {info['blocks_pos']}, Cube Yaw: {info['blocks_yaw']}, Target Pos: {info['target_position']}, Target Yaw: {info['target_yaw']}, Target Quadrant: {target_quadrant}, Base Ctrl: {info['current_base_ctrl']}, Action: {action}, Reward: {reward}, Success Count: {self.succeeded}" )
             if grabbing and pick_index is None:
                 pick_index = step_count
             step_count += 1
@@ -241,7 +249,7 @@ class ScriptedPolicy:
             obs = next_obs
             
             if self.succeeded == 5:
-                return trajectory_joint_angles, trajectory_eef_pos, trajectory_eef_quat
+                return trajectory_joint_angles, trajectory_eef_pos, trajectory_eef_quat, pick_index
 
         return trajectory_joint_angles, trajectory_eef_pos, trajectory_eef_quat, pick_index
 

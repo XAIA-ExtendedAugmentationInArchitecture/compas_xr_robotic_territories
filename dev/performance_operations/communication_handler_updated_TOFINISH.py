@@ -881,8 +881,8 @@ PICK_AND_PLACE_ZAXIS_TOLERANCE = None  # Meters
 
 
 #TODO: This is the quickest fix to avoid the dual pybullet issues....
-# WHOSE_PYBULLET = "RAJ"
-WHOSE_PYBULLET = "JOSEPH"
+WHOSE_PYBULLET = "RAJ"
+# WHOSE_PYBULLET = "JOSEPH"
 
 requested_frames = []
 
