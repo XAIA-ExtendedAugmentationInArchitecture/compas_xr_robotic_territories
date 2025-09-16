@@ -1,6 +1,6 @@
 {
     "firebase_config_fp": "fb_config\\robotic_territories_fb.json", 
-    "project_name": "rt_larget_zones_expiriment_test", 
+    "project_name": "rt_larget_zones_equal_size_actual", 
     "robot_transformations_fp": "robots\\transformations\\robot_transformation_info.json",
     "upload_geo_to_firebase": true,
     "goals_folder_file_path": "inference\\goals_2",
@@ -32,6 +32,10 @@
     },
     "mqtt_config_local": {
         "broker": "localhost",
+        "port": 1883
+    },
+    "mqtt_config_ruxin": {
+        "broker": "172.20.10.11",
         "port": 1883
     },
     "robot_hardware_info": {

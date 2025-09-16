@@ -85,7 +85,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_CONFIG_FP = os.path.join(SCRIPT_DIR, "project_config.json")
 PROJECT_CONFIG_DICT = json_load(PROJECT_CONFIG_FP)
 OPTITRACK_INFO_DICT = PROJECT_CONFIG_DICT.get("optitrack_info", {})
-SESION_DIR_NAME = "20250908_inference_testing"
+SESION_DIR_NAME = "20250916_DEMO_Testing"
 
 #Geometry Manger Information
 UPLOAD_TO_FIREBASE = PROJECT_CONFIG_DICT.get("upload_geo_to_firebase", False)
