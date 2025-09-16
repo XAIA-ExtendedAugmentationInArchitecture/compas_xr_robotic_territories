@@ -535,7 +535,8 @@ class UR20PickandPlaceOrientBaseEnv:
             "success": success,
             "success_easy": success_easy,
             "contact_points": contact_points,
-            "joint_poses": np.array([p.getJointState(self.robot_id, j["jointID"])[0] for j in self.joints])
+            "joint_poses": np.array([p.getJointState(self.robot_id, j["jointID"])[0] for j in self.joints]),
+            "is_grabbing": self.grabbing
         }
 
         if (termination or truncation):

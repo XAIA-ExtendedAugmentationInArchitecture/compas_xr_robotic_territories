@@ -26,8 +26,6 @@ class CommunicationManager:
 
     def __init__(self, project_name, robot_name, project_config_dict, pick_and_place_xaxis_tolerance, pick_and_place_zaxis_tolerance, pybullet_raj_or_joseph="JOSEPH", broker='localhost', mqtt_port=1883, backend_type='PyBullet'):
         __dir_path = os.path.dirname(os.path.realpath(__file__))
-        print (f"JOEEEEEEEEEEEEE : DIR PATH: {__dir_path}")
-
 
         self.mqtt = MqttTransport(broker, mqtt_port)
         self.project_name = project_name
@@ -86,8 +84,6 @@ class CommunicationManager:
             self._urdf_baseframe,
             self._observed_urdf_baseframe
         ) = self._load_transformations(file_path=self._transformations_file_path, robot_name=self.robot_name, transformations_reference_list=self.transformations_reference_list)
-        print(f"CommunicationManager : [CommunicationManager] Loaded transformations for robot '{robot_name}': ARtoRobotTX : {self.transformation_ar_space_to_robot_space}, RobottoARTX {self.transformations_robot_space_to_ar_space}, URDF Baseframe: {self._urdf_baseframe}, Observed Baseframe: {self._observed_urdf_baseframe}")
-        print(f"CommunicationManager : [CommunicationManager] Subscribed to: robotic_territories mimic topics for project '{project_name}' and robot '{robot_name}'")
 
     def _load_handler(self, robot_name, urdf_filepath, srdf_filepath, robot_hardware_info_dict, pybullet_connect, backend_type='PyBullet'):
         if robot_name == "UR20" or robot_name == "UR31" or robot_name == "UR32":
