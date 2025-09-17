@@ -231,6 +231,8 @@ def update_rigid_body_location_if_changed(model_name, streaming_id, current_posi
                     if not robot_sound_path:
                         print("No sound path found for 'robot_moved'. Using default sound.")
                         pass
+                    this_file_path = os.path.dirname(os.path.abspath(__file__))
+                    robot_sound_path = os.path.join(this_file_path, robot_sound_path)
                     wave_obj = sa.WaveObject.from_wave_file(robot_sound_path)
                     play_obj = wave_obj.play()
                     # play_obj.wait_done() #todo: don't know if I need this see if it plays to the end without blocking.
@@ -241,11 +243,13 @@ def update_rigid_body_location_if_changed(model_name, streaming_id, current_posi
             if play_sound:
                 try:
                     sounds_dict = PROJECT_CONFIG_DICT.get("sounds", None)
-                    robot_sound_path = sounds_dict.get("object_moved", None)
-                    if not robot_sound_path:
+                    object_sound_path = sounds_dict.get("object_moved", None)
+                    this_file_path = os.path.dirname(os.path.abspath(__file__))
+                    if not object_sound_path:
                         print("No sound path found for 'robot_moved'. Using default sound.")
                         pass
-                    wave_obj = sa.WaveObject.from_wave_file(robot_sound_path)
+                    object_sound_path = os.path.join(this_file_path, object_sound_path)
+                    wave_obj = sa.WaveObject.from_wave_file(object_sound_path)
                     play_obj = wave_obj.play()
                 except Exception as e:
                     print(f"Error playing sound: {e}")

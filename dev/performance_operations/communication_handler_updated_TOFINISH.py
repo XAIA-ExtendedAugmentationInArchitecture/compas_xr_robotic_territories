@@ -865,8 +865,8 @@ PROJECT_CONFIG_DICT = json_load(PROJECT_CONFIG_FP)
 ROBOT_NAME = "UR20"
 
 # MQTT_CONFIG = PROJECT_CONFIG_DICT["mqtt_config"]
-MQTT_CONFIG = PROJECT_CONFIG_DICT["mqtt_config_ruxin"]
-# MQTT_CONFIG = PROJECT_CONFIG_DICT["mqtt_config_local"]  # Use local MQTT config for testing
+# MQTT_CONFIG = PROJECT_CONFIG_DICT["mqtt_config_ruxin"]
+MQTT_CONFIG = PROJECT_CONFIG_DICT["mqtt_config_local"]
 BROKER = MQTT_CONFIG["broker"]
 MQTT_PORT = MQTT_CONFIG["port"]
 

@@ -1,0 +1,49 @@
+{
+    "1758076019.6564808": {
+        "1758076019.6564808": {
+            "GOAL_INFERRED_AT": 1758076110.6112938,
+            "INFERED_GOAL": "Goal00",
+            "correct_targets": [
+                {
+                    "goal_inferred": true,
+                    "goal_name": "Goal00",
+                    "inference_timestamp": 1758076110.6112938,
+                    "suggested_target_name": "G2",
+                    "target_status": "correct_target",
+                    "timestamp": "2025-09-16 22:28:30.478"
+                }
+            ],
+            "incorrect_goals": [
+                "Goal06",
+                "Goal00"
+            ],
+            "incorrect_targets": [
+                {
+                    "goal_name": "Goal06",
+                    "suggested_target_name": "G2",
+                    "target_status": "incorrect_target",
+                    "timestamp": "2025-09-16 22:27:31.526"
+                }
+            ],
+            "inference_request_time": 1758076110.6112938,
+            "inference_session_duration": 90.95481300354004,
+            "inference_session_start": 1758076019.6564808,
+            "target_log": [
+                {
+                    "goal_name": "Goal06",
+                    "suggested_target_name": "G2",
+                    "target_status": "incorrect_target",
+                    "timestamp": "2025-09-16 22:27:31.526"
+                },
+                {
+                    "goal_inferred": true,
+                    "goal_name": "Goal00",
+                    "inference_timestamp": 1758076110.6112938,
+                    "suggested_target_name": "G2",
+                    "target_status": "correct_target",
+                    "timestamp": "2025-09-16 22:28:30.478"
+                }
+            ]
+        }
+    }
+}
