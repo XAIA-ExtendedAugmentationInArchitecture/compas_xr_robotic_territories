@@ -1705,8 +1705,9 @@ class URMimicHandlerCombined(RobotHandlerCombinedBackends):
     def __init__(self, robot_name, robot_ip, urdf_path, tool_info_fp, pybullet_connect, ros_ip='127.0.0.1', ros_port=9090, additional_static_collision_meshes_fp=None, group="manipulator", srdf_path=None, io=0, speed=0.6, acceleration=0.1, radius=0.006, nowait=False):
         super().__init__(robot_name, urdf_path, tool_info_fp, ros_ip=ros_ip, pybullet_connect=pybullet_connect, ros_port=ros_port, additional_static_collision_meshes_fp=additional_static_collision_meshes_fp, group=group, srdf_path=srdf_path)
 
-        self.robot_state_streamer = RTDEStateStreamer(robot_ip=robot_ip, poll_delay=0.001, sim=False)
-        self.robot_state_streamer.start()
+        if (pybullet_connect):
+            self.robot_state_streamer = RTDEStateStreamer(robot_ip=robot_ip, poll_delay=0.001, sim=False)
+            self.robot_state_streamer.start()
 
         self.robot_ip = robot_ip
         self.speed = speed
@@ -1717,27 +1718,29 @@ class URMimicHandlerCombined(RobotHandlerCombinedBackends):
 
         # TODO: Commented out to test the combined handler without RTDE connections
         # persist RTDE connections once
-        self.rtde_ctrl = RTDEControl(self.robot_ip)
-        self.rtde_recv = RTDEReceive(self.robot_ip)
+        if (pybullet_connect):
+            self.rtde_ctrl = RTDEControl(self.robot_ip)
+            self.rtde_recv = RTDEReceive(self.robot_ip)
         # TODO: Commented out to test the combined handler without RTDE connections
 
-        pace = 0.5  # 50% speed
-        self.servo_gate = ServoJGate(
-            rtde_ctrl=self.rtde_ctrl,
-            rtde_recv=self.rtde_recv,
-            speed_cap=0.65 * pace,
-            accel_cap=1.10 * pace,
-            dt_nominal=1/125.0,
-            lookahead=0.12,
-            gain=240,
-            target_alpha=0.18,
-            k_speed=1.2 * pace,  # include if k_speed scales velocity
-            tau=0.38,
-            cmd_alpha=0.55,
-            min_dt_send=0.012,
-            min_dq=0.01,
-            verbose=False
-        )
+        if (pybullet_connect):
+            pace = 0.5  # 50% speed
+            self.servo_gate = ServoJGate(
+                rtde_ctrl=self.rtde_ctrl,
+                rtde_recv=self.rtde_recv,
+                speed_cap=0.65 * pace,
+                accel_cap=1.10 * pace,
+                dt_nominal=1/125.0,
+                lookahead=0.12,
+                gain=240,
+                target_alpha=0.18,
+                k_speed=1.2 * pace,  # include if k_speed scales velocity
+                tau=0.38,
+                cmd_alpha=0.55,
+                min_dt_send=0.012,
+                min_dq=0.01,
+                verbose=False
+            )
 
         print(f"URCombinedBackendHandler: [{robot_name}] UR handler initialized")
 
