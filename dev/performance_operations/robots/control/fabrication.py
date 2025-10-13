@@ -177,6 +177,9 @@ def set_tool_digital_io(signal, value, ip="127.0.0.1"):
     io = RTDEIOInterface(ip)
     io.setToolDigitalOut(signal, value)
 
+def set_tool_digital_io_TEST(signal, value, ip="127.0.0.1"):
+    print(f"RTDE: Setting Tool Digital IO {signal} to {value} for Robot IP : {ip}")
+
 def get_tcp_frame(ip="127.0.0.1"):
     ur_r = RTDEReceive(ip)
     tcp = ur_r.getActualTCPPose()
@@ -549,20 +552,51 @@ def send_to_single_trajectory(trajectory_configs, speed, accel, radius, nowait, 
         print(e)
         raise
 
-def send_to_single_trajectory_robotic_territories_TEST(trajectory_configs, speed, accel, radius, ip, io_begining_end_none, vaccum_io=None):
-    print(f"URRealtimeMimicHandlerPyB: [{ip}] (Sim) Executing UR trajectory: {trajectory_configs} THIS SHOULD BE A TEST")
+def send_to_single_trajectory_robotic_territories_TEST(trajectory_configs, speed, accel, radius, ur_c, ip, io_begining_end_none, vaccum_io=None):
 
-def send_to_single_trajectory_robotic_territories(trajectory_configs, speed, accel, radius, ur_c, io_begining_end_none, vaccum_io=None):
-
-    
     time_sleep_delay = 1.5
 
-    #TODO: This means there is no IO connected...
+    #TODO: This means there is no IO change...
+    if io_begining_end_none == 0:
+        #Send to trajectoy without any IO controls.
+        send_trajectory_path_TEST(trajectory_configs, speed, accel, radius, ur_c)
+    
+    #TODO: This means that the IO needs to be turned on.
+    elif io_begining_end_none == 1:
+        try:
+            if vaccum_io != None:
+                #Turn on io to turn on the vaccum.
+                set_tool_digital_io_TEST(vaccum_io,True,ip=ip)
+                time.sleep(time_sleep_delay)
+            send_trajectory_path_TEST(trajectory_configs, speed, accel, radius, ur_c)
+        
+        except Exception as e:
+            print(e)
+            raise
+
+    #TODO: This means that the IO needs to be turned off.
+    elif io_begining_end_none == 2:
+        try:
+            send_trajectory_path_TEST(trajectory_configs, speed, accel, radius, ur_c)
+            if vaccum_io != None:
+                #Turn off io to turn off the vaccum.
+                set_tool_digital_io_TEST(vaccum_io,False,ip=ip)
+                time.sleep(time_sleep_delay)
+        
+        except Exception as e:
+            print(e)
+            raise
+
+def send_to_single_trajectory_robotic_territories(trajectory_configs, speed, accel, radius, ur_c, ip, io_begining_end_none, vaccum_io=None):
+
+    time_sleep_delay = 1.5
+
+    #TODO: This means there is no IO change...
     if io_begining_end_none == 0:
         #Send to trajectoy without any IO controls.
         send_trajectory_path(trajectory_configs, speed, accel, radius,ur_c)
     
-    #TODO: This means that the IO needs to be turned on at the begining of the trajectory.
+    #TODO: This means that the IO needs to be turned on.
     elif io_begining_end_none == 1:
         try:
             if vaccum_io != None:
@@ -575,7 +609,7 @@ def send_to_single_trajectory_robotic_territories(trajectory_configs, speed, acc
             print(e)
             raise
 
-    #TODO: This means that the IO needs to be turned off at the end of the movement.
+    #TODO: This means that the IO needs to be turned off.
     elif io_begining_end_none == 2:
         try:
             send_trajectory_path(trajectory_configs, speed, accel, radius,ur_c)
@@ -605,7 +639,6 @@ def send_to_single_trajectory_only_joint_values(trajectory_configs, speed, accel
     except Exception as e:
         print(e)
         raise
-
 
 def exit_pick_and_place_jk(pick_trajectory_configs, move_trajectory_configs, place_trajectory_configs, speed, accel, radius, ip, vaccum_io=None):
 
@@ -640,7 +673,6 @@ def exit_pick_and_place_jk(pick_trajectory_configs, move_trajectory_configs, pla
     except Exception as e:
         print(e)
         raise
-
 
 def release_pick_and_place_stick_trajectories(exit_trajectory, move_to_pick_trajectory, pick_trajectory, move_trajectory, place_trajectory, speed, accel, radius, ip, vaccum_io):
     
@@ -802,12 +834,6 @@ def pick_and_place_sticks_configs_trajectories(exit_safe_config, move_to_pick_tr
     except Exception as e:
         print(e)
         raise
-
-
-
-
-
-
 
 
 # if __name__ == "__main__":
