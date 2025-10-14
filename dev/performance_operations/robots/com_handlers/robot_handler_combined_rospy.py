@@ -24,7 +24,7 @@ from ..control.servo_gate import ServoJGate
 import pybullet as pb
 
 import time
-from typing import List, Optional
+from typing import List, Optional, Tuple
 import math
 import numpy as np
 
@@ -650,7 +650,7 @@ class RobotHandlerCombinedBackends:
 
     ##### ROS Planning Methods #####
 
-    def _ros_plan_ik_for_frames_list(self, frames_for_ik, start_config, options=None) -> List[Configuration]:
+    def _ros_plan_ik_for_frames_list(self, frames_for_ik, start_config, options=None) -> Tuple[List[Configuration], bool]:
         configurations = []
         current_config = start_config
 
@@ -659,23 +659,27 @@ class RobotHandlerCombinedBackends:
                 ik_config = self.ros_find_ik(frame, current_config, options)
                 if ik_config is None:
                     print(f"CombinedBackendHandler: [{self.robot_name}] No valid IK for frame {idx}. Aborting trajectory planning.")
-                    return None
+                    return configurations, False
+                    # return None
                 print (f"CombinedBackendHandler ROSSSSSSSSSSSSSSSSS : [{self.robot_name}] Found IK for frame {idx}: {ik_config}, with joint names: {ik_config.joint_names}")
                 configurations.append(ik_config)
             except Exception as e:
                 print(f"CombinedBackendHandler ROSSSSSSSSSSSSSSSSS : [{self.robot_name}] Error finding IK for frame {idx}: {e}")
-                return None
-        return configurations
+                return configurations, False
+                # return None
+        return configurations, True
 
     #TODO: Needs to be updated for the target information (based on if it is suppose to get a cube or not)
-    def _ros_plan_trajectories_for_user_initiated_request(self, start_config, configurations: List[Configuration]) -> List[JointTrajectory]:
+    def _ros_plan_trajectories_for_user_initiated_request(self, start_config, configurations: List[Configuration]) -> Tuple[List[JointTrajectory], bool]:
         if not configurations:
             print(f"CombinedBackendHandler: [{self.robot_name}] No configurations provided.")
-            return []
+            return [], False
+            # return []
 
         if start_config is None:
             print(f"CombinedBackendHandler: [{self.robot_name}] Could not read current joint state.")
-            return []
+            return [], False
+            # return []
 
         ros_joint_names = self.ros_robot.get_configurable_joint_names(self.group)
         ros_joint_types = self.ros_robot.get_configurable_joint_types(self.group)
@@ -725,7 +729,8 @@ class RobotHandlerCombinedBackends:
 
                 if trajectory is None:
                     print(f"CombinedBackendHandler: [{self.robot_name}] Planner returned None for leg {i} ({prev} -> {goal}).")
-                    return []
+                    return trajectories, False
+                    # return []
 
                 if not getattr(trajectory, "joint_names", None):
                     trajectory.joint_names = list(ros_joint_names)
@@ -741,9 +746,10 @@ class RobotHandlerCombinedBackends:
 
             except Exception as e:
                 print(f"CombinedBackendHandler: [{self.robot_name}] Error planning trajectory leg {i} from {prev} to {goal}: {e}")
-                return []
+                return trajectories, False
+                # return []
 
-        return trajectories
+        return trajectories, True
 
     #######################################################################################################################
     # TODO: THESE ARE FOR PYBULLET BUT NEVER USED OR TESTED : Testing for creating cartesian motion with TryIK fast.
@@ -1334,7 +1340,7 @@ class RobotHandlerCombinedBackends:
         else:
             print(f"CombinedBackendHandler: [{self.robot_name}] Valid configurations found for planning. Found {len(configs_for_planning)} configs for planning.")        
 
-        trajectories = self._pyb_plan_trajectories_for_user_initiated_request(configurations=configs_for_planning)
+        trajectories = self._pyb_plan_trajectories_for_user_initiated_request(configurations=configs_for_planning) #TODO: Update to plan linnear move for pick and place items?
         if len(trajectories) < 1:
             print(f"CombinedBackendHandler: [{self.robot_name}] No valid trajectories found for planning. Returning empty trajectory.")
             return None
@@ -1354,7 +1360,10 @@ class RobotHandlerCombinedBackends:
             start_config = self._get_latest_joint_values_from_stream_as_configuration(backend="ROS")
         except Exception as e:
             print(f"CombinedBackendHandler: [{self.robot_name}] Failed to get start configuration from ROS: {e}")
+            #TODO: Make this a static configuration that is an input.... this is a fall back for sim testing.
             start_config = self.ros_robot.zero_configuration()
+
+        #simple logging, and can be removed soon...
         data["start_config"] = start_config
         data["robot_frames"] = msg.robot_frames
 
@@ -1366,14 +1375,14 @@ class RobotHandlerCombinedBackends:
 
         if start_config is None:
             print(f"CombinedBackendHandler: [{self.robot_name}] No valid start configuration found. Returning empty trajectory.")
-        configs_for_planning = self._ros_plan_ik_for_frames_list(msg.robot_frames, start_config, options=options)
-        if configs_for_planning is None:
+        configs_for_planning, success = self._ros_plan_ik_for_frames_list(msg.robot_frames, start_config, options=options)
+        if not success or len(configs_for_planning) == 0:
             print(f"CombinedBackendHandler ROSSSSSSSSSSSSSSSSSSSSSSSSSSSSS : [{self.robot_name}] No valid configurations found for planning. Returning empty trajectory.")
         else:
             print(f"CombinedBackendHandler ROSSSSSSSSSSSSSSSSSSSSSSSSSSSSS : [{self.robot_name}] Valid configurations found for planning. Found {len(configs_for_planning)} configs for planning.")        
         data["configs_for_planning"] = configs_for_planning
-        trajectories = self._ros_plan_trajectories_for_user_initiated_request(start_config=start_config, configurations=configs_for_planning)
-        if len(trajectories) < 1:
+        trajectories, success = self._ros_plan_trajectories_for_user_initiated_request(start_config=start_config, configurations=configs_for_planning) #TODO: Update to do linear moves for pick and place of cube???
+        if not success or len(trajectories) < 1:
             print(f"CombinedBackendHandler: [{self.robot_name}] No valid trajectories found for planning. Returning empty trajectory.")
             json_dump(data, fp=trajectory_dump_path, pretty=True)
             return None
@@ -1693,13 +1702,15 @@ class RobotHandlerCombinedBackends:
 
         ik_options = dict(link_name="tool0", high_accuracy_threshold=1e-6, high_accuracy_max_iter=8)
 
-        configs_for_planning = self._ros_plan_ik_for_frames_list(frames_for_ik, start_config, options=ik_options)
-        if not configs_for_planning:
+        configs_for_planning, success = self._ros_plan_ik_for_frames_list(frames_for_ik, start_config, options=ik_options)
+        if not success or len(configs_for_planning) == 0:
             print(f"CombinedBackendHandler: [{self.robot_name}] No valid configurations found for planning. Returning empty trajectory.")
+            #TODO: Add configurations to log and keep moving....
             return []
 
         # Plan per the required sequence
         # Plan per the required sequence
+        # TODO: Update with success bool to store some planning data........
         try:
             trajectories = self._ros_plan_trajectories_for_inference(
                 configurations=configs_for_planning,
@@ -1779,6 +1790,7 @@ class URMimicHandlerCombined(RobotHandlerCombinedBackends):
 
     def __enter__(self): return self
     def __exit__(self, exc_type, exc, tb): self.close()
+
     def __del__(self):
         try: self.close()
         except: pass
