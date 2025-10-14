@@ -1346,12 +1346,17 @@ class RobotHandlerCombinedBackends:
         """
         This method can be overridden by child classes to handle custom message requests.
         """
+        trajectory_dump_path = os.path.join(os.path.dirname(__file__), "ik_configurations_ros.json")
+        data = {}
+
         print(f"CombinedBackendHandler: [{self.robot_name}] Handling user-defined request: {msg} from {msg.header.device_id}")
         try:
             start_config = self._get_latest_joint_values_from_stream_as_configuration(backend="ROS")
         except Exception as e:
             print(f"CombinedBackendHandler: [{self.robot_name}] Failed to get start configuration from ROS: {e}")
             start_config = self.ros_robot.zero_configuration()
+        data["start_config"] = start_config
+        data["robot_frames"] = msg.robot_frames
 
         options = dict(
                 link_name="tool0",
@@ -1366,12 +1371,14 @@ class RobotHandlerCombinedBackends:
             print(f"CombinedBackendHandler ROSSSSSSSSSSSSSSSSSSSSSSSSSSSSS : [{self.robot_name}] No valid configurations found for planning. Returning empty trajectory.")
         else:
             print(f"CombinedBackendHandler ROSSSSSSSSSSSSSSSSSSSSSSSSSSSSS : [{self.robot_name}] Valid configurations found for planning. Found {len(configs_for_planning)} configs for planning.")        
-
+        data["configs_for_planning"] = configs_for_planning
         trajectories = self._ros_plan_trajectories_for_user_initiated_request(start_config=start_config, configurations=configs_for_planning)
         if len(trajectories) < 1:
             print(f"CombinedBackendHandler: [{self.robot_name}] No valid trajectories found for planning. Returning empty trajectory.")
+            json_dump(data, fp=trajectory_dump_path, pretty=True)
             return None
         
+        json_dump(data, fp=trajectory_dump_path, pretty=True)
         # print(f"CombinedBackendHandler: [{self.robot_name}] Valid trajectories found for planning. Found {len(trajectories)} trajectories for planning.")
         return trajectories
 
