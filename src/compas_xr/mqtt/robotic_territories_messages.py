@@ -114,12 +114,13 @@ class MimicTrajectoryRequestMessage(Message):
         The header of the message.
     """
 
-    def __init__(self, human_frames, robot_frames, robot_name, header=None):
+    def __init__(self, human_frames, robot_frames, robot_name, io_control_indexes, header=None):
         super(MimicTrajectoryRequestMessage, self).__init__()
         self["header"] = header or Header()
         self["human_frames"] = human_frames
         self["robot_frames"] = robot_frames
         self["robot_name"] = robot_name
+        self["io_control_indexes"] = io_control_indexes
 
     @classmethod
     def _parse_frames_list_from_data(self, data):
@@ -135,7 +136,10 @@ class MimicTrajectoryRequestMessage(Message):
         human_frames = cls._parse_frames_list_from_data(value["human_frames"])
         robot_frames = cls._parse_frames_list_from_data(value["robot_frames"])
         robot_name = value["robot_name"]
-        return cls(human_frames, robot_frames, robot_name, header)
+        io_control_indexes = value.get("io_control_indexes", [])
+        if len(io_control_indexes) == 0:
+            raise ValueError("MimicTrajectoryRequestMessage missing required field: io_control_indexes")
+        return cls(human_frames, robot_frames, robot_name, io_control_indexes, header)
     
 class MimicTrajectoryResultMessage(Message):
     """

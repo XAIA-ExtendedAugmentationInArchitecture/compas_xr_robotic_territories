@@ -274,7 +274,7 @@ def send_trajectory_path_TEST(configurations, speed, accel, radius, ur_c):
    
     for config in configurations:
         path.append(config.joint_values + [speed, accel, radius])
-    print("PATH TO SEND", path)
+    print(f'SendTrajectoryPath_Test: Path sent with length {len(path)}')
     # if len(path):
     #     ur_c.moveJ(path)
 
@@ -576,13 +576,14 @@ def send_to_single_trajectory_robotic_territories_TEST(trajectory_configs, speed
 
     #TODO: This means that the IO needs to be turned off.
     elif io_begining_end_none == 2:
+
         try:
             send_trajectory_path_TEST(trajectory_configs, speed, accel, radius, ur_c)
             if vaccum_io != None:
                 #Turn off io to turn off the vaccum.
                 set_tool_digital_io_TEST(vaccum_io,False,ip=ip)
                 time.sleep(time_sleep_delay)
-        
+
         except Exception as e:
             print(e)
             raise

@@ -668,12 +668,11 @@ class RobotHandlerCombinedBackends:
         return configurations
 
     #TODO: Needs to be updated for the target information (based on if it is suppose to get a cube or not)
-    def _ros_plan_trajectories_for_user_initiated_request(self, configurations: List[Configuration]) -> List[JointTrajectory]:
+    def _ros_plan_trajectories_for_user_initiated_request(self, start_config, configurations: List[Configuration]) -> List[JointTrajectory]:
         if not configurations:
             print(f"CombinedBackendHandler: [{self.robot_name}] No configurations provided.")
             return []
 
-        start_config = self._get_latest_joint_values_from_stream_as_configuration()
         if start_config is None:
             print(f"CombinedBackendHandler: [{self.robot_name}] Could not read current joint state.")
             return []
@@ -1348,7 +1347,12 @@ class RobotHandlerCombinedBackends:
         This method can be overridden by child classes to handle custom message requests.
         """
         print(f"CombinedBackendHandler: [{self.robot_name}] Handling user-defined request: {msg} from {msg.header.device_id}")
-        start_config = self._get_latest_joint_values_from_stream_as_configuration(backend="ROS")
+        try:
+            start_config = self._get_latest_joint_values_from_stream_as_configuration(backend="ROS")
+        except Exception as e:
+            print(f"CombinedBackendHandler: [{self.robot_name}] Failed to get start configuration from ROS: {e}")
+            start_config = self.ros_robot.zero_configuration()
+
         options = dict(
                 link_name="tool0",
                 high_accuracy_threshold=1e-6,
@@ -1363,7 +1367,7 @@ class RobotHandlerCombinedBackends:
         else:
             print(f"CombinedBackendHandler ROSSSSSSSSSSSSSSSSSSSSSSSSSSSSS : [{self.robot_name}] Valid configurations found for planning. Found {len(configs_for_planning)} configs for planning.")        
 
-        trajectories = self._ros_plan_trajectories_for_user_initiated_request(configurations=configs_for_planning)
+        trajectories = self._ros_plan_trajectories_for_user_initiated_request(start_config=start_config, configurations=configs_for_planning)
         if len(trajectories) < 1:
             print(f"CombinedBackendHandler: [{self.robot_name}] No valid trajectories found for planning. Returning empty trajectory.")
             return None
@@ -1371,25 +1375,43 @@ class RobotHandlerCombinedBackends:
         # print(f"CombinedBackendHandler: [{self.robot_name}] Valid trajectories found for planning. Found {len(trajectories)} trajectories for planning.")
         return trajectories
 
-    def handle_user_initiated_mimic_execution(self, msg: ExecuteMimicTrajectoryRequestMessage, trajectory_list: List[JointTrajectory]):
+    def handle_user_initiated_mimic_execution(self, msg: ExecuteMimicTrajectoryRequestMessage, trajectory_list: List[JointTrajectory], io_control_list: List[int]):
         """
         This method should be overridden by child classes to handle custom mimic execution requests.
         """
-        print(f"CombinedBackendHandler: [{self.robot_name}] Handling user-defined mimic execution request: {msg} from {msg.header.device_id}")
-        #TODO: MESSAGE NEEDS TO BE EXTENDED TO HANDLE AN IO ON OFF LIST OF THINGS
+        """
+        Handles user-defined mimic execution requests.
+        The IO control list is expected to be one element shorter than the trajectory list.
+        Each IO signal is sent *after* its corresponding trajectory executes.
+        """
+        print(f"CombinedBackendHandler: [{self.robot_name}] Handling user-defined mimic execution request from: {msg.header.device_id}")
+        print(f"CombinedBackendHandler: [{self.robot_name}] Executing trajectory list with len {len(trajectory_list)} of type {type(trajectory_list)} points, with IO control list: len {len(io_control_list)} of {type(io_control_list)}")
+
         if not trajectory_list:
             print(f"CombinedBackendHandler: [{self.robot_name}] No trajectories to execute.")
             return False
 
-        for traj in trajectory_list: #TODO: Need the IO Contol list here, as an enumeration
-            try:
-                #TODO: The IO Beginning, End, None needs to be controled by the message or planning (when to turn on and off the IO).
-                self._send_to_trajectory_RT(trajectory=traj, io_begining_end_none=0)
-                print(f"CombinedBackendHandler: [{self.robot_name}] Successfully executed trajectory.")
-            except Exception as e:
-                print(f"CombinedBackendHandler: [{self.robot_name}] Failed to execute trajectory: {e}")
-                return False
-        return True
+        if len(io_control_list) != len(trajectory_list) - 1:
+            print(f"CombinedBackendHandler: [{self.robot_name}] Warning: IO control list length ({len(io_control_list)}) "
+                f"should be one less than trajectory list length ({len(trajectory_list)}).")
+        
+        try:
+            for i, traj in enumerate(trajectory_list):
+                io_signal = 0  # default
+                # send trajectory
+                self._send_to_trajectory_RT(trajectory=traj, io_begining_end_none=io_signal)
+                print(f"CombinedBackendHandler: [{self.robot_name}] Executed trajectory {i} (no IO or neutral state).")
+
+                # if not the last trajectory, trigger IO event *after* the current trajectory
+                if i < len(trajectory_list) - 1:
+                    io_signal = io_control_list[i]
+                    print(f"CombinedBackendHandler: [{self.robot_name}] Sent IO signal {io_signal} after trajectory {i}.")
+
+            return True
+
+        except Exception as e:
+            print(f"CombinedBackendHandler: [{self.robot_name}] Failed to execute mimic sequence: {e}")
+            return False
 
     #####################################################################################################
     # Inference Handlers
@@ -1790,7 +1812,7 @@ class URMimicHandlerCombined(RobotHandlerCombinedBackends):
         # rtde.move_to_target_TEST(frame, self.speed, self.acceleration, nowait=self.nowait, ip=self.robot_ip)
 
     def _send_to_trajectory_RT(self, trajectory: JointTrajectory, io_begining_end_none):
-        print(f"URCombinedBackendHandler: [{self.robot_name}] (Sim) Executing UR trajectory: {trajectory}")
+        print(f"URCombinedBackendHandler: [{self.robot_name}] (Sim) Executing UR trajectory of len: {len(trajectory.points)}")
         rtde.send_to_single_trajectory_robotic_territories_TEST(trajectory.points, self.speed, self.acceleration, self.radius, self.rtde_ctrl, self.robot_ip, io_begining_end_none, self.io)
         # rtde.send_to_single_trajectory_robotic_territories(trajectory.points, self.speed, self.acceleration, self.radius, self.rtde_ctrl, self.robot_ip, io_begining_end_none, self.io)
 

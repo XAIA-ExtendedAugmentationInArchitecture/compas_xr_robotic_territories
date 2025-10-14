@@ -57,6 +57,7 @@ class CommunicationManager:
 
         #Message Helpers
         self._user_initiated_mimic_trajectories_to_execute = []
+        self._user_initiated_io_control_indexes_to_execute = []
         self._post_inference_exacutable_trajectories = []
 
         #Inference Manager
@@ -502,10 +503,12 @@ class CommunicationManager:
 
         # TODO: Set this to an empty list just to be safe... This will be my attribute for storing the trajectories to execute.
         self._user_initiated_mimic_trajectories_to_execute = []
+        self._user_initiated_io_control_indexes_to_execute = []
 
         robot_name = msg.robot_name
         requested_human_frames = msg.human_frames
         requested_robot_frames = msg.robot_frames
+        requested_io_signals = msg.io_control_indexes
 
         print(f"CommunicationManager : [CommunicationManager] Received User Controled Mimic request for robot '{robot_name}': Requesting : {len(requested_robot_frames)} frames")
         # print(f"CommunicationManager : [CommunicationManager] Received User Controled Mimic request for robot '{robot_name}': Requesting : {len(requested_robot_frames)} frames : msg : {msg}")
@@ -515,6 +518,7 @@ class CommunicationManager:
         data["robot_name"] = robot_name
         data["requested_robot_frames"] = msg.robot_frames
         data["requested_human_frames"] = msg.human_frames
+        data["io_signals"] = msg.io_control_indexes
         json_dump(data=data, fp=r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\performance_operations\testing\random_data_saves\test_requested_robot_frames.json", pretty=True)
 
         #Transform the frames and reassign them to the message.
@@ -543,6 +547,7 @@ class CommunicationManager:
         #TODO: Added Additional Transformation Rotation to account for poor URDF baseframe placement.
 
         self._user_initiated_mimic_trajectories_to_execute = trajectories_to_publsih
+        self._user_initiated_io_control_indexes_to_execute = requested_io_signals
 
         result = MimicTrajectoryResultMessage(
             robot_name=self.robot_name,
@@ -560,7 +565,7 @@ class CommunicationManager:
         print(f"CommunicationManager : [CommunicationManager] Received User Controled Mimic execution request for robot '{robot_name}' with {len(self._user_initiated_mimic_trajectories_to_execute)} trajectories to execute.")
 
         handler = self.handler
-        success = handler.handle_user_initiated_mimic_execution(msg, self._user_initiated_mimic_trajectories_to_execute)
+        success = handler.handle_user_initiated_mimic_execution(msg, self._user_initiated_mimic_trajectories_to_execute, self._user_initiated_io_control_indexes_to_execute)
 
         if success:
             print(f"CommunicationManager : [CommunicationManager] Successfully executed mimic trajectory for robot {robot_name}")
