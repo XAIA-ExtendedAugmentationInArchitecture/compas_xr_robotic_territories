@@ -1378,6 +1378,8 @@ class RobotHandlerCombinedBackends:
         configs_for_planning, success = self._ros_plan_ik_for_frames_list(msg.robot_frames, start_config, options=options)
         if not success or len(configs_for_planning) == 0:
             print(f"CombinedBackendHandler ROSSSSSSSSSSSSSSSSSSSSSSSSSSSSS : [{self.robot_name}] No valid configurations found for planning. Returning empty trajectory.")
+            #TODO: Add to json_dump log here as well.
+            return None
         else:
             print(f"CombinedBackendHandler ROSSSSSSSSSSSSSSSSSSSSSSSSSSSSS : [{self.robot_name}] Valid configurations found for planning. Found {len(configs_for_planning)} configs for planning.")        
         data["configs_for_planning"] = configs_for_planning
