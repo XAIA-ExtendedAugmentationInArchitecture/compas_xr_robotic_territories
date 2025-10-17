@@ -623,6 +623,15 @@ def send_to_single_trajectory_robotic_territories(trajectory_configs, speed, acc
             print(e)
             raise
 
+def send_to_single_trajectory_no_io(trajectory_configs, speed, accel, radius, ur_c, ip):
+
+    #TODO: This means there is no IO change...
+    try:
+        send_trajectory_path(trajectory_configs, speed, accel, radius,ur_c)
+    except Exception as e:
+        print(e)
+        raise
+
 def send_to_single_trajectory_only_joint_values(trajectory_configs, speed, accel, radius, nowait, ip, vaccum_io=None):
 
     ur_c = RTDEControl(ip)
