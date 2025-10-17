@@ -1,267 +1,333 @@
 {
   "CurrentMode": "Mimic",
   "QRFrames": {
-    "graph": {
-      "default_node_attributes": {
-        "x": 0,
-        "y": 0,
-        "z": 0
-      },
-      "max_node": 4,
-      "node": [
-        {
-          "part": {
-            "data": {
-              "attributes": {
-                "name": "QR_0",
-                "shape": {
-                  "data": {
-                    "point": [
-                      0,
-                      0,
-                      0.00256
-                    ],
-                    "xaxis": [
-                      1,
-                      0,
-                      0
-                    ],
-                    "yaxis": [
-                      0,
-                      1,
-                      0
-                    ]
-                  },
-                  "dtype": "compas.geometry/Frame",
-                  "guid": "7d723c2a-adf2-4ebe-a056-4d2a445d904f"
-                }
-              },
-              "frame": {
-                "point": [
-                  0,
-                  0,
-                  0.00256
-                ],
-                "xaxis": [
-                  1,
-                  0,
-                  0
-                ],
-                "yaxis": [
-                  0,
-                  1,
-                  0
-                ]
-              },
-              "key": 0
-            },
-            "dtype": "compas.datastructures/Part",
-            "guid": "dcc53e0c-5a99-4e40-8977-0c9a6e7eb225"
+  "graph": {
+          "attributes": {}, 
+          "default_edge_attributes": {}, 
+          "default_node_attributes": {
+              "x": 0.0, 
+              "y": 0.0, 
+              "z": 0.0
+          }, 
+          "edge": {
+              "0": {}, 
+              "1": {}, 
+              "2": {}, 
+              "3": {}, 
+              "4": {}, 
+              "5": {}
+          }, 
+          "max_node": 5, 
+          "node": {
+              "0": {
+                  "part": {
+                      "data": {
+                          "attributes": {
+                              "name": "QR_0", 
+                              "shape": {
+                                  "data": {
+                                      "point": [
+                                          0.0, 
+                                          0.0, 
+                                          0.0
+                                      ], 
+                                      "xaxis": [
+                                          1.0, 
+                                          0.0, 
+                                          0.0
+                                      ], 
+                                      "yaxis": [
+                                          0.0, 
+                                          1.0, 
+                                          0.0
+                                      ]
+                                  }, 
+                                  "dtype": "compas.geometry/Frame", 
+                                  "guid": "0c5216a9-1738-4921-9727-98ca68a01ad8"
+                              }
+                          }, 
+                          "features": [], 
+                          "frame": {
+                              "point": [
+                                  0.0, 
+                                  0.0, 
+                                  0.0
+                              ], 
+                              "xaxis": [
+                                  1.0, 
+                                  0.0, 
+                                  0.0
+                              ], 
+                              "yaxis": [
+                                  0.0, 
+                                  1.0, 
+                                  0.0
+                              ]
+                          }, 
+                          "key": 0
+                      }, 
+                      "dtype": "compas.datastructures/Part", 
+                      "guid": "7d70aff1-7201-4009-8f5d-ba4f8c1752a8"
+                  }
+              }, 
+              "1": {
+                  "part": {
+                      "data": {
+                          "attributes": {
+                              "name": "QR_1", 
+                              "shape": {
+                                  "data": {
+                                      "point": [
+                                          -3.0688556664512303, 
+                                          0.16189504644326003, 
+                                          -0.0040491584838861904
+                                      ], 
+                                      "xaxis": [
+                                          1.0, 
+                                          0.0, 
+                                          0.0
+                                      ], 
+                                      "yaxis": [
+                                          0.0, 
+                                          1.0, 
+                                          0.0
+                                      ]
+                                  }, 
+                                  "dtype": "compas.geometry/Frame", 
+                                  "guid": "0ac2ec92-20d6-42c3-873e-c0536da98f16"
+                              }
+                          }, 
+                          "features": [], 
+                          "frame": {
+                              "point": [
+                                  -3.0688556664512303, 
+                                  0.16189504644326003, 
+                                  -0.0040491584838861904
+                              ], 
+                              "xaxis": [
+                                  1.0, 
+                                  0.0, 
+                                  0.0
+                              ], 
+                              "yaxis": [
+                                  0.0, 
+                                  1.0, 
+                                  0.0
+                              ]
+                          }, 
+                          "key": 1
+                      }, 
+                      "dtype": "compas.datastructures/Part", 
+                      "guid": "ba451561-3c9f-4f02-bb6d-e0d87a9d3905"
+                  }
+              }, 
+              "2": {
+                  "part": {
+                      "data": {
+                          "attributes": {
+                              "name": "QR_2", 
+                              "shape": {
+                                  "data": {
+                                      "point": [
+                                          0.5, 
+                                          -0.5, 
+                                          0.0
+                                      ], 
+                                      "xaxis": [
+                                          1.0, 
+                                          0.0, 
+                                          0.0
+                                      ], 
+                                      "yaxis": [
+                                          0.0, 
+                                          1.0, 
+                                          0.0
+                                      ]
+                                  }, 
+                                  "dtype": "compas.geometry/Frame", 
+                                  "guid": "cd545bca-6d1d-4d13-9fc3-52ce5edb48c5"
+                              }
+                          }, 
+                          "features": [], 
+                          "frame": {
+                              "point": [
+                                  0.5, 
+                                  -0.5, 
+                                  0.0
+                              ], 
+                              "xaxis": [
+                                  1.0, 
+                                  0.0, 
+                                  0.0
+                              ], 
+                              "yaxis": [
+                                  0.0, 
+                                  1.0, 
+                                  0.0
+                              ]
+                          }, 
+                          "key": 2
+                      }, 
+                      "dtype": "compas.datastructures/Part", 
+                      "guid": "90cca072-9cc3-493a-b244-83f9c4f2cf7e"
+                  }
+              }, 
+              "3": {
+                  "part": {
+                      "data": {
+                          "attributes": {
+                              "name": "QR_3", 
+                              "shape": {
+                                  "data": {
+                                      "point": [
+                                          -1.2400556664512301, 
+                                          0.16189504644326, 
+                                          -0.0040491584838861904
+                                      ], 
+                                      "xaxis": [
+                                          1.0, 
+                                          0.0, 
+                                          0.0
+                                      ], 
+                                      "yaxis": [
+                                          0.0, 
+                                          1.0, 
+                                          0.0
+                                      ]
+                                  }, 
+                                  "dtype": "compas.geometry/Frame", 
+                                  "guid": "ab89106a-08d2-4189-95ac-187448908a2e"
+                              }
+                          }, 
+                          "features": [], 
+                          "frame": {
+                              "point": [
+                                  -1.2400556664512301, 
+                                  0.16189504644326, 
+                                  -0.0040491584838861904
+                              ], 
+                              "xaxis": [
+                                  1.0, 
+                                  0.0, 
+                                  0.0
+                              ], 
+                              "yaxis": [
+                                  0.0, 
+                                  1.0, 
+                                  0.0
+                              ]
+                          }, 
+                          "key": 3
+                      }, 
+                      "dtype": "compas.datastructures/Part", 
+                      "guid": "b110797f-0fbe-4805-ba37-bf68cc7601b6"
+                  }
+              }, 
+              "4": {
+                  "part": {
+                      "data": {
+                          "attributes": {
+                              "name": "QR_4", 
+                              "shape": {
+                                  "data": {
+                                      "point": [
+                                          -1.2258217355476499, 
+                                          -0.41250243972231898, 
+                                          -0.0022690367660716999
+                                      ], 
+                                      "xaxis": [
+                                          1.0, 
+                                          0.0, 
+                                          0.0
+                                      ], 
+                                      "yaxis": [
+                                          0.0, 
+                                          1.0, 
+                                          0.0
+                                      ]
+                                  }, 
+                                  "dtype": "compas.geometry/Frame", 
+                                  "guid": "525303dd-e3fd-49ea-ba21-bb5dd11caa0b"
+                              }
+                          }, 
+                          "features": [], 
+                          "frame": {
+                              "point": [
+                                  -1.2258217355476499, 
+                                  -0.41250243972231898, 
+                                  -0.0022690367660716999
+                              ], 
+                              "xaxis": [
+                                  1.0, 
+                                  0.0, 
+                                  0.0
+                              ], 
+                              "yaxis": [
+                                  0.0, 
+                                  1.0, 
+                                  0.0
+                              ]
+                          }, 
+                          "key": 4
+                      }, 
+                      "dtype": "compas.datastructures/Part", 
+                      "guid": "7164751c-6790-40f3-a98b-661625da6838"
+                  }
+              }, 
+              "5": {
+                  "part": {
+                      "data": {
+                          "attributes": {
+                              "name": "QR_5", 
+                              "shape": {
+                                  "data": {
+                                      "point": [
+                                          -3.0546217355476504, 
+                                          -0.41250243972231904, 
+                                          -0.0022690367660716999
+                                      ], 
+                                      "xaxis": [
+                                          1.0, 
+                                          0.0, 
+                                          0.0
+                                      ], 
+                                      "yaxis": [
+                                          0.0, 
+                                          1.0, 
+                                          0.0
+                                      ]
+                                  }, 
+                                  "dtype": "compas.geometry/Frame", 
+                                  "guid": "dcb53f94-32b4-4859-a986-4bd69489229d"
+                              }
+                          }, 
+                          "features": [], 
+                          "frame": {
+                              "point": [
+                                  -3.0546217355476504, 
+                                  -0.41250243972231904, 
+                                  -0.0022690367660716999
+                              ], 
+                              "xaxis": [
+                                  1.0, 
+                                  0.0, 
+                                  0.0
+                              ], 
+                              "yaxis": [
+                                  0.0, 
+                                  1.0, 
+                                  0.0
+                              ]
+                          }, 
+                          "key": 5
+                      }, 
+                      "dtype": "compas.datastructures/Part", 
+                      "guid": "0275bb06-24e7-43cf-8712-5b863630e3a3"
+                  }
+              }
           }
-        },
-        {
-          "part": {
-            "data": {
-              "attributes": {
-                "name": "QR_1",
-                "shape": {
-                  "data": {
-                    "point": [
-                      0,
-                      0,
-                      0.00256
-                    ],
-                    "xaxis": [
-                      1,
-                      0,
-                      0
-                    ],
-                    "yaxis": [
-                      0,
-                      1,
-                      0
-                    ]
-                  },
-                  "dtype": "compas.geometry/Frame",
-                  "guid": "f51ce9d9-86cb-4a3c-ad22-fe61e057cdde"
-                }
-              },
-              "frame": {
-                "point": [
-                  0,
-                  0,
-                  0.4
-                ],
-                "xaxis": [
-                  1,
-                  0,
-                  0
-                ],
-                "yaxis": [
-                  0,
-                  1,
-                  0
-                ]
-              },
-              "key": 1
-            },
-            "dtype": "compas.datastructures/Part",
-            "guid": "957b64aa-0119-4000-a7c8-87860320d752"
-          }
-        },
-        {
-          "part": {
-            "data": {
-              "attributes": {
-                "name": "QR_2",
-                "shape": {
-                  "data": {
-                    "point": [
-                      0.5,
-                      -0.5,
-                      0
-                    ],
-                    "xaxis": [
-                      1,
-                      0,
-                      0
-                    ],
-                    "yaxis": [
-                      0,
-                      1,
-                      0
-                    ]
-                  },
-                  "dtype": "compas.geometry/Frame",
-                  "guid": "f270e1cc-54a3-462f-8ec2-9f02493ec26e"
-                }
-              },
-              "frame": {
-                "point": [
-                  0.5,
-                  -0.5,
-                  0
-                ],
-                "xaxis": [
-                  1,
-                  0,
-                  0
-                ],
-                "yaxis": [
-                  0,
-                  1,
-                  0
-                ]
-              },
-              "key": 2
-            },
-            "dtype": "compas.datastructures/Part",
-            "guid": "b59c41a4-70d6-4311-91bc-6b0fd8206292"
-          }
-        },
-        {
-          "part": {
-            "data": {
-              "attributes": {
-                "name": "QR_3",
-                "shape": {
-                  "data": {
-                    "point": [
-                      -0.5,
-                      -0.5,
-                      0
-                    ],
-                    "xaxis": [
-                      1,
-                      0,
-                      0
-                    ],
-                    "yaxis": [
-                      0,
-                      1,
-                      0
-                    ]
-                  },
-                  "dtype": "compas.geometry/Frame",
-                  "guid": "8e0a1962-89fd-436c-ac5c-8ded0f02c533"
-                }
-              },
-              "frame": {
-                "point": [
-                  -0.5,
-                  -0.5,
-                  0
-                ],
-                "xaxis": [
-                  1,
-                  0,
-                  0
-                ],
-                "yaxis": [
-                  0,
-                  1,
-                  0
-                ]
-              },
-              "key": 3
-            },
-            "dtype": "compas.datastructures/Part",
-            "guid": "52149771-6836-4d77-9bd4-782e9c86258f"
-          }
-        },
-        {
-          "part": {
-            "data": {
-              "attributes": {
-                "name": "QR_4",
-                "shape": {
-                  "data": {
-                    "point": [
-                      -0.5,
-                      0.5,
-                      0
-                    ],
-                    "xaxis": [
-                      1,
-                      0,
-                      0
-                    ],
-                    "yaxis": [
-                      0,
-                      1,
-                      0
-                    ]
-                  },
-                  "dtype": "compas.geometry/Frame",
-                  "guid": "43a600ba-284a-4566-9d8c-15266b0aecbf"
-                }
-              },
-              "frame": {
-                "point": [
-                  -0.5,
-                  0.5,
-                  0
-                ],
-                "xaxis": [
-                  1,
-                  0,
-                  0
-                ],
-                "yaxis": [
-                  0,
-                  1,
-                  0
-                ]
-              },
-              "key": 4
-            },
-            "dtype": "compas.datastructures/Part",
-            "guid": "0c2bfffe-60f9-441a-999f-71ddea8797eb"
-          }
-        }
-      ]
-    }
-  },
+      }
+    },
   "geometry": {
     "observed_geometries": {
       "AnchorCube": {
