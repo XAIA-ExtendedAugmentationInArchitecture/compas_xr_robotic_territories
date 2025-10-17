@@ -1543,15 +1543,19 @@ class RobotHandlerCombinedBackends:
         
         try:
             for i, traj in enumerate(trajectory_list):
-                io_signal = 0  # default
+                # if i == 0:
+                #     io_signal = 0  # default
+                # else:
+                #     io_signal = io_control_list[i - 1]
+                io_signal = io_control_list[i]
                 # send trajectory
+                print(f"CombinedBackendHandler: [{self.robot_name}] Executed trajectory {i} with io state {io_signal}.")
                 self._send_to_trajectory_RT(trajectory=traj, io_begining_end_none=io_signal)
-                print(f"CombinedBackendHandler: [{self.robot_name}] Executed trajectory {i} (no IO or neutral state).")
 
-                # if not the last trajectory, trigger IO event *after* the current trajectory
-                if i < len(trajectory_list) - 1:
-                    io_signal = io_control_list[i]
-                    print(f"CombinedBackendHandler: [{self.robot_name}] Sent IO signal {io_signal} after trajectory {i}.")
+                # # if not the last trajectory, trigger IO event *after* the current trajectory
+                # if i < len(trajectory_list) - 1:
+                #     io_signal = io_control_list[i]
+                #     print(f"CombinedBackendHandler: [{self.robot_name}] Sent IO signal {io_signal} after trajectory {i}.")
 
             return True
 
@@ -2018,8 +2022,8 @@ class URMimicHandlerCombined(RobotHandlerCombinedBackends):
 
     def _send_to_trajectory_RT(self, trajectory: JointTrajectory, io_begining_end_none):
         print(f"URCombinedBackendHandler: [{self.robot_name}] (Sim) Executing UR trajectory of len: {len(trajectory.points)}")
-        rtde.send_to_single_trajectory_robotic_territories_TEST(trajectory.points, self.speed, self.acceleration, self.radius, self.rtde_ctrl, self.robot_ip, io_begining_end_none, self.io)
-        # rtde.send_to_single_trajectory_robotic_territories(trajectory.points, self.speed, self.acceleration, self.radius, self.rtde_ctrl, self.robot_ip, io_begining_end_none, self.io)
+        # rtde.send_to_single_trajectory_robotic_territories_TEST(trajectory.points, self.speed, self.acceleration, self.radius, self.rtde_ctrl, self.robot_ip, io_begining_end_none, self.io)
+        rtde.send_to_single_trajectory_robotic_territories(trajectory.points, self.speed, self.acceleration, self.radius, self.rtde_ctrl, self.robot_ip, io_begining_end_none, self.io)
 
     def _toggle_tool_io(self, signal: int, value: int):
         rtde.set_tool_digital_io(signal, value, self.robot_ip)
