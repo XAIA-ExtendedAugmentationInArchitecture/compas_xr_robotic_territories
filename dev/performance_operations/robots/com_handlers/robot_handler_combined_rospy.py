@@ -35,6 +35,8 @@ from compas_fab.backends.pybullet.planner import PyBulletPlanner
 from pybullet_planning import plan_joint_motion, set_joint_positions
 
 from compas_fab.backends import RosClient
+from copy import deepcopy
+import random
 
 class RobotHandlerCombinedBackends:
 
@@ -751,6 +753,37 @@ class RobotHandlerCombinedBackends:
 
         return trajectories, True
 
+    # Helper: cartesian plan from A cfg to B cfg via B's EE frame
+    def _ros_plan_cartesian(self, a_cfg: Configuration, b_cfg: Configuration, cart_options) -> Optional[JointTrajectory]:
+        b_frame = self.ros_robot.forward_kinematics(b_cfg, options=dict(link_name="tool0"), group=self.group)
+        if b_frame is None:
+            print(f"CombinedBackendHandler: [{self.robot_name}] FK failed for cartesian target.")
+            return None
+        traj = self.ros_robot.plan_cartesian_motion(
+            [b_frame],
+            start_configuration=a_cfg,
+            group=self.group,
+            options = dict(link_name=cart_options["link_name"],
+            max_step=cart_options["max_step"])
+        )
+        return traj
+
+    # Helper: free plan from A cfg to B cfg
+    def _ros_plan_free(self, a_cfg: Configuration, b_cfg: Configuration, free_options) -> Optional[JointTrajectory]:
+        goal_constraints = self.ros_robot.constraints_from_configuration(
+            configuration=b_cfg,
+            tolerances_above=self._generate_default_tolerances(self.ros_robot.get_configurable_joints(self.group)),
+            tolerances_below=self._generate_default_tolerances(self.ros_robot.get_configurable_joints(self.group)),
+            group=self.group
+        )
+        traj = self.ros_robot.plan_motion(
+            goal_constraints,
+            start_configuration=a_cfg,
+            group=self.group,
+            options=free_options
+        )
+        return traj
+
     #######################################################################################################################
     # TODO: THESE ARE FOR PYBULLET BUT NEVER USED OR TESTED : Testing for creating cartesian motion with TryIK fast.
     #######################################################################################################################
@@ -1316,6 +1349,97 @@ class RobotHandlerCombinedBackends:
             print(f"CombinedBackendHandler: [{self.robot_name}] Failed to toggle IO signal: {e}")
             return False
 
+    ############## Handle Realtime Mimic Pick and Place Requests #######################################
+
+    def handle_realtime_mimic_request_pick(self, msg: RealtimeMimicRequestMessage):
+        print(f"CombinedBackendHandler: [{self.robot_name}] Handling pick request: {msg} from {msg.header.device_id}")
+        if msg.requested_robot_frame is None or msg.geometry_frame is None:
+            print(f"CombinedBackendHandler: [{self.robot_name}] Invalid pick request: missing current robot frame or pick frame.")
+            raise ValueError("Pick request must include both the current robot and place frames.")
+
+        offset_post_pick_frame = self.offset_frame_by_distance(msg.geometry_frame, msg.geometry_frame.zaxis, -0.4)   
+
+        #Temp logging ########################################################################################################
+        data = {}
+        data["requested_robot_frame"] = msg.requested_robot_frame
+        data["geometry_frame"] = msg.geometry_frame
+        data["offset_post_pick_frame"] = offset_post_pick_frame
+        fp = os.path.join(os.path.dirname(__file__), "pick_request_debug.json")
+        #Temp logging ########################################################################################################
+
+        frames_for_ik = [msg.geometry_frame, offset_post_pick_frame]
+        ik_options = dict(link_name="tool0", high_accuracy_threshold=1e-6, high_accuracy_max_iter=8)
+
+        start_config = self._get_latest_joint_values_from_stream_as_configuration(backend="PyBullet")
+        data["start_config"] = start_config
+        if start_config is None:
+            print(f"CombinedBackendHandler: [{self.robot_name}] No valid start configuration found. Returning empty trajectory.")
+            json_dump(data, fp=fp, pretty=True)
+            return []
+
+        configs_for_planning, success = self._ros_plan_ik_for_frames_list(frames_for_ik, start_config, options=ik_options)
+        data["pick_ik_configs"] = configs_for_planning
+        if not success or len(configs_for_planning) == 0:
+            print(f"CombinedBackendHandler: [{self.robot_name}] No valid configurations found for planning. Returning empty trajectory.")
+            #TODO: Add configurations to log and keep moving....
+            json_dump(data, fp=fp, pretty=True)
+            return []
+        
+        print(f"CombinedBackendHandler: [{self.robot_name}] Valid configurations found for planning. Found {len(configs_for_planning)} configs for planning.")
+
+        trajectories = self._ros_plan_pick_for_realtime_mimic(start_config=start_config, ik_config_list=configs_for_planning)
+        data["trajectories"] = trajectories
+        if len(trajectories) < 1:
+            print(f"CombinedBackendHandler: [{self.robot_name}] No valid trajectories found for planning. Returning empty trajectory.")
+            json_dump(data, fp=fp, pretty=True)
+            return []
+
+        print(f"CombinedBackendHandler: [{self.robot_name}] Valid trajectories found for planning. Found {len(trajectories)} trajectories for planning.")
+        print(f"CombinedBackendHandler: [{self.robot_name}] Executing pick trajectories.")
+        json_dump(data, fp=fp, pretty=True)
+        return trajectories
+
+    def handle_realtime_mimic_request_place(self, msg: RealtimeMimicRequestMessage):
+        print(f"CombinedBackendHandler: [{self.robot_name}] Handling pick request: {msg} from {msg.header.device_id}")
+        if msg.requested_robot_frame is None or msg.geometry_frame is None:
+            print(f"CombinedBackendHandler: [{self.robot_name}] Invalid pick request: missing current robot frame or place frame.")
+            raise ValueError("Place request must include both the current robot and place frames.")
+
+        #Temp logging ########################################################################################################
+        data = {}
+        data["requested_robot_frame"] = msg.requested_robot_frame
+        data["geometry_frame"] = msg.geometry_frame
+        fp = os.path.join(os.path.dirname(__file__), "place_request_debug.json")
+        #Temp logging ########################################################################################################
+
+        start_config = self._get_latest_joint_values_from_stream_as_configuration(backend="PyBullet")
+        data["start_config"] = start_config
+        if start_config is None:
+            print(f"CombinedBackendHandler: [{self.robot_name}] No valid start configuration found. Returning empty trajectory.")
+            json_dump(data, fp=fp, pretty=True)
+            return []
+
+        ik_options = dict(link_name="tool0", high_accuracy_threshold=1e-6, high_accuracy_max_iter=8)
+        ik_conf = self.ros_find_ik(msg.geometry_frame, start_config, ik_options)
+        data["place_ik_config"] = ik_conf
+        if ik_conf is None:
+            print(f"CombinedBackendHandler: [{self.robot_name}] No valid configurations found for planning. Returning empty trajectory.")
+            json_dump(data, fp=fp, pretty=True)
+            return []
+        print(f"CombinedBackendHandler: [{self.robot_name}] Valid configurations found for planning.")
+
+        trajectories = self._ros_plan_place_for_realtime_mimic(start_config=start_config, ik_config_place=ik_conf)
+        data["trajectories"] = trajectories
+        if len(trajectories) < 1:
+            print(f"CombinedBackendHandler: [{self.robot_name}] No valid trajectories found for planning. Returning empty trajectory.")
+            json_dump(data, fp=fp, pretty=True)
+            return []
+        print(f"CombinedBackendHandler: [{self.robot_name}] Valid trajectories found for planning. Found {len(trajectories)} trajectories for planning.")
+
+        print(f"CombinedBackendHandler: [{self.robot_name}] Executing place trajectories.")
+        json_dump(data, fp=fp, pretty=True)
+        return trajectories
+
     ####################################################################################################
     # MESSAGE HANDLERS MimicResquestMessage
     ####################################################################################################
@@ -1507,39 +1631,8 @@ class RobotHandlerCombinedBackends:
         # Tune max_step/jump_threshold if needed for your setup
         cart_options = dict(link_name="tool0", avoid_collisions=True, max_step=0.05, jump_threshold=0.0)
 
-        # Helper: cartesian plan from A cfg to B cfg via B's EE frame
-        def plan_cartesian(a_cfg: Configuration, b_cfg: Configuration) -> Optional[JointTrajectory]:
-            b_frame = self.ros_robot.forward_kinematics(b_cfg, options=dict(link_name="tool0"), group=self.group)
-            if b_frame is None:
-                print(f"CombinedBackendHandler: [{self.robot_name}] FK failed for cartesian target.")
-                return None
-            traj = self.ros_robot.plan_cartesian_motion(
-                [b_frame],
-                start_configuration=a_cfg,
-                group=self.group,
-                options = dict(link_name=cart_options["link_name"],
-                max_step=cart_options["max_step"])
-            )
-            return traj
-
-        # Helper: free plan from A cfg to B cfg
-        def plan_free(a_cfg: Configuration, b_cfg: Configuration) -> Optional[JointTrajectory]:
-            goal_constraints = self.ros_robot.constraints_from_configuration(
-                configuration=b_cfg,
-                tolerances_above=self._generate_default_tolerances(self.ros_robot.get_configurable_joints(self.group)),
-                tolerances_below=self._generate_default_tolerances(self.ros_robot.get_configurable_joints(self.group)),
-                group=self.group
-            )
-            traj = self.ros_robot.plan_motion(
-                goal_constraints,
-                start_configuration=a_cfg,
-                group=self.group,
-                options=free_options
-            )
-            return traj
-
         # ---- Leg 1: start -> exit_safe (cartesian)
-        traj = plan_cartesian(start_config, exit_safe)
+        traj = self._ros_plan_cartesian(start_config, exit_safe, cart_options=cart_options)
         if traj is None:
             print(f"CombinedBackendHandler: [{self.robot_name}] Leg 1 cartesian failed.")
             return []
@@ -1547,7 +1640,7 @@ class RobotHandlerCombinedBackends:
         trajectories.append(traj)
 
         # ---- Leg 2: exit_safe -> approach_pick (free)
-        traj = plan_free(exit_safe, approach_pick)
+        traj = self._ros_plan_free(exit_safe, approach_pick, free_options=free_options)
         if traj is None:
             print(f"CombinedBackendHandler: [{self.robot_name}] Leg 2 free failed.")
             return []
@@ -1555,7 +1648,7 @@ class RobotHandlerCombinedBackends:
         trajectories.append(traj)
 
         # ---- Leg 3: approach_pick -> pick (cartesian)
-        traj_pick_fwd = plan_cartesian(approach_pick, pick)
+        traj_pick_fwd = self._ros_plan_cartesian(approach_pick, pick, cart_options=cart_options)
         if traj_pick_fwd is None:
             print(f"CombinedBackendHandler: [{self.robot_name}] Leg 3 cartesian (approach_pick->pick) failed.")
             return []
@@ -1568,7 +1661,7 @@ class RobotHandlerCombinedBackends:
         trajectories.append(traj_pick_rev)
 
         # ---- Leg 5: approach_pick -> approach_place (free)
-        traj = plan_free(approach_pick, approach_place)
+        traj = self._ros_plan_free(approach_pick, approach_place, free_options=free_options)
         if traj is None:
             print(f"CombinedBackendHandler: [{self.robot_name}] Leg 5 free failed.")
             return []
@@ -1576,7 +1669,7 @@ class RobotHandlerCombinedBackends:
         trajectories.append(traj)
 
         # ---- Leg 6: approach_place -> place (cartesian)
-        traj = plan_cartesian(approach_place, place)
+        traj = self._ros_plan_cartesian(approach_place, place, cart_options=cart_options)
         if traj is None:
             print(f"CombinedBackendHandler: [{self.robot_name}] Leg 6 cartesian failed.")
             return []
@@ -1584,6 +1677,92 @@ class RobotHandlerCombinedBackends:
         trajectories.append(traj)
 
         print(f"CombinedBackendHandler: [{self.robot_name}] Planned {len(trajectories)} legs (C, F, C, C-rev, F, C).")
+        return trajectories
+
+    def _ros_plan_pick_for_realtime_mimic(self, start_config, ik_config_list: List[Configuration]) -> List[JointTrajectory]:
+        """
+        Plans a pick sequence given a list of IK configurations.
+            start_config: current robot config from stream
+        Expects configurations in this order (length >= 2):
+            0: pick_config
+            1: exit_config
+        Plans legs:
+            current -> pick (cartesian)
+            pick -> exit (cartesian)
+        """
+        if not ik_config_list or len(ik_config_list) < 2:
+            print(f"CombinedBackendHandler: [{self.robot_name}] Need at least 3 configs (current, pick, exit).")
+            return []
+
+        if start_config is None:
+            print(f"CombinedBackendHandler: [{self.robot_name}] Could not read current joint state.")
+            return []
+        
+        ros_joint_names = self.ros_robot.get_configurable_joint_names(self.group)
+        ros_joint_types = self.ros_robot.get_configurable_joint_types(self.group)
+
+        # Align all configs to ROS joint ordering/types
+        start_config = self._align_config(start_config, ros_joint_names, ros_joint_types)
+        pick_cfg     = self._align_config(ik_config_list[0], ros_joint_names, ros_joint_types)
+        exit_cfg     = self._align_config(ik_config_list[1], ros_joint_names, ros_joint_types)
+
+        trajectories: List[JointTrajectory] = []
+
+        cart_options = dict(link_name="tool0", avoid_collisions=True, max_step=0.05, jump_threshold=0.0)
+
+        traj = self._ros_plan_cartesian(start_config, pick_cfg, cart_options=cart_options)
+        if traj is None:
+            print(f"CombinedBackendHandler: [{self.robot_name}] Leg 1 cartesian (start->pick) failed.")
+            return []
+        self._stamp_joint_meta(traj, ros_joint_names, ros_joint_types)
+        trajectories.append(traj)
+
+        # ---- Leg 2: pick -> exit (cartesian)
+        traj = self._ros_plan_cartesian(pick_cfg, exit_cfg, cart_options=cart_options)
+        if traj is None:
+            print(f"CombinedBackendHandler: [{self.robot_name}] Leg 2 cartesian (pick->exit) failed.")
+            return trajectories  # we at least reached pick; caller can decide whether to proceed
+        self._stamp_joint_meta(traj, ros_joint_names, ros_joint_types)
+        trajectories.append(traj)
+
+        print(f"CombinedBackendHandler: [{self.robot_name}] Planned {len(trajectories)} legs for RT mimic pick (C, C).")
+        return trajectories
+    
+    def _ros_plan_place_for_realtime_mimic(self, start_config, ik_config_place: Configuration) -> List[JointTrajectory]:
+        """
+        Plans a pick sequence given a list of IK configurations.
+            start_config: current robot config from stream
+            ik_config_place: place configuration
+        Plans legs:
+            current -> place (cartesian)
+        """
+        if not ik_config_place:
+            print(f"CombinedBackendHandler: [{self.robot_name}] Need at least 3 configs (current, pick, exit).")
+            return []
+
+        if start_config is None:
+            print(f"CombinedBackendHandler: [{self.robot_name}] Could not read current joint state.")
+            return []
+        
+        ros_joint_names = self.ros_robot.get_configurable_joint_names(self.group)
+        ros_joint_types = self.ros_robot.get_configurable_joint_types(self.group)
+
+        # Align all configs to ROS joint ordering/types
+        start_config = self._align_config(start_config, ros_joint_names, ros_joint_types)
+        place_config = self._align_config(ik_config_place, ros_joint_names, ros_joint_types)
+
+        trajectories: List[JointTrajectory] = []
+
+        cart_options = dict(link_name="tool0", avoid_collisions=True, max_step=0.05, jump_threshold=0.0)
+
+        traj = self._ros_plan_cartesian(start_config, place_config, cart_options=cart_options)
+        if traj is None:
+            print(f"CombinedBackendHandler: [{self.robot_name}] Leg 1 cartesian (start->pick) failed.")
+            return []
+        self._stamp_joint_meta(traj, ros_joint_names, ros_joint_types)
+        trajectories.append(traj)
+
+        print(f"CombinedBackendHandler: [{self.robot_name}] Planned {len(trajectories)} legs for RT mimic pick (C, C).")
         return trajectories
 
     ######### TODO: Helper Functions ####################################################################
@@ -1883,7 +2062,7 @@ class URMimicHandlerCombined(RobotHandlerCombinedBackends):
             frames_list = self._interpolage_frames_helper(current_tcp, frame, include_start=True, include_end=True)
             initial_ik_solutions = self.pyb_plan_ik_for_frames_list_ik_fast(frames_list=frames_list, start_config=current_config, do_collision_check=True, extra_seed=True, visual_hz=30)
             #TODO: Comment me out if you want to run on sim only....
-            # self.__send_to_realtime_mimic_start_position(initial_ik_solutions)
+            self.__send_to_realtime_mimic_start_position(initial_ik_solutions)
 
         # choose seed: current joints if no history, else last good
         if msg.initial_request or not self.realtime_mimic_ik_solutions:
@@ -1906,11 +2085,11 @@ class URMimicHandlerCombined(RobotHandlerCombinedBackends):
 
         if ik:
             # # # #TODO: Comment me in if you want to run on sim only....
-            self.realtime_mimic_ik_solutions.append(ik)
-            print(f"[{self.robot_name}] (SIM) would send with servoj, skipping actual send.")
-            fp = os.path.join(os.path.dirname(__file__), "realtime_mimic_ik_solutions.json")
-            json_dump(self.realtime_mimic_ik_solutions, fp, pretty=True)
-            return ik 
+            # self.realtime_mimic_ik_solutions.append(ik)
+            # print(f"[{self.robot_name}] (SIM) would send with servoj, skipping actual send.")
+            # fp = os.path.join(os.path.dirname(__file__), "realtime_mimic_ik_solutions.json")
+            # json_dump(self.realtime_mimic_ik_solutions, fp, pretty=True)
+            # return ik 
             # # # #TODO: Comment me in if you want to run on sim only....
             # remember and command through servoj
             self.realtime_mimic_ik_solutions.append(ik)
@@ -1919,8 +2098,8 @@ class URMimicHandlerCombined(RobotHandlerCombinedBackends):
             return ik
         # # # #TODO: Comment me in if you want to run on sim only...
         # IK failed: keep feeding servo with last known good (or current measured)
-        print(f"[{self.robot_name}] (SIM) IK failed, would normally keep feeding servo — skipping send.")
-        return None
+        # print(f"[{self.robot_name}] (SIM) IK failed, would normally keep feeding servo — skipping send.")
+        # return None
         # # # #TODO: Comment me in if you want to run on sim only...
         # # IK failed: keep feeding servo with last known good (or current measured)
         if self.realtime_mimic_ik_solutions:

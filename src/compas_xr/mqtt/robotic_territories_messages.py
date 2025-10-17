@@ -226,15 +226,16 @@ class RealtimeMimicRequestMessage(Message):
         The header of the message.
     """
 
-    def __init__(self, requested_robot_frame, robot_name, point_index, header=None, intial_request=False):
+    def __init__(self, requested_robot_frame, robot_name, point_index, header=None, intial_request=False, is_pick=False, is_place=False, geometry_frame=None):
         super(RealtimeMimicRequestMessage, self).__init__()
         self["header"] = header or Header()
-        # self["human_frames"] = human_frames
-        # self["robot_frames"] = robot_frames
         self["robot_name"] = robot_name
         self["requested_robot_frame"] = requested_robot_frame
         self["point_index"] = point_index
         self["initial_request"] = intial_request
+        self["is_pick"] = is_pick
+        self["is_place"] = is_place
+        self["geometry_frame"] = geometry_frame
     
     @classmethod
     def parse(cls, value):
@@ -246,7 +247,17 @@ class RealtimeMimicRequestMessage(Message):
         robot_name = value["robot_name"]
         pt_index = value["point_index"]
         initial_request = value["initial_request"]
-        return cls(requested_robot_frame, robot_name, pt_index, header, initial_request)
+        
+        # Optional fields for pick and place
+        is_pick = value.get("is_pick", False)
+        is_place = value.get("is_place", False)
+        geometry_frame_data = value.get("geometry_frame", None)
+        if geometry_frame_data:
+            geometry_frame = Frame.__from_data__(geometry_frame_data)
+        else:
+            geometry_frame = None
+
+        return cls(requested_robot_frame, robot_name, pt_index, header, initial_request, is_pick, is_place, geometry_frame)
 
 class RealtimeMimicResultMessage(Message):
     """
@@ -261,7 +272,7 @@ class RealtimeMimicResultMessage(Message):
         The header of the message.
     """
 
-    def __init__(self, robot_name, pt_index, return_message, correct_backend, configuration=None, header=None):
+    def __init__(self, robot_name, pt_index, return_message, correct_backend, configuration=None, was_pick_or_place=False, pick_or_place_planning_succeeded=False, header=None):
         super(RealtimeMimicResultMessage, self).__init__()
         self["header"] = header or Header()
         self["point_index"] = pt_index
@@ -269,6 +280,8 @@ class RealtimeMimicResultMessage(Message):
         self["robot_name"] = robot_name
         self["return_message"] = return_message
         self["correct_backend"] = correct_backend
+        self["was_pick_or_place"] = was_pick_or_place
+        self["pick_or_place_planning_succeeded"] = pick_or_place_planning_succeeded
 
     @classmethod
     def parse(cls, value):
@@ -288,7 +301,11 @@ class RealtimeMimicResultMessage(Message):
             configuration = Configuration.__from_data__(configuration)
         else:
             configuration = None
-        return cls(robot_name, return_message, correct_backend, configuration, header)
+        
+        was_pick_or_place = value.get("was_pick_or_place", False)
+        pick_or_place_planning_succeeded = value.get("pick_or_place_planning_succeeded", False)
+
+        return cls(robot_name, return_message, correct_backend, configuration, was_pick_or_place, pick_or_place_planning_succeeded, header)
     
 class RealtimeMimicIOToggleRequestMessage(Message):
     """

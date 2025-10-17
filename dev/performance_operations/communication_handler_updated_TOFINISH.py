@@ -20,6 +20,7 @@ import time
 
 from compas_xr.realtime_database import RealtimeDatabase
 from compas.geometry import Frame, Transformation
+from compas_robots import Configuration
 import logging
 
 class CommunicationManager:
@@ -474,27 +475,87 @@ class CommunicationManager:
             # ik_config = self.handler.handle_realtime_msg_request_recursive_solver(msg)
             # ik_config = self.handler.handle_realtime_msg_request(msg)
             # ik_config = handler.handle_realtime_msg_request_fastest_ik(msg)
-            ik_config = handler.handle_realtime_msg_request_servoj_gate(msg)
+            if not (msg.is_pick or msg.is_place):
 
-            if ik_config:
-                result = RealtimeMimicResultMessage(
-                    robot_name=robot_name,
-                    return_message=f"IK computed for {msg.point_index} with {robot_name} and an ik solution of {ik_config}",
-                    configuration=ik_config,
-                    pt_index=msg.point_index,
-                    correct_backend=True
-                )
-                print(f"CommunicationManager : [CommunicationManager] Published IK result for robot {robot_name}")
-            else:
-                result = RealtimeMimicResultMessage(
-                    robot_name=robot_name,
-                    return_message=f"IK computed for {msg.point_index} with {robot_name} and an ik solution of {ik_config}",
-                    configuration=None,
-                    pt_index=msg.point_index,
-                    correct_backend=True
-                )
-                print(f" CommunicationManager : [CommunicationManager] No result to publish for robot {robot_name}")
+                ik_config = handler.handle_realtime_msg_request_servoj_gate(msg)
 
+                if ik_config:
+                    result = RealtimeMimicResultMessage(
+                        robot_name=robot_name,
+                        return_message=f"IK computed for {msg.point_index} with {robot_name} and an ik solution of {ik_config}",
+                        configuration=ik_config,
+                        pt_index=msg.point_index,
+                        correct_backend=True
+                    )
+                    print(f"CommunicationManager : [CommunicationManager] Published IK result for robot {robot_name}")
+                else:
+                    result = RealtimeMimicResultMessage(
+                        robot_name=robot_name,
+                        return_message=f"IK computed for {msg.point_index} with {robot_name} and an ik solution of {ik_config}",
+                        configuration=None,
+                        pt_index=msg.point_index,
+                        correct_backend=True
+                    )
+                    print(f" CommunicationManager : [CommunicationManager] No result to publish for robot {robot_name}")
+
+            elif msg.is_pick:
+                print(f"CommunicationManager : [CommunicationManager] PICK operation detected. Attemptign PICK Planning")
+                msg.geometry_frame = self._transform_requested_frame_from_ar_space_to_robot_space(msg.geometry_frame)
+                trajectories = handler.handle_realtime_mimic_request_pick(msg)
+                if len(trajectories) > 0:
+                    print(f"CommunicationManager : [CommunicationManager] PICK operation PLANNING SUCCEEDED.")
+                    last_trajectory_point = trajectories[-1].points[-1] #TODO: I think I will need to turn this into a Configuration...
+                    ik_config = Configuration(last_trajectory_point.joint_values, last_trajectory_point.joint_types, last_trajectory_point.joint_names)
+                    result = RealtimeMimicResultMessage(
+                        robot_name=robot_name,
+                        return_message=f"IK computed for {msg.point_index} with {robot_name} and an ik solution of {ik_config}",
+                        configuration=ik_config,
+                        pt_index=msg.point_index,
+                        correct_backend=True,
+                        was_pick_or_place=True,
+                        pick_or_place_planning_succeeded=True
+                    )
+                else:
+                    print(f"CommunicationManager : [CommunicationManager] PICK operation PLANNING FAILED.")
+                    ik_config = None
+                    result = RealtimeMimicResultMessage(
+                        robot_name=robot_name,
+                        return_message=f"IK computed for {msg.point_index} with {robot_name} and an ik solution of {ik_config}",
+                        configuration=ik_config,
+                        pt_index=msg.point_index,
+                        correct_backend=True,
+                        was_pick_or_place=True,
+                        pick_or_place_planning_succeeded=False
+                    )
+            elif msg.is_place:
+                print(f"CommunicationManager : [CommunicationManager] PLACE operation detected. Attemptign PLACE Planning.")
+                msg.geometry_frame = self._transform_requested_frame_from_ar_space_to_robot_space(msg.geometry_frame)
+                trajectories = handler.handle_realtime_mimic_request_place(msg)
+                if len(trajectories) > 0:
+                    print(f"CommunicationManager : [CommunicationManager] PLACE operation PLANNING SUCCESS.")
+                    last_trajectory_point = trajectories[-1].points[-1] #TODO: I think I will need to turn this into a Configuration...
+                    ik_config = Configuration(last_trajectory_point.joint_values, last_trajectory_point.joint_types, last_trajectory_point.joint_names)
+                    result = RealtimeMimicResultMessage(
+                        robot_name=robot_name,
+                        return_message=f"IK computed for {msg.point_index} with {robot_name} and an ik solution of {ik_config}",
+                        configuration=ik_config,
+                        pt_index=msg.point_index,
+                        correct_backend=True,
+                        was_pick_or_place=True,
+                        pick_or_place_planning_succeeded=True
+                    )
+                else:
+                    print(f"CommunicationManager : [CommunicationManager] PLACE operation PLANNING FAILED.")
+                    ik_config = None
+                    result = RealtimeMimicResultMessage(
+                        robot_name=robot_name,
+                        return_message=f"IK computed for {msg.point_index} with {robot_name} and an ik solution of {ik_config}",
+                        configuration=ik_config,
+                        pt_index=msg.point_index,
+                        correct_backend=True,
+                        was_pick_or_place=True,
+                        pick_or_place_planning_succeeded=False
+                    )
         self.realtime_publisher.publish(result)
 
     def _on_message_user_initiated_mimic(self, msg: MimicTrajectoryRequestMessage):
