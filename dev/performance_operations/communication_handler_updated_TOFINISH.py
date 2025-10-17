@@ -584,6 +584,17 @@ class CommunicationManager:
 
         #Transform the frames and reassign them to the message.
         transformed_requested_robot_frames = self._transform_requested_frames_list_from_robot_space_to_ar_space(requested_robot_frames)
+
+        #TODO: Accomodate pick and place tolerances here if needed.
+        offset_distance = -0.01
+        offset_frames = []
+        for frame in transformed_requested_robot_frames:
+            print(f"CommunicationManager : Offsetting by {offset_distance} cm for : {frame}")
+            offset_frame = self._offset_frame_along_vector(frame, frame.zaxis, offset_distance)
+            offset_frames.append(offset_frame)
+        transformed_requested_robot_frames = offset_frames
+        #TODO: Accomodate pick and place tolerances here if needed.
+
         msg.robot_frames = transformed_requested_robot_frames
 
         handler = self.handler
@@ -930,11 +941,11 @@ PROJECT_CONFIG_DICT = json_load(PROJECT_CONFIG_FP)
 
 ROBOT_NAME = "UR20"
 
-# MQTT_CONFIG = PROJECT_CONFIG_DICT["mqtt_config"]
+MQTT_CONFIG = PROJECT_CONFIG_DICT["mqtt_config"]
 # MQTT_CONFIG = PROJECT_CONFIG_DICT["mqtt_config_ruxin"]
 # MQTT_CONFIG = PROJECT_CONFIG_DICT["mqtt_config_eduroam"]
 # MQTT_CONFIG = PROJECT_CONFIG_DICT["mqtt_config_chaosnet"]
-MQTT_CONFIG = PROJECT_CONFIG_DICT["mqtt_config_local"]
+# MQTT_CONFIG = PROJECT_CONFIG_DICT["mqtt_config_local"]
 BROKER = MQTT_CONFIG["broker"]
 MQTT_PORT = MQTT_CONFIG["port"]
 

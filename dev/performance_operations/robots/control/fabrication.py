@@ -600,12 +600,12 @@ def send_to_single_trajectory_robotic_territories(trajectory_configs, speed, acc
     #TODO: This means that the IO needs to be turned on.
     elif io_begining_end_none == 1:
         try:
+            send_trajectory_path(trajectory_configs, speed, accel, radius,ur_c)
             if vaccum_io != None:
                 #Turn on io to turn on the vaccum.
-                set_tool_digital_io(vaccum_io,True,ip=ip)
+                set_tool_digital_io(1,True,ip=ip)
                 time.sleep(time_sleep_delay)
-            send_trajectory_path(trajectory_configs, speed, accel, radius,ur_c)
-        
+
         except Exception as e:
             print(e)
             raise
@@ -616,7 +616,7 @@ def send_to_single_trajectory_robotic_territories(trajectory_configs, speed, acc
             send_trajectory_path(trajectory_configs, speed, accel, radius,ur_c)
             if vaccum_io != None:
                 #Turn off io to turn off the vaccum.
-                set_tool_digital_io(vaccum_io,False,ip=ip)
+                set_tool_digital_io(1,False,ip=ip)
                 time.sleep(time_sleep_delay)
         
         except Exception as e:
