@@ -512,7 +512,8 @@ class CommunicationManager:
                         configuration=ik_config,
                         pt_index=msg.point_index,
                         correct_backend=True,
-                        was_pick_or_place=True,
+                        was_pick_request=True,
+                        was_place_request=False,
                         pick_or_place_planning_succeeded=True
                     )
                 else:
@@ -524,7 +525,8 @@ class CommunicationManager:
                         configuration=ik_config,
                         pt_index=msg.point_index,
                         correct_backend=True,
-                        was_pick_or_place=True,
+                        was_pick_request=True,
+                        was_place_request=False,
                         pick_or_place_planning_succeeded=False
                     )
             elif msg.is_place:
@@ -541,7 +543,8 @@ class CommunicationManager:
                         configuration=ik_config,
                         pt_index=msg.point_index,
                         correct_backend=True,
-                        was_pick_or_place=True,
+                        was_pick_request=False,
+                        was_place_request=True,
                         pick_or_place_planning_succeeded=True
                     )
                 else:
@@ -553,7 +556,8 @@ class CommunicationManager:
                         configuration=ik_config,
                         pt_index=msg.point_index,
                         correct_backend=True,
-                        was_pick_or_place=True,
+                        was_pick_request=True,
+                        was_place_request=True,
                         pick_or_place_planning_succeeded=False
                     )
         self.realtime_publisher.publish(result)

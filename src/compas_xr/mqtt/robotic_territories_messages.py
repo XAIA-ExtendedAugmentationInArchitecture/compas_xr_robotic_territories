@@ -272,7 +272,7 @@ class RealtimeMimicResultMessage(Message):
         The header of the message.
     """
 
-    def __init__(self, robot_name, pt_index, return_message, correct_backend, configuration=None, was_pick_or_place=False, pick_or_place_planning_succeeded=False, header=None):
+    def __init__(self, robot_name, pt_index, return_message, correct_backend, configuration=None, was_pick_request=False, was_place_request=False, pick_or_place_planning_succeeded=False, header=None):
         super(RealtimeMimicResultMessage, self).__init__()
         self["header"] = header or Header()
         self["point_index"] = pt_index
@@ -280,7 +280,8 @@ class RealtimeMimicResultMessage(Message):
         self["robot_name"] = robot_name
         self["return_message"] = return_message
         self["correct_backend"] = correct_backend
-        self["was_pick_or_place"] = was_pick_or_place
+        self["was_pick_request"] = was_pick_request
+        self["was_place_request"] = was_place_request
         self["pick_or_place_planning_succeeded"] = pick_or_place_planning_succeeded
 
     @classmethod
@@ -302,7 +303,8 @@ class RealtimeMimicResultMessage(Message):
         else:
             configuration = None
         
-        was_pick_or_place = value.get("was_pick_or_place", False)
+        was_pick_or_place = value.get("was_pick_request", False)
+        was_place_request = value.get("was_place_request", False)
         pick_or_place_planning_succeeded = value.get("pick_or_place_planning_succeeded", False)
 
         return cls(robot_name, return_message, correct_backend, configuration, was_pick_or_place, pick_or_place_planning_succeeded, header)

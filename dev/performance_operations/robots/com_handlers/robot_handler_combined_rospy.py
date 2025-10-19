@@ -1148,7 +1148,10 @@ class RobotHandlerCombinedBackends:
     def _execute_inference_pick_and_place_raj(self, trajectory, pick_index):
         raise NotImplementedError("This method should be implemented on the child classes.")
 
-    def _execute_pick_or_place_realtime_mimic(self, trajectories):
+    def _execute_pick_realtime_mimic(self, trajectories):
+        raise NotImplementedError("This method should be implemented on the child classes.")
+
+    def _execute_place_realtime_mimic(self, trajectories):
         raise NotImplementedError("This method should be implemented on the child classes.")
 
     ####################################################################################################
@@ -1399,7 +1402,7 @@ class RobotHandlerCombinedBackends:
 
         print(f"CombinedBackendHandler: [{self.robot_name}] Valid trajectories found for planning. Found {len(trajectories)} trajectories for planning.")
         json_dump(data, fp=fp, pretty=True)
-        self._execute_pick_or_place_realtime_mimic(trajectories)
+        self._execute_pick_realtime_mimic(trajectories)
         return trajectories
 
     def handle_realtime_mimic_request_place(self, msg: RealtimeMimicRequestMessage):
@@ -1441,7 +1444,7 @@ class RobotHandlerCombinedBackends:
 
         print(f"CombinedBackendHandler: [{self.robot_name}] Executing place trajectories.")
         json_dump(data, fp=fp, pretty=True)
-        self._execute_pick_or_place_realtime_mimic(trajectories)
+        self._execute_place_realtime_mimic(trajectories)
         return trajectories
 
     ####################################################################################################
@@ -2037,10 +2040,20 @@ class URMimicHandlerCombined(RobotHandlerCombinedBackends):
         print (f"URCombinedBackendHandler: [{self.robot_name}] Executing inference pick-and-place trajectories of Length {len(trajectory)}.")
         rtde.send_pick_and_place_trajectory_RT_inference_raj(trajectory, pick_index, self.speed, self.acceleration, self.rtde_ctrl, self.radius, self.robot_ip, target_points=70)
 
-    def _execute_pick_or_place_realtime_mimic(self, trajectories):
+    def _execute_pick_realtime_mimic(self, trajectories):
+        for i,traj in enumerate(trajectories):
+            print (f"URCombinedBackendHandler: [{self.robot_name}] Executing realtime mimic pick trajectory [{i}] of Length {len(trajectories)}.")
+            rtde.set_tool_digital_io(1,True,ip=self.robot_ip)
+            time.sleep(0.5)
+            rtde.send_to_single_trajectory_no_io(traj.points, self.speed, self.acceleration, self.radius, self.rtde_ctrl, self.robot_ip)
+
+    def _execute_place_realtime_mimic(self, trajectories):
+        #TODO: When you change the planning turning off the IO will need to happen in the middle...
         for i,traj in enumerate(trajectories):
             print (f"URCombinedBackendHandler: [{self.robot_name}] Executing realtime mimic pick trajectory [{i}] of Length {len(trajectories)}.")
             rtde.send_to_single_trajectory_no_io(traj.points, self.speed, self.acceleration, self.radius, self.rtde_ctrl, self.robot_ip)
+            rtde.set_tool_digital_io(1,False,ip=self.robot_ip)
+            time.sleep(0.5)
 
     def __send_to_realtime_mimic_start_position(self, ik_solutions: List[Configuration]):
         if not ik_solutions:
