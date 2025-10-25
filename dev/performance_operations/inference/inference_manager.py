@@ -43,6 +43,7 @@ class InferenceManager:
                 filepath = os.path.join(goals_folder_path, filename)
                 try:
                     goal_data = json_load(filepath)
+                    print (f"GoalManager : Loaded goal from file: {filename} with {len(goal_data['cube_locations'])} target locations.")
                     goal_name = goal_data.get("name")
                     if goal_name:
                         goals_dict[goal_name] = goal_data
