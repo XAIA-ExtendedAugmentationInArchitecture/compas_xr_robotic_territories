@@ -12,7 +12,7 @@ from compas.geometry import Rotation, Translation
 from inference.inference_manager import InferenceManager
 from robots.planning.play import ScriptedPolicy
 
-from compas.data import json_load, json_dump
+from compas.data import json_load, json_dump, json_loads
 from compas_fab.robots import JointTrajectory
 import os
 import math
@@ -50,6 +50,13 @@ class CommunicationManager:
         _urdf_filepath = os.path.join(__dir_path, project_config_dict["urdf_fps"][robot_name]["urdf"])
         _srdf_filepath = os.path.join(__dir_path, project_config_dict["urdf_fps"][robot_name]["srdf"])
         _robot_hardware_info = project_config_dict["robot_hardware_info"][robot_name]
+        _sim_test_start_config = project_config_dict["sim_testing_start_configurations"][robot_name]
+        if _sim_test_start_config:
+            self.sim_test_start_config = Configuration.__from_data__(_sim_test_start_config)
+            print (f"CommunicationManager : Loaded sim test start config for robot {robot_name} of type {type(self.sim_test_start_config)} {_sim_test_start_config}.")
+        else:
+            self.sim_test_start_config = None
+            print (f"CommunicationManager : No sim test start config found for robot {robot_name}.")
         self.handler = self._load_handler(robot_name, _urdf_filepath, _srdf_filepath, _robot_hardware_info, pybullet_connect=self.connect_joe_to_pybullet, backend_type=backend_type)
 
         #Setting Publishers and Subscriber
@@ -93,7 +100,8 @@ class CommunicationManager:
                 return URMimicHandlerCombined(robot_name, 
                                                  robot_ip=robot_hardware_info_dict["robot_ip"], 
                                                  urdf_path=urdf_filepath, 
-                                                 pybullet_connect=pybullet_connect,
+                                                 pybullet_connect=False,
+                                                #  pybullet_connect=pybullet_connect,
                                                  srdf_path=srdf_filepath,
                                                  ros_ip=robot_hardware_info_dict["ros_ip"],
                                                  ros_port=robot_hardware_info_dict["ros_port"],
@@ -104,7 +112,8 @@ class CommunicationManager:
                                                  nowait=robot_hardware_info_dict["nowait"],
                                                  io=robot_hardware_info_dict["vacum_io"],
                                                  tool_info_fp=robot_hardware_info_dict.get("tool_info_fp"),
-                                                 additional_static_collision_meshes_fp=robot_hardware_info_dict.get("additional_collison_meshes_fp"))                
+                                                 additional_static_collision_meshes_fp=robot_hardware_info_dict.get("additional_collison_meshes_fp"),
+                                                 sim_test_start_coifig=self.sim_test_start_config)                
             else:
                 raise ValueError(f"Unsupported backend type: {backend_type} for robot {robot_name}")
         elif robot_name == "ABB1" or robot_name == "ABB2" or robot_name == "ABB_IRB4600LL" or robot_name == "ABB_IRB4600LL":
@@ -965,8 +974,8 @@ PICK_AND_PLACE_ZAXIS_TOLERANCE = None  # Meters
 
 
 #TODO: This is the quickest fix to avoid the dual pybullet issues....
-WHOSE_PYBULLET = "RAJ"
-# WHOSE_PYBULLET = "JOSEPH"
+# WHOSE_PYBULLET = "RAJ"
+WHOSE_PYBULLET = "JOSEPH"
 
 #TODO: SET INIT SIM CONFIG THAT IS TAKEN FROM THE PROJECT CONFIG.... THIS IS JUST FOR TESTING IN SIM, BUT SHOULD BE LOADED BASED ON THE ROBOTNAME
 # INIT_SIM_CONFIG = PROJECT_CONFIG_DICT["init_sim_config"][ROBOT_NAME]

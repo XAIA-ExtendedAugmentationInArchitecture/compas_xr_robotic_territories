@@ -40,12 +40,18 @@ import random
 
 class RobotHandlerCombinedBackends:
 
-    def __init__(self, robot_name, urdf_path, tool_info_fp,  pybullet_connect, ros_ip='127.0.0.1', ros_port=9090, additional_static_collision_meshes_fp=None, group="manipulator", srdf_path=None):
+    def __init__(self, robot_name, urdf_path, tool_info_fp,  pybullet_connect, ros_ip='127.0.0.1', ros_port=9090, additional_static_collision_meshes_fp=None, group="manipulator", srdf_path=None, sim_test_start_coifig=None):
         self.robot_name = robot_name
         
         #Things for both backends
         self.tool, self.acm_for_pyb = self._load_and_create_tool_for_backends(tool_info_fp)
         self.group = group
+
+        #Sim Test Start Config
+        if sim_test_start_coifig:
+            self.sim_test_start_coifig = sim_test_start_coifig
+        else:
+            self.sim_test_start_coifig = None
 
         #Pybullet Inputs
         self.urdf_path = os.path.normpath(urdf_path)
@@ -1376,7 +1382,16 @@ class RobotHandlerCombinedBackends:
         frames_for_ik = [msg.geometry_frame, offset_post_pick_frame]
         ik_options = dict(link_name="tool0", high_accuracy_threshold=1e-6, high_accuracy_max_iter=8)
 
-        start_config = self._get_latest_joint_values_from_stream_as_configuration(backend="PyBullet")
+        try:
+            start_config = self._get_latest_joint_values_from_stream_as_configuration(backend="PyBullet")
+        except Exception as e:
+            print(f"CombinedBackendHandler: [{self.robot_name}] Failed to get start configuration from stream: {e}")
+            if(self.sim_test_start_coifig != None):
+                print(f"CombinedBackendHandler: [{self.robot_name}] Using simulated test start configuration.")
+                start_config = self.sim_test_start_coifig
+            else:
+                raise e
+
         data["start_config"] = start_config
         if start_config is None:
             print(f"CombinedBackendHandler: [{self.robot_name}] No valid start configuration found. Returning empty trajectory.")
@@ -1418,7 +1433,16 @@ class RobotHandlerCombinedBackends:
         fp = os.path.join(os.path.dirname(__file__), "place_request_debug.json")
         #Temp logging ########################################################################################################
 
-        start_config = self._get_latest_joint_values_from_stream_as_configuration(backend="PyBullet")
+        try:
+            start_config = self._get_latest_joint_values_from_stream_as_configuration(backend="PyBullet")
+        except Exception as e:
+            print(f"CombinedBackendHandler: [{self.robot_name}] Failed to get start configuration from stream: {e}")
+            if(self.sim_test_start_coifig != None):
+                print(f"CombinedBackendHandler: [{self.robot_name}] Using simulated test start configuration.")
+                start_config = self.sim_test_start_coifig
+            else:
+                raise e
+
         data["start_config"] = start_config
         if start_config is None:
             print(f"CombinedBackendHandler: [{self.robot_name}] No valid start configuration found. Returning empty trajectory.")
@@ -1491,8 +1515,11 @@ class RobotHandlerCombinedBackends:
             start_config = self._get_latest_joint_values_from_stream_as_configuration(backend="ROS")
         except Exception as e:
             print(f"CombinedBackendHandler: [{self.robot_name}] Failed to get start configuration from ROS: {e}")
-            #TODO: Make this a static configuration that is an input.... this is a fall back for sim testing.
-            start_config = self.ros_robot.zero_configuration()
+            if(self.sim_test_start_coifig != None):
+                print(f"CombinedBackendHandler: [{self.robot_name}] Using simulated test start configuration.")
+                start_config = self.sim_test_start_coifig
+            else:
+                raise e
 
         #simple logging, and can be removed soon...
         data["start_config"] = start_config
@@ -1622,7 +1649,15 @@ class RobotHandlerCombinedBackends:
             return []
 
         # Start config from stream
-        start_config = self._get_latest_joint_values_from_stream_as_configuration()
+        try:
+            start_config = self._get_latest_joint_values_from_stream_as_configuration()
+        except Exception as e:
+            if(self.sim_test_start_coifig != None):
+                print(f"CombinedBackendHandler: [{self.robot_name}] Using simulated test start configuration.")
+                start_config = self.sim_test_start_coifig
+            else:
+                print(f"CombinedBackendHandler: [{self.robot_name}] Failed to get start configuration from stream: {e}")
+                return []
         if start_config is None:
             print(f"CombinedBackendHandler: [{self.robot_name}] Could not read current joint state.")
             return []
@@ -1840,7 +1875,15 @@ class RobotHandlerCombinedBackends:
                                     closest_target_name):
         print(f"CombinedBackendHandler: [{self.robot_name}] Handling inference planning request for target: {closest_target_name}")
 
-        start_config = self._get_latest_joint_values_from_stream_as_configuration(backend="ROS")
+        try:
+            start_config = self._get_latest_joint_values_from_stream_as_configuration(backend="ROS")
+        except Exception as e:
+            print(f"CombinedBackendHandler: [{self.robot_name}] Failed to get start configuration from ROS: {e}")
+            if(self.sim_test_start_coifig != None):
+                print(f"CombinedBackendHandler: [{self.robot_name}] Using simulated test start configuration.")
+                start_config = self.sim_test_start_coifig
+            else:
+                raise e
         if start_config is None:
             print(f"CombinedBackendHandler: [{self.robot_name}] No valid start configuration found. Returning empty trajectory.")
             return []
@@ -1935,8 +1978,8 @@ class RobotHandlerCombinedBackends:
 
 class URMimicHandlerCombined(RobotHandlerCombinedBackends):
 
-    def __init__(self, robot_name, robot_ip, urdf_path, tool_info_fp, pybullet_connect, ros_ip='127.0.0.1', ros_port=9090, additional_static_collision_meshes_fp=None, group="manipulator", srdf_path=None, io=0, speed=0.6, acceleration=0.1, radius=0.006, nowait=False):
-        super().__init__(robot_name, urdf_path, tool_info_fp, ros_ip=ros_ip, pybullet_connect=pybullet_connect, ros_port=ros_port, additional_static_collision_meshes_fp=additional_static_collision_meshes_fp, group=group, srdf_path=srdf_path)
+    def __init__(self, robot_name, robot_ip, urdf_path, tool_info_fp, pybullet_connect, ros_ip='127.0.0.1', ros_port=9090, additional_static_collision_meshes_fp=None, group="manipulator", srdf_path=None, sim_test_start_coifig=None, io=0, speed=0.6, acceleration=0.1, radius=0.006, nowait=False):
+        super().__init__(robot_name, urdf_path, tool_info_fp, ros_ip=ros_ip, pybullet_connect=pybullet_connect, ros_port=ros_port, additional_static_collision_meshes_fp=additional_static_collision_meshes_fp, group=group, srdf_path=srdf_path, sim_test_start_coifig=sim_test_start_coifig)
 
         if (pybullet_connect):
             self.robot_state_streamer = RTDEStateStreamer(robot_ip=robot_ip, poll_delay=0.001, sim=False)

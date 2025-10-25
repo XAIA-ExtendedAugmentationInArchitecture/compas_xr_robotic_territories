@@ -1,9 +1,44 @@
 {
     "firebase_config_fp": "fb_config\\robotic_territories_fb.json", 
-    "project_name": "rt_user_study_setup_data", 
+    "project_name": "rt_user_study_setup_six_targets", 
     "robot_transformations_fp": "robots\\transformations\\robot_transformation_info.json",
     "upload_geo_to_firebase": true,
     "goals_folder_file_path": "inference\\goals_for_userstudy",
+    "sim_testing_start_configurations":
+    {
+        "UR20": {
+            "joint_names": [
+                "shoulder_pan_joint",
+                "shoulder_lift_joint",
+                "elbow_joint",
+                "wrist_1_joint",
+                "wrist_2_joint",
+                "wrist_3_joint"
+            ],
+            "joint_types": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+            ],
+            "joint_values": [
+                -0.10790457000000009,
+                -1.26844413,
+                1.0792235899999998,
+                -2.86258329,
+                -1.5687577,
+                -1.64426868
+            ]
+        },
+        "ABB_IRB4600LL": {
+            "PlaceHolder": "PlaceHolder"
+        },
+        "ABB_IRB4600RR": {
+            "PlaceHolder": "PlaceHolder"
+        }
+    },
     "urdf_fps" : {
         "UR20": {
             "urdf" : "robots\\urdf\\ur_description\\urdf\\ur20_obj.urdf",

@@ -5,7 +5,7 @@ import time
 
 # from ..rhino.fabrication.control import fabrication as rtde
 from compas_robots import Configuration
-from compas.data import json_load
+from compas.data import json_load, json_dump
 
 def trajectory_points_to_configs(trajectory_points):
     configs = [] 
@@ -64,7 +64,8 @@ if __name__ == "__main__":
     # joe_start_config_values = [-0.10790457, -0.29844413,  0.06922359, -1.36258329, -1.5687577 , -1.64426868]
     joe_start_config_values = [-0.10790457000000009, -1.26844413, 1.0792235899999998, -2.8625832899999999, -1.5687576999999999, -1.6442686799999999]
     joe_start_configuration = Configuration(joint_values=joe_start_config_values, joint_names=joe_joint_names, joint_types=joe_joint_types)
-    rtde.move_to_joints(config=joe_start_configuration, speed=SPEED, accel=ACCELERATION, nowait=True, ip=IP)
+    json_dump(data=joe_start_configuration.__data__, fp=os.path.join(os.path.dirname(__file__), "joe_start_configuration.json"), pretty=True)
+    # rtde.move_to_joints(config=joe_start_configuration, speed=SPEED, accel=ACCELERATION, nowait=True, ip=IP)
 
     # # Send to a trajectory from the trajectories folder
     # # SET THE FILE NAME OF THE TRAJECTORY YOU WANT TO SEND
