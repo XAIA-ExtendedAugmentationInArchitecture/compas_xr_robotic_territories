@@ -100,8 +100,8 @@ class CommunicationManager:
                 return URMimicHandlerCombined(robot_name, 
                                                  robot_ip=robot_hardware_info_dict["robot_ip"], 
                                                  urdf_path=urdf_filepath, 
-                                                 pybullet_connect=False,
-                                                #  pybullet_connect=pybullet_connect,
+                                                #  pybullet_connect=False, #TODO: RECOMMENT TO RUN JOE BACKEND ONLY ROS.
+                                                 pybullet_connect=pybullet_connect,
                                                  srdf_path=srdf_filepath,
                                                  ros_ip=robot_hardware_info_dict["ros_ip"],
                                                  ros_port=robot_hardware_info_dict["ros_port"],
