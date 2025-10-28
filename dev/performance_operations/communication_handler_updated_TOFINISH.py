@@ -998,4 +998,5 @@ if __name__ == "__main__":
         while True:
             pass  # Keep the process alive
     except KeyboardInterrupt:
+        #TODO: MAKE THE LOGGER WRITE TO FILE HERE.... THIS WILL BE THE BEST..... LOGGER NEEDS TO BE PASSED TO EVERYTHING.
         print("[CommunicationManager] Shutdown requested.")
