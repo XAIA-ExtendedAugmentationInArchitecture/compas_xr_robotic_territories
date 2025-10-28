@@ -2018,6 +2018,8 @@ class URMimicHandlerCombined(RobotHandlerCombinedBackends):
                 verbose=False
             )
 
+        self.realtime_mimic_data_storage = []
+
         print(f"URCombinedBackendHandler: [{robot_name}] UR handler initialized")
 
     ####################################################################################################
@@ -2109,69 +2111,107 @@ class URMimicHandlerCombined(RobotHandlerCombinedBackends):
     # Implemented through Streamer Class Interface
     ####################################################################################################
 
-    #TODO: TESTING BIG TIME
     def handle_realtime_msg_request_servoj_gate(self, msg: RealtimeMimicRequestMessage):
-        """Compute IK fast and stream joints via servoj (no threads)."""
         frame = msg.requested_robot_frame
+        data = {}
 
         # reset history on first call
         if msg.initial_request:
+            fp = os.path.join(os.path.dirname(__file__), "realtime_mimic_data_storage.json")
+            json_dump(self.realtime_mimic_data_storage, fp, pretty=True)
+            self.realtime_mimic_data_storage = []
+
             fp = os.path.join(os.path.dirname(__file__), "realtime_mimic_ik_solutions.json")
             json_dump(self.realtime_mimic_ik_solutions, fp, pretty=True)
             self.realtime_mimic_ik_solutions = []
 
+        initial_ik_solutions = []  # <-- important: define upfront
+
         if msg.initial_request:
-            print(f"[{self.robot_name}] Intepolating move to first target.")
+            data["initial_request"] = True
+            data["requested_robot_frame"] = frame
+
+            print(f"[{self.robot_name}] Interpolating move to first target.")
             current_config = self._get_latest_joint_values_from_stream_as_configuration()
             if current_config is None:
-                current_config = self.pyb_robot.zero_configuration()
-                print(f"[{self.robot_name}] (SIM) No stream data yet, using zero configuration as seed.")
-            current_tcp = self.pyb_robot.forward_kinematics(configuration=current_config, options=dict(link_name="tool0"), group=self.group)
+                if self.sim_test_start_coifig is not None:
+                    current_config = self.sim_test_start_coifig
+                    print(f"[{self.robot_name}] (SIM) Using simulated test start configuration as seed.")
+                else:
+                    print(f"[{self.robot_name}] (SIM) No stream data yet, using zero configuration as seed.")
+                    current_config = self.pyb_robot.zero_configuration()
+            data["current_config"] = current_config
+
+            current_tcp = self.pyb_robot.forward_kinematics(
+                configuration=current_config, options=dict(link_name="tool0"), group=self.group
+            )
+            data["current_tcp"] = current_tcp
+
             if current_tcp is None:
                 raise ValueError(f"[{self.robot_name}] (SIM) Could not compute current TCP from stream configuration.")
-            frames_list = self._interpolage_frames_helper(current_tcp, frame, include_start=True, include_end=True)
-            initial_ik_solutions = self.pyb_plan_ik_for_frames_list_ik_fast(frames_list=frames_list, start_config=current_config, do_collision_check=True, extra_seed=True, visual_hz=30)
-            #TODO: Comment me out if you want to run on sim only....
-            self.__send_to_realtime_mimic_start_position(initial_ik_solutions)
+
+            near_thresh = frame.point.distance_to_point(current_tcp.point) < 0.05
+            print(f"[{self.robot_name}] (SIM) Current TCP before initial move: {current_tcp}")
+            if near_thresh:
+                print(f"[{self.robot_name}] (SIM) Already within 5cm; skipping initial interpolation.")
+                # fall through to normal fast IK below (no initial_ik_solutions, seed will be current stream)
+            else:
+                print(f"[{self.robot_name}] (SIM) >5cm away; performing initial interpolation.")
+                frames_list = self._interpolage_frames_helper(
+                    current_tcp, frame, dist=0.05, include_start=True, include_end=True
+                )
+                print(f"[{self.robot_name}] (SIM) Interpolated {len(frames_list)} frames for initial move.")
+                data["initial_request_frames_list"] = frames_list
+
+                initial_ik_solutions = self.pyb_plan_ik_for_frames_list_ik_fast(
+                    frames_list=frames_list,
+                    start_config=current_config,
+                    do_collision_check=True,
+                    extra_seed=True,
+                    visual_hz=30
+                )
+                data["initial_ik_solutions"] = initial_ik_solutions
+
+                # Send the staged interpolation THEN EXIT this call to avoid double-commanding
+                #TODO: Comment me out when you want to run sim only...
+                self.__send_to_realtime_mimic_start_position(initial_ik_solutions)
+                #TODO: Comment me out when you want to run sim only...
+                return initial_ik_solutions[-1]  # <-- prevents immediate second servoj target that can cause a bounce
 
         # choose seed: current joints if no history, else last good
         if msg.initial_request or not self.realtime_mimic_ik_solutions:
             if not initial_ik_solutions:
+                print(f"[{self.robot_name}] (SIM) Using current stream joints as seed for realtime mimic.")
                 start_cfg = self._get_latest_joint_values_from_stream_as_configuration()
             else:
+                print(f"[{self.robot_name}] (SIM) Using last of initial IK solutions as seed for realtime mimic.")
                 start_cfg = initial_ik_solutions[-1]
             if start_cfg is None:
                 start_cfg = self.pyb_robot.zero_configuration()
                 print(f"[{self.robot_name}] (SIM) No stream data yet, using zero configuration as seed.")
         else:
             start_cfg = self.realtime_mimic_ik_solutions[-1]
+        data["start_cfg"] = start_cfg
 
-        # fast IK (single seed + optional fallback); 30 Hz sim mirror inside
-        ik = self.pyb_try_fast_ik(frame,
-                            start_config=start_cfg,
-                            do_collision_check=True,
-                            extra_seed=True,
-                            visual_hz=30)
+        # fast IK; one target for this tick
+        ik = self.pyb_try_fast_ik(frame, start_config=start_cfg, do_collision_check=True, extra_seed=True, visual_hz=30)
+        data["computed_ik"] = ik
 
         if ik:
-            # # # #TODO: Comment me in if you want to run on sim only....
-            # self.realtime_mimic_ik_solutions.append(ik)
-            # print(f"[{self.robot_name}] (SIM) would send with servoj, skipping actual send.")
-            # fp = os.path.join(os.path.dirname(__file__), "realtime_mimic_ik_solutions.json")
-            # json_dump(self.realtime_mimic_ik_solutions, fp, pretty=True)
-            # return ik 
-            # # # #TODO: Comment me in if you want to run on sim only....
-            # remember and command through servoj
+            #TODO: Comment me in to run sim only....
             self.realtime_mimic_ik_solutions.append(ik)
             self.servo_gate.set_target(ik.joint_values)
             self.servo_gate.tick()
+            #TODO: Comment me in to run sim only...
             return ik
-        # # # #TODO: Comment me in if you want to run on sim only...
-        # IK failed: keep feeding servo with last known good (or current measured)
-        # print(f"[{self.robot_name}] (SIM) IK failed, would normally keep feeding servo — skipping send.")
-        # return None
-        # # # #TODO: Comment me in if you want to run on sim only...
-        # # IK failed: keep feeding servo with last known good (or current measured)
+
+        # TODO(SIM ONLY): Uncomment to skip sending when IK fails
+        print(f"[{self.robot_name}] (SIM) IK failed; would normally keep feeding servo — skipping actual send.")
+        self.realtime_mimic_data_storage.append(data)
+        return None
+        # TODO(SIM ONLY): Uncomment to skip sending when IK fails
+
+        # IK failed: keep feeding last known good or measured
         if self.realtime_mimic_ik_solutions:
             self.servo_gate.set_target(self.realtime_mimic_ik_solutions[-1].joint_values)
         else:
@@ -2180,6 +2220,112 @@ class URMimicHandlerCombined(RobotHandlerCombinedBackends):
                 self.servo_gate.set_target(q)
         self.servo_gate.tick()
         return None
+
+    #TODO: TESTING BIG TIME
+    # def handle_realtime_msg_request_servoj_gate(self, msg: RealtimeMimicRequestMessage):
+    #     """Compute IK fast and stream joints via servoj (no threads)."""
+    #     frame = msg.requested_robot_frame
+    #     data = {}
+
+    #     # reset history on first call
+    #     if msg.initial_request:
+    #         #TODO: generic loggin file
+    #         fp = os.path.join(os.path.dirname(__file__), "realtime_mimic_data_storage.json")
+    #         json_dump(self.realtime_mimic_data_storage, fp, pretty=True)
+    #         self.realtime_mimic_data_storage = []
+
+    #         fp = os.path.join(os.path.dirname(__file__), "realtime_mimic_ik_solutions.json")
+    #         json_dump(self.realtime_mimic_ik_solutions, fp, pretty=True)
+    #         self.realtime_mimic_ik_solutions = []
+
+    #     if msg.initial_request:
+    #         # TODO: generic logging file
+    #         data["initial_request"] = True
+    #         data["requested_robot_frame"] = frame
+    #         # TODO: generic logging file
+
+    #         print(f"[{self.robot_name}] Intepolating move to first target.")
+    #         current_config = self._get_latest_joint_values_from_stream_as_configuration()
+    #         if current_config is None:
+    #             if self.sim_test_start_coifig != None:
+    #                 current_config = self.sim_test_start_coifig
+    #                 print(f"[{self.robot_name}] (SIM) Using simulated test start configuration as seed.")
+    #             else:
+    #                 print(f"[{self.robot_name}] (SIM) No stream data yet, using zero configuration as seed.")
+    #                 current_config = self.pyb_robot.zero_configuration()
+    #         data["current_config"] = current_config            
+    #         current_tcp = self.pyb_robot.forward_kinematics(configuration=current_config, options=dict(link_name="tool0"), group=self.group)
+    #         data["current_tcp"] = current_tcp
+    #         if (current_tcp is not None):
+    #             print (f"[{self.robot_name}] (SIM) Current TCP before initial move: {current_tcp}")
+    #             if frame.point.distance_to_point(current_tcp.point) < 0.05:
+    #                 print (f"JOEEEEEEEEE : [{self.robot_name}] (SIM) Current TCP is already within 5cm of target frame, no initial interpolation needed.")
+    #                 pass
+    #             else:
+    #                 print (f"JOEEEEEEEEE : [{self.robot_name}] (SIM) Current TCP is NOT within 5cm of target frame, performing initial interpolation.")
+
+    #         if current_tcp is None:
+    #             raise ValueError(f"[{self.robot_name}] (SIM) Could not compute current TCP from stream configuration.")
+    #         frames_list = self._interpolage_frames_helper(current_tcp, frame, dist=0.05, include_start=False, include_end=False) #TODO: Maybe see if it is better with the real robot to not include the start and the end frame.
+    #         print (f"[{self.robot_name}] (SIM) Interpolated {len(frames_list)} frames for initial move.")
+    #         data["initial_request_frames_list"] = frames_list
+    #         initial_ik_solutions = self.pyb_plan_ik_for_frames_list_ik_fast(frames_list=frames_list, start_config=current_config, do_collision_check=True, extra_seed=True, visual_hz=30)
+    #         data["initial_ik_solutions"] = initial_ik_solutions
+    #         #TODO: Comment me out if you want to run on sim only....
+    #         self.__send_to_realtime_mimic_start_position(initial_ik_solutions)
+
+    #     # choose seed: current joints if no history, else last good
+    #     if msg.initial_request or not self.realtime_mimic_ik_solutions:
+    #         if not initial_ik_solutions:
+    #             print (f"JOEEEEEEEEEE HERRRRREEEEEEEE : [{self.robot_name}] (SIM) Using current stream joints as seed for realtime mimic.")
+    #             start_cfg = self._get_latest_joint_values_from_stream_as_configuration()
+    #         else:
+    #             print (f"JOEEEEEEEEEE HERRRRREEEEEEEE : [{self.robot_name}] (SIM) Using last of initial IK solutions as seed for realtime mimic.")
+    #             start_cfg = initial_ik_solutions[-1]
+    #         if start_cfg is None:
+    #             start_cfg = self.pyb_robot.zero_configuration()
+    #             print(f"[{self.robot_name}] (SIM) No stream data yet, using zero configuration as seed.")
+    #     else:
+    #         start_cfg = self.realtime_mimic_ik_solutions[-1]
+    #     data["start_cfg"] = start_cfg
+
+    #     # fast IK (single seed + optional fallback); 30 Hz sim mirror inside
+    #     ik = self.pyb_try_fast_ik(frame,
+    #                         start_config=start_cfg,
+    #                         do_collision_check=True,
+    #                         extra_seed=True,
+    #                         visual_hz=30)
+    #     data["computed_ik"] = ik
+
+    #     if ik:
+    #         # # # #TODO: Comment me in if you want to run on sim only....
+    #         # self.realtime_mimic_ik_solutions.append(ik)
+    #         # print(f"[{self.robot_name}] (SIM) would send with servoj, skipping actual send.")
+    #         # fp = os.path.join(os.path.dirname(__file__), "realtime_mimic_ik_solutions.json")
+    #         # # json_dump(self.realtime_mimic_ik_solutions, fp, pretty=True)
+    #         # self.realtime_mimic_data_storage.append(data)
+    #         # return ik 
+    #         # # #TODO: Comment me in if you want to run on sim only....
+    #         # remember and command through servoj
+    #         self.realtime_mimic_ik_solutions.append(ik)
+    #         self.servo_gate.set_target(ik.joint_values)
+    #         self.servo_gate.tick()
+    #         return ik
+    #     # # # #TODO: Comment me in if you want to run on sim only...
+    #     # IK failed: keep feeding servo with last known good (or current measured)
+    #     # print(f"[{self.robot_name}] (SIM) IK failed, would normally keep feeding servo — skipping send.")
+    #     # self.realtime_mimic_data_storage.append(data)
+    #     # return None
+    #     # # # #TODO: Comment me in if you want to run on sim only...
+    #     # # IK failed: keep feeding servo with last known good (or current measured)
+    #     if self.realtime_mimic_ik_solutions:
+    #         self.servo_gate.set_target(self.realtime_mimic_ik_solutions[-1].joint_values)
+    #     else:
+    #         q = self._get_latest_joint_values_from_stream()
+    #         if q is not None:
+    #             self.servo_gate.set_target(q)
+    #     self.servo_gate.tick()
+    #     return None
 
     def _send_to_configuration_through_gate(self, config: Configuration):
         sent = self.movej_gate.maybe_send(config.joint_values)
