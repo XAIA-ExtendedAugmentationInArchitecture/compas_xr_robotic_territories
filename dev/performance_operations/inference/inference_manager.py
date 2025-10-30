@@ -13,7 +13,7 @@ from .camilla.camilla_inference import CamillaInference
 
 class InferenceManager:
 
-    def __init__(self, goals_folder_path):
+    def __init__(self, goals_folder_path, state_file_path=None):
 
         #TODO: Tune these thresholds
         self.INFERENCE_POSITIONAL_THRESHOLD = 0.05  # Meters
@@ -25,15 +25,29 @@ class InferenceManager:
 
         self.goals_dict = self._load_goals(goals_folder_path)
         self.record_file_path = self._set_record_file_path(goals_folder_path)
-        self.runntime_start = time.time()
         self.inference_session_start = None
-        self.inference_routines_log = {}
+        self._LOADED_PREVIOUS_STATE = False
+        self._state_file_path = state_file_path
 
-        self.incorrect_goals = []
-        self.incorrect_targets = []
-        self.correct_targets = []
-        self.target_log = []
-        self.INFERED_GOAL = None
+        if state_file_path and os.path.exists(state_file_path):
+            state_data = json_load(state_file_path)
+            self.incorrect_goals = state_data.get("incorrect_goals", [])
+            self.incorrect_targets = state_data.get("incorrect_targets", [])
+            self.correct_targets = state_data.get("correct_targets", [])
+            self.target_log = state_data.get("target_log", [])
+            self.INFERED_GOAL = state_data.get("INFERED_GOAL", None)
+            self.inference_session_start = state_data.get("inference_session_start", None)
+            self.inference_routines_log = state_data.get("inference_routines_log", {})
+            self._LOADED_PREVIOUS_STATE = True
+            print(f"InferenceManager : Loaded previous state from {state_file_path} : Incorrect Goals {self.incorrect_goals}, goal_inferred : .")
+        else:
+            self.incorrect_goals = []
+            self.incorrect_targets = []
+            self.correct_targets = []
+            self.target_log = []
+            self.INFERED_GOAL = None
+            self.inference_routines_log = {}
+            print("InferenceManager : No previous state file found. Starting fresh inference session.")
 
         self.simple_inference = SimpleInference()
         self.camilla_inference = CamillaInference()
@@ -96,6 +110,23 @@ class InferenceManager:
         json_dump(fp=self.record_file_path, data=log, pretty=True)
         print(f"InferenceManager: Record updated at {self.record_file_path}")
 
+    def _write_state_file_data(self):
+        if not self._state_file_path:
+            raise ValueError("InferenceManager : State file path not provided.")
+
+        state_data = {
+            "incorrect_goals": self.incorrect_goals,
+            "incorrect_targets": self.incorrect_targets,
+            "correct_targets": self.correct_targets,
+            "target_log": self.target_log,
+            "INFERED_GOAL": self.INFERED_GOAL,
+            "inference_session_start": self.inference_session_start
+        }
+
+        # Save state data to file
+        json_dump(fp=self._state_file_path, data=state_data, pretty=True)
+        print(f"InferenceManager : State saved to {self._state_file_path}")
+
     def _process_user_reply(self, goal_name, suggested_target_name, goal_status_reply, timestamp):
         # Rejecting goal and target
         if goal_status_reply == 0:
@@ -118,6 +149,8 @@ class InferenceManager:
             self.correct_targets.append(data)
             data["target_status"] = "correct_target"
             self.target_log.append(data)
+            #TODO: WRITE THE STATE FILE
+            self._write_state_file_data()
 
         # Accepting Goal and target
         elif goal_status_reply == 2:
@@ -145,6 +178,8 @@ class InferenceManager:
                 "inference_session_duration": time.time() - self.inference_session_start
             }
             self._record_inference_data(self.inference_routines_log)
+            #TODO: WRITE THE STATE FILE
+            self._write_state_file_data()
 
         # Unknown reply
         else:
@@ -172,7 +207,7 @@ class InferenceManager:
     def handle_inference_request(self, geometry_frames_dict, initial_request):
 
         #If it is the first request, reset the lists
-        if initial_request:
+        if initial_request and not self._LOADED_PREVIOUS_STATE:
             self.inference_session_start = time.time()
             self.incorrect_goals = []
             self.incorrect_targets = []

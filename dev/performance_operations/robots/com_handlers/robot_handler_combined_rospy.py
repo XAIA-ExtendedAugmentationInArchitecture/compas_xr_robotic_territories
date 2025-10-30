@@ -2143,7 +2143,8 @@ class URMimicHandlerCombined(RobotHandlerCombinedBackends):
 
     def _execute_inference_pick_and_place(self, trajectory_list: List[JointTrajectory]):
         print (f"URCombinedBackendHandler: [{self.robot_name}] Executing inference pick-and-place trajectories of Length {len(trajectory_list)}.")
-        rtde.send_pick_and_place_trajectory_RT_inference(trajectory_list, self.speed, self.acceleration, self.rtde_ctrl, self.radius, self.robot_ip)
+        #TODO: JOEEEEE COMMENT ME BACK IN...
+        # rtde.send_pick_and_place_trajectory_RT_inference(trajectory_list, self.speed, self.acceleration, self.rtde_ctrl, self.radius, self.robot_ip)
 
     def _execute_inference_pick_and_place_raj(self, trajectory, pick_index):
         print (f"URCombinedBackendHandler: [{self.robot_name}] Executing inference pick-and-place trajectories of Length {len(trajectory)}.")

@@ -25,7 +25,7 @@ import logging
 
 class CommunicationManager:
 
-    def __init__(self, project_name, robot_name, project_config_dict, pick_and_place_xaxis_tolerance, pick_and_place_zaxis_tolerance, pybullet_raj_or_joseph="JOSEPH", broker='localhost', mqtt_port=1883, backend_type='PyBullet'):
+    def __init__(self, project_name, robot_name, project_config_dict, pick_and_place_xaxis_tolerance, pick_and_place_zaxis_tolerance, participant_name, pybullet_raj_or_joseph="JOSEPH", broker='localhost', mqtt_port=1883, backend_type='PyBullet'):
         __dir_path = os.path.dirname(os.path.realpath(__file__))
 
         self.mqtt = MqttTransport(broker, mqtt_port)
@@ -70,7 +70,8 @@ class CommunicationManager:
 
         #Inference Manager
         goals_folder_fp = os.path.join(__dir_path, project_config_dict["goals_folder_file_path"])
-        self.inference_manager = InferenceManager(goals_folder_fp)
+        inference_state_file_path = os.path.join(__dir_path, project_config_dict["inference_state_file_path"], f"{participant_name}_inference_state.json")
+        self.inference_manager = InferenceManager(goals_folder_fp, state_file_path=inference_state_file_path)
 
         #Scripted Policy for Raj
         if self.connect_raj_to_pybullet:
@@ -100,8 +101,8 @@ class CommunicationManager:
                 return URMimicHandlerCombined(robot_name, 
                                                  robot_ip=robot_hardware_info_dict["robot_ip"], 
                                                  urdf_path=urdf_filepath, 
-                                                #  pybullet_connect=False, #TODO: RECOMMENT TO RUN JOE BACKEND ONLY ROS.
-                                                 pybullet_connect=pybullet_connect,
+                                                 pybullet_connect=False, #TODO: RECOMMENT TO RUN JOE BACKEND ONLY ROS.
+                                                #  pybullet_connect=pybullet_connect,
                                                  srdf_path=srdf_filepath,
                                                  ros_ip=robot_hardware_info_dict["ros_ip"],
                                                  ros_port=robot_hardware_info_dict["ros_port"],
@@ -234,12 +235,6 @@ class CommunicationManager:
             self._urdf_baseframe,
             self._observed_urdf_baseframe
         ) = self._load_transformations(file_path=self._transformations_file_path, robot_name=self.robot_name, transformations_reference_list=self.transformations_reference_list)
-
-    ######################################################################################################
-    # TODO: MESSAGE LOGGING....
-    ####################################################################################################
-
-    # def _inference_message_logging(self, msgInfReq: InferenceRequestMessage, msgInfResult: InferenceResultMessage, msgPostInf: PostInferenceTargetRequestMessage):
 
     ######################################################################################################
     # Set Publisers and Subscribers for Inference
@@ -979,6 +974,9 @@ PICK_AND_PLACE_ZAXIS_TOLERANCE = None  # Meters
 WHOSE_PYBULLET = "JOSEPH"
 
 
+#TODO: Add Participant specific information
+PARTICIPANT_NAME = "test_user"
+
 requested_frames = []
 
 if __name__ == "__main__":
@@ -992,6 +990,7 @@ if __name__ == "__main__":
         backend_type=BACKEND_TYPE,
         pick_and_place_xaxis_tolerance=PICK_AND_PLACE_XAXIS_TOLERANCE,
         pick_and_place_zaxis_tolerance=PICK_AND_PLACE_ZAXIS_TOLERANCE,
+        participant_name=PARTICIPANT_NAME
     )
     print("[CommunicationManager] Listening for mimic requests... (Press Ctrl+C to exit)")
     try:
