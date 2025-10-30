@@ -60,10 +60,10 @@ rigid_body_names = {
     "5" : "Cube02",
     "6" : "Cube03",
     "7" : "Cube04",
-    "8" : "Cube05",
-    "9" : "Cube06",
-    "10": "Cube07",
-    "11": "Cube08",
+    "8" : "Cube05"
+    # "9" : "Cube06",
+    # "10": "Cube07",
+    # "11": "Cube08",
 } #TODO: This could be improved.
 
 marker_types = {
@@ -74,10 +74,10 @@ marker_types = {
     "5": "passive",
     "6": "passive",
     "7": "passive",
-    "8": "passive",
-    "9": "passive",
-    "10": "passive",
-    "11": "passive",
+    "8": "passive"
+    # "9": "passive",
+    # "10": "passive",
+    # "11": "passive",
 } #TODO: This could be improved.
 
 # Project Configuration Information
