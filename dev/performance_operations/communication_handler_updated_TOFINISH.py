@@ -22,6 +22,7 @@ from compas_xr.realtime_database import RealtimeDatabase
 from compas.geometry import Frame, Transformation
 from compas_robots import Configuration
 import logging
+from logger import SimpleLogger
 
 class CommunicationManager:
 
@@ -67,6 +68,10 @@ class CommunicationManager:
         self._user_initiated_mimic_trajectories_to_execute = []
         self._user_initiated_io_control_indexes_to_execute = []
         self._post_inference_exacutable_trajectories = []
+
+        #TODO: Testing Simple Logger
+        log_folder_fp = os.path.join(__dir_path, project_config_dict["logging_folder_path"], participant_name)
+        self._LOGGER = SimpleLogger(dir_path=log_folder_fp, sub_folder_name="communication", participant_name=participant_name)
 
         #Inference Manager
         goals_folder_fp = os.path.join(__dir_path, project_config_dict["goals_folder_file_path"])
@@ -455,6 +460,9 @@ class CommunicationManager:
 
         print(f"CommunicationManager : [CommunicationManager] Received Relatime Mimic request for robot '{robot_name}': {msg}")
 
+        #TODO: Logging Test
+        self._LOGGER.log_message(message=msg)
+
         handler = self.handler
         # self._save_requested_frame(msg)
 
@@ -564,6 +572,8 @@ class CommunicationManager:
                         was_place_request=True,
                         pick_or_place_planning_succeeded=False
                     )
+        #TODO: Logging Test
+        self._LOGGER.log_message(message=result)
         self.realtime_publisher.publish(result)
 
     def _on_message_user_initiated_mimic(self, msg: MimicTrajectoryRequestMessage):
@@ -605,6 +615,9 @@ class CommunicationManager:
 
         msg.robot_frames = transformed_requested_robot_frames
 
+        #TODO: Logging Test
+        self._LOGGER.log_message(message=msg)
+
         handler = self.handler
         # trajectories_list = handler.handle_user_iniated_msg_request(msg)
         trajectories_list = handler.handle_user_iniated_msg_request_ROS(msg)
@@ -635,13 +648,15 @@ class CommunicationManager:
             robot_base_frame=robot_base_frame,
         )
 
-        random_fp_save = r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\performance_operations\testing\random_trajectory_for_testing.json"
-        json_dump(data=result, fp=random_fp_save, pretty=True)
+        # random_fp_save = r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\performance_operations\testing\random_trajectory_for_testing.json"
+        # json_dump(data=result, fp=random_fp_save, pretty=True)
+        self._LOGGER.log_message(message=result)
         self.user_initiated_publisher.publish(result)
         print(f"CommunicationManager : [CommunicationManager] Published result with {len(trajectories_to_publsih)} trajectories for robot {robot_name}")
 
     def _on_message_user_initiated_mimic_execution(self, msg: ExecuteMimicTrajectoryRequestMessage):
         robot_name = msg.robot_name
+        self._LOGGER.log_message(message=msg)
         print(f"CommunicationManager : [CommunicationManager] Received User Controled Mimic execution request for robot '{robot_name}' with {len(self._user_initiated_mimic_trajectories_to_execute)} trajectories to execute.")
 
         handler = self.handler
@@ -658,6 +673,8 @@ class CommunicationManager:
         value = msg.value
         handler = self.handler
         handler.handle_realtime_mimic_io_toggle_request(msg=msg)
+
+        self._LOGGER.log_message(message=msg)
         print(f"CommunicationManager : [CommunicationManager] Processed IO toggle for signal '{signal}' with value '{value}'")
 
     ######################################################################################################
@@ -667,6 +684,8 @@ class CommunicationManager:
     def _on_handle_inference_request(self, msg: InferenceRequestMessage):
         #TODO: testing updating base frames dynamically
         self.__update_robot_transformations_from_rtdb__()
+
+        self._LOGGER.log_message(message=msg)
 
         # Clear any previous executable trajectories (just to be safe)
         self._INFERENCE_EXACUTABLE_TRAJECTORIES = []
@@ -679,6 +698,7 @@ class CommunicationManager:
             raise ValueError("Inference request contains no geometry frames.")
         
         inference_result_dict = self.inference_manager.handle_inference_request(geometry_frames_for_inference, initial_request=msg.initial_request)
+        self._LOGGER.log_message(message=inference_result_dict)
 
         if inference_result_dict == None:
             print(f"CommunicationManager : [CommunicationManager] Inference manager returned no result for robot '{robot_name}'.")
@@ -723,14 +743,16 @@ class CommunicationManager:
 
         if traj_len == 0:
             print(f"CommunicationManager : [CommunicationManager] No trajectories computed for inference request for robot '{robot_name}'.")
-            self.inference_result_publisher.publish(InferenceResultMessage(
-                inference_guess=suggested_goal,
-                completed_goals_list=completed_goal_names,
-                suggested_target_name=suggested_target_name,
-                trajectories=[],
-                robot_base_frame=[],
-                robot_name=robot_name
-            ))
+            failed_message = InferenceResultMessage(
+                    inference_guess=suggested_goal,
+                    completed_goals_list=completed_goal_names,
+                    suggested_target_name=suggested_target_name,
+                    trajectories=[],
+                    robot_base_frame=[],
+                    robot_name=robot_name
+                )
+            self._LOGGER.log_message(message=failed_message)
+            self.inference_result_publisher.publish(failed_message)
             return
         #TODO: Wrap this for RAJ
         elif self.connect_raj_to_pybullet:
@@ -742,8 +764,8 @@ class CommunicationManager:
 
         #TODO: Tranformation is from the URDF baseframe to make sure that everything is correct with the urdf baseframe to the real world. (also where I can add extra transformatoin if needed because of the poor structure of some URDFs)
         #TODO: TESTING THIS...
-        fp = r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\performance_operations\testing\20250830_json_testing_trajectory_dumps\inf_trajectory_dump.json"
-        json_dump(data=trajectories, fp=fp, pretty=True)
+        # fp = r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\performance_operations\testing\20250830_json_testing_trajectory_dumps\inf_trajectory_dump.json"
+        # json_dump(data=trajectories, fp=fp, pretty=True)
 
         # robot_base_frame = self._transform_result_frame_from_robot_space_to_ar_space(self._urdf_baseframe)
         _urdf_baseframe = self._urdf_baseframe
@@ -768,6 +790,7 @@ class CommunicationManager:
         elif self.connect_joe_to_pybullet:
             self._INFERENCE_EXACUTABLE_TRAJECTORIES = trajectories
 
+        self._LOGGER.log_message(message=result)
         self.inference_result_publisher.publish(result)
         print(f"CommunicationManager : [CommunicationManager] Published inference result with {len(trajectories)} trajectories for robot {robot_name}")
 
@@ -776,6 +799,8 @@ class CommunicationManager:
         user_reply = msg.goal_status_reply
         print(f"CommunicationManager : [CommunicationManager] msg : {msg}")
         self.inference_manager._process_user_reply(goal_name=msg.current_goal_name, suggested_target_name=msg.suggested_target_name, goal_status_reply=msg.goal_status_reply, timestamp=msg.header.time_stamp)
+
+        self._LOGGER.log_message(message=msg)
 
         if user_reply == 0:
             print(f"CommunicationManager : [CommunicationManager] Reject Goal & Target reply from User : {msg.header.device_id} ': Reply : {user_reply}")
@@ -826,6 +851,8 @@ class CommunicationManager:
         #Todo: testing updating base frames dynamically
         self.__update_robot_transformations_from_rtdb__()
 
+        self._LOGGER.log_message(message=msg)
+
         if len(self._post_inference_exacutable_trajectories) > 0 :
             self._post_inference_exacutable_trajectories = []
             self._POST_INFERENCE_PICK_INDEX_RAJ = None
@@ -860,19 +887,29 @@ class CommunicationManager:
         print (f"CommunicationManager : [CommunicationManager] Transformed Completed Items Dict Keys: {list(transformed_completed_items_dict.keys())}, Transformed Incomplete Items Dict Keys: {list(transformed_incomplete_items_dict.keys())}]")
         closest_item_name, closest_item_frame = self._find_closest_incomplete_target_for_inference(transformed_incomplete_items_dict, transformed_target_frame)
 
+        data = {}
+        data["transformed_completed_items_dict"] = {k: v.to_dict() for k, v in transformed_completed_items_dict.items()}
+        data["transformed_incomplete_items_dict"] = {k: v.to_dict() for k, v in transformed_incomplete_items_dict.items()}
+        data["transformed_target_frame"] = transformed_target_frame.to_dict()
+        data["closest_item_name"] = closest_item_name
+        data["closest_item_frame"] = closest_item_frame.to_dict() if closest_item_frame else None
+        self._LOGGER.log(message=data)
+
         #TODO: Accomodate Tolerances
         if self._PICK_AND_PLACE_XAXIS_TOLERANCE is not None or self._PICK_AND_PLACE_ZAXIS_TOLERANCE is not None:
             closest_item_frame, transformed_target_frame = self._accomodate_pick_and_place_tolerances(closest_item_frame, transformed_target_frame)
 
         if closest_item_name is None or closest_item_frame is None:
             print(f"CommunicationManager : [CommunicationManager] No closest target found for post-inference request for robot '{robot_name}'.")
-            self.inference_post_inference_target_result_publisher.publish(PostInferenceTrajectoryResultMessage(
+            post_inf_no_target_result = PostInferenceTrajectoryResultMessage(
                 robot_name=robot_name,
                 trajectories=[],
                 robot_base_frame=[],
                 inference_goal_name=goal_name,
                 target_name=target_frame_name,
-            ))
+            )
+            self._LOGGER.log(message=post_inf_no_target_result)
+            self.inference_post_inference_target_result_publisher.publish(post_inf_no_target_result)
             return
 
         print(f"CommunicationManager : [CommunicationManager] Closest target for post-inference request: {closest_item_name}")
@@ -891,13 +928,15 @@ class CommunicationManager:
 
         if traj_len == 0:
             print(f"CommunicationManager : [CommunicationManager] No trajectories computed for post-inference request for robot '{robot_name}'.")
-            self.inference_post_inference_target_result_publisher.publish(PostInferenceTrajectoryResultMessage(
+            post_inf_failed_trajectory = PostInferenceTrajectoryResultMessage(
                 robot_name=robot_name,
                 trajectories=[],
                 robot_base_frame=[],
                 inference_goal_name=goal_name,
                 target_name=target_frame_name,
-            ))
+            )
+            self._LOGGER.log(message=post_inf_failed_trajectory)
+            self.inference_post_inference_target_result_publisher.publish(post_inf_failed_trajectory)
             return
         
         #TODO: Wrap this for RAJ
@@ -935,6 +974,8 @@ class CommunicationManager:
         robot_name = msg.robot_name
         goal_name = msg.inference_goal_name
         target_name = msg.target_name
+
+        self._LOGGER.log(message=msg)
 
         handler = self.handler
         if self.connect_raj_to_pybullet:
@@ -998,4 +1039,5 @@ if __name__ == "__main__":
             pass  # Keep the process alive
     except KeyboardInterrupt:
         #TODO: MAKE THE LOGGER WRITE TO FILE HERE.... THIS WILL BE THE BEST..... LOGGER NEEDS TO BE PASSED TO EVERYTHING.
+        manager._LOGGER.save_log()
         print("[CommunicationManager] Shutdown requested.")
