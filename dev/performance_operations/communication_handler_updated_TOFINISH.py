@@ -887,13 +887,13 @@ class CommunicationManager:
         print (f"CommunicationManager : [CommunicationManager] Transformed Completed Items Dict Keys: {list(transformed_completed_items_dict.keys())}, Transformed Incomplete Items Dict Keys: {list(transformed_incomplete_items_dict.keys())}]")
         closest_item_name, closest_item_frame = self._find_closest_incomplete_target_for_inference(transformed_incomplete_items_dict, transformed_target_frame)
 
-        data = {}
-        data["transformed_completed_items_dict"] = {k: v.to_dict() for k, v in transformed_completed_items_dict.items()}
-        data["transformed_incomplete_items_dict"] = {k: v.to_dict() for k, v in transformed_incomplete_items_dict.items()}
-        data["transformed_target_frame"] = transformed_target_frame.to_dict()
-        data["closest_item_name"] = closest_item_name
-        data["closest_item_frame"] = closest_item_frame.to_dict() if closest_item_frame else None
-        self._LOGGER.log(message=data)
+        # data = {}
+        # data["transformed_completed_items_dict"] = {k: v.to_dict() for k, v in transformed_completed_items_dict.items()}
+        # data["transformed_incomplete_items_dict"] = {k: v.to_dict() for k, v in transformed_incomplete_items_dict.items()}
+        # data["transformed_target_frame"] = transformed_target_frame.to_dict()
+        # data["closest_item_name"] = closest_item_name
+        # data["closest_item_frame"] = closest_item_frame.to_dict() if closest_item_frame else None
+        # self._LOGGER.log(message=data)
 
         #TODO: Accomodate Tolerances
         if self._PICK_AND_PLACE_XAXIS_TOLERANCE is not None or self._PICK_AND_PLACE_ZAXIS_TOLERANCE is not None:
