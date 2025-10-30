@@ -19,6 +19,10 @@ class InferenceManager:
         self.INFERENCE_POSITIONAL_THRESHOLD = 0.05  # Meters
         self.INFERENCE_ROTATIONAL_THRESHOLD = 5.0  # Degrees
 
+        #TODO: Load State: (make an input that is name.json file or simmilar...)
+
+            #TODO: If the file exists, load from the previous state.
+
         self.goals_dict = self._load_goals(goals_folder_path)
         self.record_file_path = self._set_record_file_path(goals_folder_path)
         self.runntime_start = time.time()
