@@ -138,6 +138,8 @@ class InferenceManager:
             self.incorrect_targets.append(data)
             data["target_status"] = "incorrect_target"
             self.target_log.append(data)
+            #TODO: WRITE THE STATE FILE
+            self._write_state_file_data()
 
         # Rejecting goal and Accepting target
         elif goal_status_reply == 1:
