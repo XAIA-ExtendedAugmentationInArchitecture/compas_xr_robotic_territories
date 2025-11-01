@@ -11,9 +11,24 @@
         }
     ],
     "incorrect_goals": [
-        "Goal01"
+        "Goal01",
+        "Goal02",
+        "Goal07"
     ],
-    "incorrect_targets": [],
+    "incorrect_targets": [
+        {
+            "goal_name": "Goal02",
+            "suggested_target_name": "G2",
+            "target_status": "incorrect_target",
+            "timestamp": "2025-11-01 14:41:00.857"
+        },
+        {
+            "goal_name": "Goal07",
+            "suggested_target_name": "G1",
+            "target_status": "incorrect_target",
+            "timestamp": "2025-11-01 14:41:36.507"
+        }
+    ],
     "inference_session_start": 1762021929.304159,
     "target_log": [
         {
@@ -61,6 +76,18 @@
             "suggested_target_name": "G1",
             "target_status": "correct_target",
             "timestamp": "2025-11-01 14:32:42.658"
+        },
+        {
+            "goal_name": "Goal02",
+            "suggested_target_name": "G2",
+            "target_status": "incorrect_target",
+            "timestamp": "2025-11-01 14:41:00.857"
+        },
+        {
+            "goal_name": "Goal07",
+            "suggested_target_name": "G1",
+            "target_status": "incorrect_target",
+            "timestamp": "2025-11-01 14:41:36.507"
         }
     ]
 }
