@@ -1,0 +1,51 @@
+{
+    "INFERED_GOAL": null,
+    "correct_targets": [
+        {
+            "goal_name": "Goal02",
+            "suggested_target_name": "G2",
+            "target_status": "correct_target",
+            "timestamp": "2025-11-01 13:56:39.167"
+        }
+    ],
+    "incorrect_goals": [
+        "Goal01",
+        "Goal02",
+        "Goal07"
+    ],
+    "incorrect_targets": [
+        {
+            "goal_name": "Goal01",
+            "suggested_target_name": "G1",
+            "target_status": "incorrect_target",
+            "timestamp": "2025-11-01 13:56:00.613"
+        },
+        {
+            "goal_name": "Goal07",
+            "suggested_target_name": "G1",
+            "target_status": "incorrect_target",
+            "timestamp": "2025-11-01 13:59:25.956"
+        }
+    ],
+    "inference_session_start": 1762019732.7695873,
+    "target_log": [
+        {
+            "goal_name": "Goal01",
+            "suggested_target_name": "G1",
+            "target_status": "incorrect_target",
+            "timestamp": "2025-11-01 13:56:00.613"
+        },
+        {
+            "goal_name": "Goal02",
+            "suggested_target_name": "G2",
+            "target_status": "correct_target",
+            "timestamp": "2025-11-01 13:56:39.167"
+        },
+        {
+            "goal_name": "Goal07",
+            "suggested_target_name": "G1",
+            "target_status": "incorrect_target",
+            "timestamp": "2025-11-01 13:59:25.956"
+        }
+    ]
+}
