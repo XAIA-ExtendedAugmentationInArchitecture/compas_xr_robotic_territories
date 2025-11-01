@@ -1017,7 +1017,8 @@ WHOSE_PYBULLET = "JOSEPH"
 
 #TODO: Add Participant specific information
 # PARTICIPANT_NAME = "test_user_2"
-PARTICIPANT_NAME = "josquin"
+# PARTICIPANT_NAME = "4970"
+PARTICIPANT_NAME = "Joseph_Tests"
 
 requested_frames = []
 
@@ -1039,6 +1040,5 @@ if __name__ == "__main__":
         while True:
             pass  # Keep the process alive
     except KeyboardInterrupt:
-        #TODO: MAKE THE LOGGER WRITE TO FILE HERE.... THIS WILL BE THE BEST..... LOGGER NEEDS TO BE PASSED TO EVERYTHING.
         manager._LOGGER.save_log()
         print("[CommunicationManager] Shutdown requested.")
