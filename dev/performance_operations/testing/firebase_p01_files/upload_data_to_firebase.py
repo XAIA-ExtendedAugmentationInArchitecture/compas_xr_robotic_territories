@@ -6,7 +6,7 @@ import os
 if __name__ == "__main__":
 
     # project_name = "robotic_territories_general_inference_testing"
-    project_name = "rt_user_study_setup_six_targets_many_QR_codes_backup"
+    project_name = "rt_user_study_setup_six_targets_many_QR_codes_updated_inference_zones"
     # project_config_fp = r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\performance_operations\project_config.json"
     # project_config_dict = json_load(project_config_fp)
     # fb_db_config_fp = project_config_dict.get("firebase_config_fp", None)
@@ -30,7 +30,9 @@ if __name__ == "__main__":
     # data_to_upload_fp = r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\performance_operations\testing\firebase_p01_files\rt_larget_zones_equal_size_actual.json"
     # data_to_upload_fp = r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\performance_operations\testing\firebase_p01_files\20251017_rt_user_study_zone_setup_base.json"
     # data_to_upload_fp = r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\performance_operations\testing\firebase_p01_files\robotic_territories_user_study_six_geometries.json"
-    data_to_upload_fp = r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\performance_operations\testing\user_study_json_setup\robotic_territories_6_targets_many_QR.json"
+    # data_to_upload_fp = r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\performance_operations\testing\user_study_json_setup\robotic_territories_6_targets_many_QR.json"
+    data_to_upload_fp = r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\performance_operations\testing\user_study_json_setup\robotic_territories_6_targets_many_QR_updated_inference_zones.json"
+
     if not os.path.exists(data_to_upload_fp):
         raise FileNotFoundError(f"Data file not found: {data_to_upload_fp}")
     # data = json_load(data_to_upload_fp)

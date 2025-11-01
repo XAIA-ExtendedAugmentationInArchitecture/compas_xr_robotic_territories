@@ -1021,11 +1021,11 @@ WHOSE_PYBULLET = "JOSEPH"
 # PARTICIPANT_ID = "4970"
 
 # PARTICIPANT_NUMBER = "01"
-# PARTICIPANT_ID = "4970"
+# PARTICIPANT_ID = "RUXIN...."
 # PARTICIPANT_NAME = f"P{PARTICIPANT_NUMBER}_{PARTICIPANT_ID}"
 
 #TODO: While testing comment this in.
-PARTICIPANT_NAME = "researcher_tests_2"
+PARTICIPANT_NAME = "researcher_tests_4"
 
 requested_frames = []
 
