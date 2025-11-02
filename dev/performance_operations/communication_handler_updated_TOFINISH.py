@@ -604,6 +604,7 @@ class CommunicationManager:
         transformed_requested_robot_frames = self._transform_requested_frames_list_from_robot_space_to_ar_space(requested_robot_frames)
 
         #TODO: Accomodate pick and place tolerances here if needed.
+        #TODO: OFFSET AGAIN.......
         offset_distance = -0.01
         offset_frames = []
         for frame in transformed_requested_robot_frames:
@@ -935,7 +936,7 @@ class CommunicationManager:
                 inference_goal_name=goal_name,
                 target_name=target_frame_name,
             )
-            self._LOGGER.log(message=post_inf_failed_trajectory)
+            self._LOGGER.log_message(message=post_inf_failed_trajectory)
             self.inference_post_inference_target_result_publisher.publish(post_inf_failed_trajectory)
             return
         
@@ -975,7 +976,7 @@ class CommunicationManager:
         goal_name = msg.inference_goal_name
         target_name = msg.target_name
 
-        self._LOGGER.log(message=msg)
+        self._LOGGER.log_message(message=msg)
 
         handler = self.handler
         if self.connect_raj_to_pybullet:
@@ -1020,12 +1021,12 @@ WHOSE_PYBULLET = "JOSEPH"
 # PARTICIPANT_NUMBER = "00"
 # PARTICIPANT_ID = "4970"
 
-# PARTICIPANT_NUMBER = "01"
-# PARTICIPANT_ID = "RUXIN...."
-# PARTICIPANT_NAME = f"P{PARTICIPANT_NUMBER}_{PARTICIPANT_ID}"
+PARTICIPANT_NUMBER = "01"
+PARTICIPANT_ID = "850029"
+PARTICIPANT_NAME = f"P{PARTICIPANT_NUMBER}_{PARTICIPANT_ID}"
 
 #TODO: While testing comment this in.
-PARTICIPANT_NAME = "researcher_tests_4"
+# PARTICIPANT_NAME = "researcher_tests_4"
 
 requested_frames = []
 
