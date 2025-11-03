@@ -1,0 +1,31 @@
+[2025-11-01 18:03:21]: Initialize: Log: Operating System: Android
+UnityEngine.DebugLogHandler:Internal_Log(LogType, LogOption, String, Object)
+CompasXR.Systems.OperatingSystemManager:GetCurrentOS()
+CompasXR.Database.FirebaseManagment.FirebaseManager:.ctor()
+CompasXR.Database.FirebaseManagment.FirebaseManager:get_Instance()
+CompasXR.Database.FirebaseManagment.FirebaseConfigSettings:UpdateInputFields()
+CompasXR.Database.FirebaseManagment.FirebaseConfigSettings:Start()
+
+
+[2025-11-01 18:03:21]: Initialize: Log: Connecting to broker on 192.168.2.4:1883...
+
+UnityEngine.DebugLogHandler:Internal_Log(LogType, LogOption, String, Object)
+M2MqttUnity.<DoConnect>d__41:MoveNext()
+UnityEngine.SetupCoroutine:InvokeMoveNext(IEnumerator, IntPtr)
+
+
+[2025-11-01 18:03:21]: Initialize: Log: Connected to 192.168.2.4:1883...
+
+UnityEngine.DebugLogHandler:Internal_Log(LogType, LogOption, String, Object)
+M2MqttUnity.M2MqttUnityClient:OnConnected()
+M2MqttUnity.<DoConnect>d__41:MoveNext()
+UnityEngine.SetupCoroutine:InvokeMoveNext(IEnumerator, IntPtr)
+
+
+[2025-11-01 18:03:21]: Initialize: Log: HandleConnectionSucceeded: MQTT connection succeeded.
+UnityEngine.DebugLogHandler:Internal_Log(LogType, LogOption, String, Object)
+CompasXR.Database.FirebaseManagment.MqttFirebaseConfigManager:HandleConnectionSucceeded()
+M2MqttUnity.<DoConnect>d__41:MoveNext()
+UnityEngine.SetupCoroutine:InvokeMoveNext(IEnumerator, IntPtr)
+
+
