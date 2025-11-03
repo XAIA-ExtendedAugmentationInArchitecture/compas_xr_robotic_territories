@@ -13,7 +13,7 @@ from .camilla.camilla_inference import CamillaInference
 
 class InferenceManager:
 
-    def __init__(self, goals_folder_path, state_file_path=None):
+    def __init__(self, goals_folder_path, participant_name, state_file_path=None):
 
         #TODO: Tune these thresholds
         self.INFERENCE_POSITIONAL_THRESHOLD = 0.05  # Meters
@@ -24,7 +24,7 @@ class InferenceManager:
             #TODO: If the file exists, load from the previous state.
 
         self.goals_dict = self._load_goals(goals_folder_path)
-        self.record_file_path = self._set_record_file_path(goals_folder_path)
+        self.record_file_path = self._set_record_file_path(goals_folder_path, participant_name)
         self.inference_session_start = None
         self._LOADED_PREVIOUS_STATE = False
         self._state_file_path = state_file_path
@@ -72,13 +72,13 @@ class InferenceManager:
         print(f"Loaded {len(goals_dict)} goals from {goals_folder_path}.")
         return goals_dict
     
-    def _set_record_file_path(self, goals_folder_path):
+    def _set_record_file_path(self, goals_folder_path, participant_name):
         # go up one directory, then into "records"
         record_folder_path = os.path.normpath(
             os.path.join(goals_folder_path, "..", "records")
         )
         os.makedirs(record_folder_path, exist_ok=True)
-        filename = f"{int(time.time())}_inference_record.json"
+        filename = f"{int(time.time())}_{participant_name}_inference_record.json"
         record_file_path = os.path.join(record_folder_path, filename)
         print(f"GoalManager : Inference record file will be saved to: {record_file_path}")
         return record_file_path

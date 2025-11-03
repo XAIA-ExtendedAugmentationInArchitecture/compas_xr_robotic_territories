@@ -32,6 +32,7 @@ class CommunicationManager:
         self.mqtt = MqttTransport(broker, mqtt_port)
         self.project_name = project_name
         self.robot_name = robot_name
+        self.participant_name = participant_name
 
         #TODO: Transformation Tolerances to avoid markers and pick and place issues if needed.
         self._PICK_AND_PLACE_XAXIS_TOLERANCE = pick_and_place_xaxis_tolerance
@@ -76,7 +77,7 @@ class CommunicationManager:
         #Inference Manager
         goals_folder_fp = os.path.join(__dir_path, project_config_dict["goals_folder_file_path"])
         inference_state_file_path = os.path.join(__dir_path, project_config_dict["inference_state_file_path"], f"{participant_name}_inference_state.json")
-        self.inference_manager = InferenceManager(goals_folder_fp, state_file_path=inference_state_file_path)
+        self.inference_manager = InferenceManager(goals_folder_fp, participant_name=participant_name, state_file_path=inference_state_file_path)
 
         #Scripted Policy for Raj
         if self.connect_raj_to_pybullet:
@@ -108,6 +109,7 @@ class CommunicationManager:
                                                  urdf_path=urdf_filepath, 
                                                 #  pybullet_connect=False, #TODO: RECOMMENT TO RUN JOE BACKEND ONLY ROS.
                                                  pybullet_connect=pybullet_connect,
+                                                 participant_name=self.participant_name,
                                                  srdf_path=srdf_filepath,
                                                  ros_ip=robot_hardware_info_dict["ros_ip"],
                                                  ros_port=robot_hardware_info_dict["ros_port"],
@@ -681,7 +683,7 @@ class CommunicationManager:
     ######################################################################################################
     # Message Handlers for Inference Requests and Results
     ####################################################################################################
-
+    
     def _on_handle_inference_request(self, msg: InferenceRequestMessage):
         #TODO: testing updating base frames dynamically
         self.__update_robot_transformations_from_rtdb__()
@@ -916,7 +918,7 @@ class CommunicationManager:
         print(f"CommunicationManager : [CommunicationManager] Closest target for post-inference request: {closest_item_name}")
         handler = self.handler
         if self.connect_joe_to_pybullet:
-            trajectories = handler.handle_planning_for_inference(closest_item_frame, transformed_target_frame, transformed_completed_items_dict, transformed_incomplete_items_dict, closest_item_name)
+            trajectories = handler.handle_planning_for_inference(closest_item_frame, transformed_target_frame, transformed_completed_items_dict, transformed_incomplete_items_dict, closest_item_name, post_inference=True)
             traj_len = len(trajectories)
         elif self.connect_raj_to_pybullet:
             attached_collision_meshes_list = handler.ros_robot.get_attached_tool_collision_meshes()
@@ -1021,9 +1023,13 @@ WHOSE_PYBULLET = "JOSEPH"
 # PARTICIPANT_NUMBER = "00"
 # PARTICIPANT_ID = "4970"
 
-PARTICIPANT_NUMBER = "01"
-PARTICIPANT_ID = "850029"
-PARTICIPANT_NAME = f"P{PARTICIPANT_NUMBER}_{PARTICIPANT_ID}"
+# PARTICIPANT_NUMBER = "01"
+# PARTICIPANT_ID = "850029"
+# PARTICIPANT_NAME = f"P{PARTICIPANT_NUMBER}_{PARTICIPANT_ID}"
+
+# PARTICIPANT_NUMBER = "02"
+# PARTICIPANT_ID = "XXXXXX"
+# PARTICIPANT_NAME = f"P{PARTICIPANT_NUMBER}_{PARTICIPANT_ID}"
 
 #TODO: While testing comment this in.
 # PARTICIPANT_NAME = "researcher_tests_4"

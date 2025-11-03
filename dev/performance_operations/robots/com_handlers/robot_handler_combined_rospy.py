@@ -40,8 +40,9 @@ import random
 
 class RobotHandlerCombinedBackends:
 
-    def __init__(self, robot_name, urdf_path, tool_info_fp,  pybullet_connect, ros_ip='127.0.0.1', ros_port=9090, additional_static_collision_meshes_fp=None, group="manipulator", srdf_path=None, sim_test_start_coifig=None):
+    def __init__(self, robot_name, urdf_path, tool_info_fp,  pybullet_connect, participant_name, ros_ip='127.0.0.1', ros_port=9090, additional_static_collision_meshes_fp=None, group="manipulator", srdf_path=None, sim_test_start_coifig=None):
         self.robot_name = robot_name
+        self.participant_name = participant_name
         
         #Things for both backends
         self.tool, self.acm_for_pyb = self._load_and_create_tool_for_backends(tool_info_fp)
@@ -76,6 +77,11 @@ class RobotHandlerCombinedBackends:
         else:
             self.additional_static_collison_meshes = None
 
+        #TODO: Test me...
+        self.__logging_dir = os.path.join(os.path.dirname(__file__), "planning_recordings", self.participant_name)
+        if not os.path.exists(self.__logging_dir):
+            os.makedirs(self.__logging_dir)
+        print (f"CombinedBackendHandler: [{robot_name}] Logging Directory set to : {self.__logging_dir}")
 
         #ROS Inputs
         #TODO: See if You need a PlanningScene for ROS
@@ -1203,7 +1209,6 @@ class RobotHandlerCombinedBackends:
         except Exception as e:
             print(f"CombinedBackendHandler: [{self.robot_name}] IK computation failed: {e}")
             return None
-
     def handle_realtime_msg_request_compas_fab_itter(self, msg: RealtimeMimicRequestMessage) -> Configuration: #TODO: test run on the robot.
         """
         Checks recursively until it findes a valid IK that is collision free and returns it, but has a max attempt of 8. It returns the first solution without collision.
@@ -1244,7 +1249,6 @@ class RobotHandlerCombinedBackends:
         except Exception as e:
             print(f"CombinedBackendHandler: [{self.robot_name}] IK computation failed: {e}")
             return None
-
     def handle_realtime_msg_request(self, msg: RealtimeMimicRequestMessage) -> Configuration: #TODO: Using this one, and check the visualization, but run on the robot.
         print(f"CombinedBackendHandler: [{self.robot_name}] Handling request: {msg.message} from {msg.header.device_id}")
         frame = msg.requested_robot_frame
@@ -1285,7 +1289,6 @@ class RobotHandlerCombinedBackends:
         except Exception as e:
             print(f"CombinedBackendHandler: [{self.robot_name}] IK computation failed: {e}")
             return None
-
     def handle_realtime_msg_request_ik_target(self, msg: RealtimeMimicRequestMessage) -> Configuration: #TODO: Using this one, and check the visualization, but run on the robot.
         print(f"CombinedBackendHandler: [{self.robot_name}] Handling request: {msg.message} from {msg.header.device_id}")
         frame = msg.requested_robot_frame
@@ -1376,7 +1379,7 @@ class RobotHandlerCombinedBackends:
         data["requested_robot_frame"] = msg.requested_robot_frame
         data["geometry_frame"] = msg.geometry_frame
         data["offset_post_pick_frame"] = offset_post_pick_frame
-        fp = os.path.join(os.path.dirname(__file__), "pick_request_debug.json")
+        fp = os.path.join(self.__logging_dir, f"{int(time.time())}_{self.participant_name}_realtime_mimic_pick_request_debug.json")
         #Temp logging ########################################################################################################
 
         frames_for_ik = [msg.geometry_frame, offset_post_pick_frame]
@@ -1434,7 +1437,7 @@ class RobotHandlerCombinedBackends:
         data["requested_robot_frame"] = msg.requested_robot_frame
         data["geometry_frame"] = msg.geometry_frame
         data["offset_post_place_frame"] = offset_post_place_frame
-        fp = os.path.join(os.path.dirname(__file__), "place_request_debug.json")
+        fp = os.path.join(self.__logging_dir, f"{int(time.time())}_{self.participant_name}_realtime_mimic_place_request_debug.json")
         #Temp logging ########################################################################################################
 
         try:
@@ -1521,7 +1524,7 @@ class RobotHandlerCombinedBackends:
         """
         This method can be overridden by child classes to handle custom message requests.
         """
-        trajectory_dump_path = os.path.join(os.path.dirname(__file__), "ik_configurations_ros.json")
+        fp_data = os.path.join(self.__logging_dir, f"{int(time.time())}_{self.participant_name}_user_initiated_mimic_data.json")
         data = {}
 
         print(f"CombinedBackendHandler: [{self.robot_name}] Handling user-defined request: {msg} from {msg.header.device_id}")
@@ -1548,20 +1551,23 @@ class RobotHandlerCombinedBackends:
         if start_config is None:
             print(f"CombinedBackendHandler: [{self.robot_name}] No valid start configuration found. Returning empty trajectory.")
         configs_for_planning, success = self._ros_plan_ik_for_frames_list(msg.robot_frames, start_config, options=options)
+        data["configs_for_planning_attempt"] = configs_for_planning
+        data["success"] = success
         if not success or len(configs_for_planning) == 0:
             print(f"CombinedBackendHandler ROSSSSSSSSSSSSSSSSSSSSSSSSSSSSS : [{self.robot_name}] No valid configurations found for planning. Returning empty trajectory.")
-            #TODO: Add to json_dump log here as well.
+            json_dump(data, fp=fp_data, pretty=True)
             return None
         else:
             print(f"CombinedBackendHandler ROSSSSSSSSSSSSSSSSSSSSSSSSSSSSS : [{self.robot_name}] Valid configurations found for planning. Found {len(configs_for_planning)} configs for planning.")        
         data["configs_for_planning"] = configs_for_planning
         trajectories, success = self._ros_plan_trajectories_for_user_initiated_request(start_config=start_config, configurations=configs_for_planning) #TODO: Update to do linear moves for pick and place of cube???
+        data["trajectories"] = trajectories
         if not success or len(trajectories) < 1:
             print(f"CombinedBackendHandler: [{self.robot_name}] No valid trajectories found for planning. Returning empty trajectory.")
-            json_dump(data, fp=trajectory_dump_path, pretty=True)
+            json_dump(data, fp=fp_data, pretty=True)
             return None
         
-        json_dump(data, fp=trajectory_dump_path, pretty=True)
+        json_dump(data, fp=fp_data, pretty=True)
         # print(f"CombinedBackendHandler: [{self.robot_name}] Valid trajectories found for planning. Found {len(trajectories)} trajectories for planning.")
         return trajectories
 
@@ -1576,9 +1582,14 @@ class RobotHandlerCombinedBackends:
         """
         print(f"CombinedBackendHandler: [{self.robot_name}] Handling user-defined mimic execution request from: {msg.header.device_id}")
         print(f"CombinedBackendHandler: [{self.robot_name}] Executing trajectory list with len {len(trajectory_list)} of type {type(trajectory_list)} points, with IO control list: len {len(io_control_list)} of {type(io_control_list)}")
+        fp_data = os.path.join(self.__logging_dir, f"{int(time.time())}_{self.participant_name}_user_initiated_mimic_execution_data.json")
+        data = {}
 
         if not trajectory_list:
             print(f"CombinedBackendHandler: [{self.robot_name}] No trajectories to execute.")
+            data["success"] = False
+            data["message"] = "No trajectories to execute."
+            json_dump(data, fp=fp_data, pretty=True)
             return False
 
         if len(io_control_list) != len(trajectory_list) - 1:
@@ -1601,10 +1612,16 @@ class RobotHandlerCombinedBackends:
                 #     io_signal = io_control_list[i]
                 #     print(f"CombinedBackendHandler: [{self.robot_name}] Sent IO signal {io_signal} after trajectory {i}.")
 
+            data["success"] = True
+            data["message"] = f"All trajectories should execute. {len(trajectory_list)} trajectories, with io toggles {io_control_list} sent at {int(time.time())}."
+            json_dump(data, fp=fp_data, pretty=True)
             return True
 
         except Exception as e:
             print(f"CombinedBackendHandler: [{self.robot_name}] Failed to execute mimic sequence: {e}")
+            data["success"] = False
+            data["message"] = "Failed to execute trajectories in the process."
+            json_dump(data, fp=fp_data, pretty=True)
             return False
 
     #####################################################################################################
@@ -1935,8 +1952,10 @@ class RobotHandlerCombinedBackends:
 
     def handle_planning_for_inference(self, closest_target_frame, transformed_target, 
                                     transformed_completed_items_dict, transformed_incompleted_items_dict, 
-                                    closest_target_name):
+                                    closest_target_name, post_inference=False):
         print(f"CombinedBackendHandler: [{self.robot_name}] Handling inference planning request for target: {closest_target_name}")
+        fp_data = os.path.join(self.__logging_dir, f"{int(time.time())}_{self.participant_name}_inference_planning_data.json")
+        data = {}
 
         try:
             start_config = self._get_latest_joint_values_from_stream_as_configuration(backend="ROS")
@@ -1987,8 +2006,7 @@ class RobotHandlerCombinedBackends:
         data["incompleted_items_dict"] = transformed_incompleted_items_dict
         data["colsest_target_name"] = closest_target_name
         data["current_config"] = start_config
-        json_dump(data, os.path.join(os.path.dirname(__file__), "planning_frames_debug.json"), pretty=True)
-
+        data["post_inference"] = post_inference
 
         # Correct order for IK (match the planning legs below)
         frames_for_ik = [
@@ -2002,9 +2020,12 @@ class RobotHandlerCombinedBackends:
         ik_options = dict(link_name="tool0", high_accuracy_threshold=1e-6, high_accuracy_max_iter=8)
 
         configs_for_planning, success = self._ros_plan_ik_for_frames_list(frames_for_ik, start_config, options=ik_options)
+        data["configs_for_planning_attempt"] = configs_for_planning
+        data["ik_success"] = success
         if not success or len(configs_for_planning) == 0:
             print(f"CombinedBackendHandler: [{self.robot_name}] No valid configurations found for planning. Returning empty trajectory.")
             #TODO: Add configurations to log and keep moving....
+            json_dump(data, fp=fp_data, pretty=True)
             return []
 
         # Plan per the required sequence
@@ -2021,12 +2042,20 @@ class RobotHandlerCombinedBackends:
                 f"CombinedBackendHandler: [{self.robot_name}] "
                 f"Error while planning trajectories: {e}. Returning empty trajectory."
             )
+            data["trajectories"] = []
+            data["trajectories_error"] = str(e)
+            json_dump(data, fp=fp_data, pretty=True)
             return []
 
         if len(trajectories) < 1:
             print(f"CombinedBackendHandler: [{self.robot_name}] No valid trajectories found for planning. Returning empty trajectory.")
+            trajectories = []
+            data["trajectories"] = trajectories
+            json_dump(data, fp=fp_data, pretty=True)
             return []
         print(f"CombinedBackendHandler: [{self.robot_name}] Valid trajectories found for planning. Found {len(trajectories)} trajectories for planning.")
+        data["trajectories"] = trajectories
+        json_dump(data, fp=fp_data, pretty=True)
         return trajectories
 
 
@@ -2041,8 +2070,8 @@ class RobotHandlerCombinedBackends:
 
 class URMimicHandlerCombined(RobotHandlerCombinedBackends):
 
-    def __init__(self, robot_name, robot_ip, urdf_path, tool_info_fp, pybullet_connect, ros_ip='127.0.0.1', ros_port=9090, additional_static_collision_meshes_fp=None, group="manipulator", srdf_path=None, sim_test_start_coifig=None, io=0, speed=0.6, acceleration=0.1, radius=0.006, nowait=False):
-        super().__init__(robot_name, urdf_path, tool_info_fp, ros_ip=ros_ip, pybullet_connect=pybullet_connect, ros_port=ros_port, additional_static_collision_meshes_fp=additional_static_collision_meshes_fp, group=group, srdf_path=srdf_path, sim_test_start_coifig=sim_test_start_coifig)
+    def __init__(self, robot_name, robot_ip, urdf_path, tool_info_fp, pybullet_connect, participant_name, ros_ip='127.0.0.1', ros_port=9090, additional_static_collision_meshes_fp=None, group="manipulator", srdf_path=None, sim_test_start_coifig=None, io=0, speed=0.6, acceleration=0.1, radius=0.006, nowait=False):
+        super().__init__(robot_name, urdf_path, tool_info_fp, ros_ip=ros_ip, pybullet_connect=pybullet_connect, participant_name=participant_name, ros_port=ros_port, additional_static_collision_meshes_fp=additional_static_collision_meshes_fp, group=group, srdf_path=srdf_path, sim_test_start_coifig=sim_test_start_coifig)
 
         if (pybullet_connect):
             self.robot_state_streamer = RTDEStateStreamer(robot_ip=robot_ip, poll_delay=0.001, sim=False)
@@ -2182,12 +2211,12 @@ class URMimicHandlerCombined(RobotHandlerCombinedBackends):
 
         # reset history on first call
         if msg.initial_request:
-            fp = os.path.join(os.path.dirname(__file__), "realtime_mimic_data_storage.json")
+            fp = os.path.join(self.__logging_dir, f"{int(time.time())}_{self.participant_name}_realtime_mimic_data_storage.json")
             json_dump(self.realtime_mimic_data_storage, fp, pretty=True)
             self.realtime_mimic_data_storage = []
 
-            fp = os.path.join(os.path.dirname(__file__), "realtime_mimic_ik_solutions.json")
-            json_dump(self.realtime_mimic_ik_solutions, fp, pretty=True)
+            fp_data = os.path.join(self.__logging_dir, f"{int(time.time())}_{self.participant_name}_realtime_mimic_ik_solutions.json")
+            json_dump(self.realtime_mimic_ik_solutions, fp_data, pretty=True)
             self.realtime_mimic_ik_solutions = []
 
         initial_ik_solutions = []  # <-- important: define upfront
