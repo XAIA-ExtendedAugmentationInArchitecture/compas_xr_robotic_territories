@@ -107,8 +107,8 @@ class CommunicationManager:
                 return URMimicHandlerCombined(robot_name, 
                                                  robot_ip=robot_hardware_info_dict["robot_ip"], 
                                                  urdf_path=urdf_filepath, 
-                                                #  pybullet_connect=False, #TODO: RECOMMENT TO RUN JOE BACKEND ONLY ROS.
-                                                 pybullet_connect=pybullet_connect,
+                                                 pybullet_connect=False, #TODO: RECOMMENT TO RUN JOE BACKEND ONLY ROS.
+                                                #  pybullet_connect=pybullet_connect,
                                                  participant_name=self.participant_name,
                                                  srdf_path=srdf_filepath,
                                                  ros_ip=robot_hardware_info_dict["ros_ip"],
@@ -997,8 +997,8 @@ ROBOT_NAME = "UR20"
 # MQTT_CONFIG = PROJECT_CONFIG_DICT["mqtt_config_ruxin"]
 # MQTT_CONFIG = PROJECT_CONFIG_DICT["mqtt_config_eduroam"]
 # MQTT_CONFIG = PROJECT_CONFIG_DICT["mqtt_config_chaosnet"]
-# MQTT_CONFIG = PROJECT_CONFIG_DICT["mqtt_config_local"]
-MQTT_CONFIG = PROJECT_CONFIG_DICT["mqtt_config_macmini"]
+MQTT_CONFIG = PROJECT_CONFIG_DICT["mqtt_config_local"]
+# MQTT_CONFIG = PROJECT_CONFIG_DICT["mqtt_config_macmini"]
 BROKER = MQTT_CONFIG["broker"]
 MQTT_PORT = MQTT_CONFIG["port"]
 
@@ -1032,7 +1032,7 @@ WHOSE_PYBULLET = "JOSEPH"
 # PARTICIPANT_NAME = f"P{PARTICIPANT_NUMBER}_{PARTICIPANT_ID}"
 
 #TODO: While testing comment this in.
-# PARTICIPANT_NAME = "researcher_tests_4"
+PARTICIPANT_NAME = "researcher_tests_5"
 
 requested_frames = []
 
