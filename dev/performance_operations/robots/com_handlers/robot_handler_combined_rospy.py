@@ -78,10 +78,10 @@ class RobotHandlerCombinedBackends:
             self.additional_static_collison_meshes = None
 
         #TODO: Test me...
-        self.__logging_dir = os.path.join(os.path.dirname(__file__), "planning_recordings", self.participant_name)
-        if not os.path.exists(self.__logging_dir):
-            os.makedirs(self.__logging_dir)
-        print (f"CombinedBackendHandler: [{robot_name}] Logging Directory set to : {self.__logging_dir}")
+        self._logging_dir = os.path.join(os.path.dirname(__file__), "planning_recordings", self.participant_name)
+        if not os.path.exists(self._logging_dir):
+            os.makedirs(self._logging_dir)
+        print (f"CombinedBackendHandler: [{robot_name}] Logging Directory set to : {self._logging_dir}")
 
         #ROS Inputs
         #TODO: See if You need a PlanningScene for ROS
@@ -116,6 +116,10 @@ class RobotHandlerCombinedBackends:
     ####################################################################################################
     # LOAD ROBOT AND SEMANTICS
     ####################################################################################################
+
+    @property
+    def logging_dir(self):
+        return self._logging_dir
 
     def _pyb_load_robot(self):
 
@@ -1379,7 +1383,7 @@ class RobotHandlerCombinedBackends:
         data["requested_robot_frame"] = msg.requested_robot_frame
         data["geometry_frame"] = msg.geometry_frame
         data["offset_post_pick_frame"] = offset_post_pick_frame
-        fp = os.path.join(self.__logging_dir, f"{int(time.time())}_{self.participant_name}_realtime_mimic_pick_request_debug.json")
+        fp = os.path.join(self._logging_dir, f"{int(time.time())}_{self.participant_name}_realtime_mimic_pick_request_debug.json")
         #Temp logging ########################################################################################################
 
         frames_for_ik = [msg.geometry_frame, offset_post_pick_frame]
@@ -1437,7 +1441,7 @@ class RobotHandlerCombinedBackends:
         data["requested_robot_frame"] = msg.requested_robot_frame
         data["geometry_frame"] = msg.geometry_frame
         data["offset_post_place_frame"] = offset_post_place_frame
-        fp = os.path.join(self.__logging_dir, f"{int(time.time())}_{self.participant_name}_realtime_mimic_place_request_debug.json")
+        fp = os.path.join(self._logging_dir, f"{int(time.time())}_{self.participant_name}_realtime_mimic_place_request_debug.json")
         #Temp logging ########################################################################################################
 
         try:
@@ -1524,7 +1528,7 @@ class RobotHandlerCombinedBackends:
         """
         This method can be overridden by child classes to handle custom message requests.
         """
-        fp_data = os.path.join(self.__logging_dir, f"{int(time.time())}_{self.participant_name}_user_initiated_mimic_data.json")
+        fp_data = os.path.join(self._logging_dir, f"{int(time.time())}_{self.participant_name}_user_initiated_mimic_data.json")
         data = {}
 
         print(f"CombinedBackendHandler: [{self.robot_name}] Handling user-defined request: {msg} from {msg.header.device_id}")
@@ -1583,7 +1587,7 @@ class RobotHandlerCombinedBackends:
         """
         print(f"CombinedBackendHandler: [{self.robot_name}] Handling user-defined mimic execution request from: {msg.header.device_id}")
         print(f"CombinedBackendHandler: [{self.robot_name}] Executing trajectory list with len {len(trajectory_list)} of type {type(trajectory_list)} points, with IO control list: len {len(io_control_list)} of {type(io_control_list)}")
-        fp_data = os.path.join(self.__logging_dir, f"{int(time.time())}_{self.participant_name}_user_initiated_mimic_execution_data.json")
+        fp_data = os.path.join(self._logging_dir, f"{int(time.time())}_{self.participant_name}_user_initiated_mimic_execution_data.json")
         data = {}
 
         if not trajectory_list:
@@ -1918,7 +1922,7 @@ class RobotHandlerCombinedBackends:
                                     transformed_completed_items_dict, transformed_incompleted_items_dict, 
                                     closest_target_name, post_inference=False):
         print(f"CombinedBackendHandler: [{self.robot_name}] Handling inference planning request for target: {closest_target_name}")
-        fp_data = os.path.join(self.__logging_dir, f"{int(time.time())}_{self.participant_name}_inference_planning_data.json")
+        fp_data = os.path.join(self._logging_dir, f"{int(time.time())}_{self.participant_name}_inference_planning_data.json")
         data = {}
 
         try:
@@ -2167,11 +2171,11 @@ class URMimicHandlerCombined(RobotHandlerCombinedBackends):
 
         # reset history on first call
         if msg.initial_request:
-            fp = os.path.join(self.__logging_dir, f"{int(time.time())}_{self.participant_name}_realtime_mimic_data_storage.json")
+            fp = os.path.join(self.logging_dir, f"{int(time.time())}_{self.participant_name}_realtime_mimic_data_storage.json")
             json_dump(self.realtime_mimic_data_storage, fp, pretty=True)
             self.realtime_mimic_data_storage = []
 
-            fp_data = os.path.join(self.__logging_dir, f"{int(time.time())}_{self.participant_name}_realtime_mimic_ik_solutions.json")
+            fp_data = os.path.join(self.logging_dir, f"{int(time.time())}_{self.participant_name}_realtime_mimic_ik_solutions.json")
             json_dump(self.realtime_mimic_ik_solutions, fp_data, pretty=True)
             self.realtime_mimic_ik_solutions = []
 
