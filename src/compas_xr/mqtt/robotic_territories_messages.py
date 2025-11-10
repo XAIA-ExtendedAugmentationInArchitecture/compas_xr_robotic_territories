@@ -114,6 +114,7 @@ class MimicTrajectoryRequestMessage(Message):
         The header of the message.
     """
 
+    #TODO : ADD PICK AND PLACE INDEXES????
     def __init__(self, human_frames, robot_frames, robot_name, io_control_indexes, header=None):
         super(MimicTrajectoryRequestMessage, self).__init__()
         self["header"] = header or Header()

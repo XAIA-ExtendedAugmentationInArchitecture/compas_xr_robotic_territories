@@ -1520,7 +1520,7 @@ class RobotHandlerCombinedBackends:
         print(f"CombinedBackendHandler: [{self.robot_name}] Valid trajectories found for planning. Found {len(trajectories)} trajectories for planning.")
         return trajectories
 
-    def handle_user_iniated_msg_request_ROS(self, msg: RealtimeMimicRequestMessage) -> List[JointTrajectory]:
+    def handle_user_iniated_msg_request_ROS(self, msg: MimicTrajectoryRequestMessage) -> List[JointTrajectory]:
         """
         This method can be overridden by child classes to handle custom message requests.
         """
@@ -2247,11 +2247,15 @@ class URMimicHandlerCombined(RobotHandlerCombinedBackends):
         # else:
         #     start_cfg = self.realtime_mimic_ik_solutions[-1]
 
-        if msg.initial_request or not self.realtime_mimic_ik_solutions:
+        if msg.initial_request or len(self.realtime_mimic_ik_solutions) <= 0:
             start_cfg = self._get_latest_joint_values_from_stream_as_configuration()
             if start_cfg is None:
+                print(f"[{self.robot_name}] (SIM) No stream data yet, using zero configuration as seed.")
                 start_cfg = self.pyb_robot.zero_configuration()
+            else:
+                print(f"[{self.robot_name}] (SIM) Using current stream joints as seed for realtime mimic.")
         else:
+            print(f"[{self.robot_name}] (SIM) Using last of previous IK solutions as seed for realtime mimic.")
             start_cfg = self.realtime_mimic_ik_solutions[-1]
 
         data["start_cfg"] = start_cfg

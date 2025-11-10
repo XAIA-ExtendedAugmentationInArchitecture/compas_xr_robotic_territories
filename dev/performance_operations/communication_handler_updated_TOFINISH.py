@@ -107,8 +107,8 @@ class CommunicationManager:
                 return URMimicHandlerCombined(robot_name, 
                                                  robot_ip=robot_hardware_info_dict["robot_ip"], 
                                                  urdf_path=urdf_filepath, 
-                                                 pybullet_connect=False, #TODO: RECOMMENT TO RUN JOE BACKEND ONLY ROS.
-                                                #  pybullet_connect=pybullet_connect,
+                                                #  pybullet_connect=False, #TODO: RECOMMENT TO RUN JOE BACKEND ONLY ROS.
+                                                 pybullet_connect=pybullet_connect,
                                                  participant_name=self.participant_name,
                                                  srdf_path=srdf_filepath,
                                                  ros_ip=robot_hardware_info_dict["ros_ip"],
@@ -1010,7 +1010,8 @@ BACKEND_TYPE = "COMBINED"
 
 #TODO: PICK & PLACE FRAMES TOLERANCE VALUES
 PICK_AND_PLACE_XAXIS_TOLERANCE = 0.04  # Meters
-PICK_AND_PLACE_ZAXIS_TOLERANCE = None  # Meters
+# PICK_AND_PLACE_ZAXIS_TOLERANCE = None  # Meters
+PICK_AND_PLACE_ZAXIS_TOLERANCE = 0.012  # Meters
 
 
 #TODO: This is the quickest fix to avoid the dual pybullet issues....
