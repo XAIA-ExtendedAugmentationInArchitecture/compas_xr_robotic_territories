@@ -59,6 +59,43 @@ class ServoJGate:
         acc_cmd = self.cmd_acc_ema.push(np.array([acc_tgt]))[0]
         return float(spd_cmd), float(acc_cmd)
 
+    #RESET SESSION ADD
+    def reset_session(self, seed_q=None):
+        """Clear internal state and optionally seed target to current joints."""
+        self.smoother = EMA(self.smoother.a)      # reset EMA
+        self.cmd_spd_ema = EMA(self.cmd_spd_ema.a)
+        self.cmd_acc_ema = EMA(self.cmd_acc_ema.a)
+        self._q_last_sent = None
+        self._t_last = None
+        if seed_q is None and self.recv is not None:
+            try:
+                seed_q = np.asarray(self.recv.getActualQ(), float)
+            except Exception:
+                seed_q = None
+        self._q_target = None if seed_q is None else self.smoother.push(np.asarray(seed_q, float))
+
+    def warm_start_hold(self, hold_s=0.4, gain_warm=120, look_warm=0.18):
+        """
+        For ~hold_s, send the current actual joints with gentle gains.
+        Prevents the first 'real' target from yanking the arm.
+        """
+        if self.recv is None:
+            return
+        t0 = time.perf_counter()
+        while time.perf_counter() - t0 < hold_s:
+            q_act = np.asarray(self.recv.getActualQ(), float)
+            now = time.perf_counter()
+            # compute dt
+            dt_used = self.dt_nominal if self._t_last is None else float(np.clip(now - self._t_last, 0.004, 0.20))
+            try:
+                # conservative speed/acc during warm
+                self.ctrl.servoJ(q_act.tolist(), 0.25, 0.75, dt_used, look_warm, gain_warm)
+            except Exception:
+                break
+            self._q_last_sent = q_act
+            self._t_last = now
+            time.sleep(max(0.0, self.min_dt_send - 0.002))
+
     def tick(self):
         now = time.perf_counter()
         if self._q_target is None:

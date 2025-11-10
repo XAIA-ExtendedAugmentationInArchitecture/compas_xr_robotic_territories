@@ -1449,12 +1449,14 @@ class RobotHandlerCombinedBackends:
             raise ValueError("Place request must include both the current robot and place frames.")
 
         offset_post_place_frame = self.offset_frame_by_distance(msg.geometry_frame, msg.geometry_frame.zaxis, -0.4)   
-
+        offset_place_frame = self.offset_frame_by_distance(msg.geometry_frame, msg.geometry_frame.zaxis, -0.01) #TODO: JOOOOEEEEE YOUUUUU ADDEEEEDDDD THISSSSSS....
         #Temp logging ########################################################################################################
         data = {}
         data["requested_robot_frame"] = msg.requested_robot_frame
         data["geometry_frame"] = msg.geometry_frame
         data["offset_post_place_frame"] = offset_post_place_frame
+        data["geometry_frame_safety"] = offset_place_frame
+        msg.geometry_frame = offset_place_frame
 
         fp_updated = os.path.join(self._logging_dir, f"{int(time.time())}_{self.participant_name}_realtime_mimic_pick_request_debug.json")
         dirpath = os.path.dirname(fp_updated)
@@ -1480,7 +1482,7 @@ class RobotHandlerCombinedBackends:
         data["start_config"] = start_config
         if start_config is None:
             print(f"CombinedBackendHandler: [{self.robot_name}] No valid start configuration found. Returning empty trajectory.")
-            json_dump(data, fp=fp, pretty=True)
+            json_dump(data, fp=fp_updated, pretty=True)
             return []
 
         frames_for_ik = [msg.geometry_frame, offset_post_place_frame]
@@ -1498,19 +1500,19 @@ class RobotHandlerCombinedBackends:
         if not success or len(configs_for_planning) == 0:
             print(f"CombinedBackendHandler: [{self.robot_name}] No valid configurations found for planning. Returning empty trajectory.")
             #TODO: Add configurations to log and keep moving....
-            json_dump(data, fp=fp, pretty=True)
+            json_dump(data, fp=fp_updated, pretty=True)
             return []
 
         trajectories = self._ros_plan_place_for_realtime_mimic(start_config=start_config, ik_config_list=configs_for_planning)
         data["trajectories"] = trajectories
         if len(trajectories) < 1:
             print(f"CombinedBackendHandler: [{self.robot_name}] No valid trajectories found for planning. Returning empty trajectory.")
-            json_dump(data, fp=fp, pretty=True)
+            json_dump(data, fp=fp_updated, pretty=True)
             return []
         print(f"CombinedBackendHandler: [{self.robot_name}] Valid trajectories found for planning. Found {len(trajectories)} trajectories for planning.")
 
         print(f"CombinedBackendHandler: [{self.robot_name}] Executing place trajectories.")
-        json_dump(data, fp=fp, pretty=True)
+        json_dump(data, fp=fp_updated, pretty=True)
         self._execute_place_realtime_mimic(trajectories)
         return trajectories
 
@@ -2207,7 +2209,6 @@ class URMimicHandlerCombined(RobotHandlerCombinedBackends):
             data["initial_request"] = True
             data["requested_robot_frame"] = frame
             data["timestamp"] = time.time()
-
             print(f"[{self.robot_name}] Interpolating move to first target.")
             current_config = self._get_latest_joint_values_from_stream_as_configuration()
             if current_config is None:
@@ -2227,7 +2228,7 @@ class URMimicHandlerCombined(RobotHandlerCombinedBackends):
             if current_tcp is None:
                 raise ValueError(f"[{self.robot_name}] (SIM) Could not compute current TCP from stream configuration.")
 
-            near_thresh = frame.point.distance_to_point(current_tcp.point) < 0.05
+            near_thresh = frame.point.distance_to_point(current_tcp.point) < 0.0015  # 1.5 cm
             print(f"[{self.robot_name}] (SIM) Current TCP before initial move: {current_tcp}")
             if near_thresh:
                 print(f"[{self.robot_name}] (SIM) Already within 5cm; skipping initial interpolation.")
@@ -2252,6 +2253,14 @@ class URMimicHandlerCombined(RobotHandlerCombinedBackends):
                 # Send the staged interpolation THEN EXIT this call to avoid double-commanding
                 #TODO: Comment me out when you want to run sim only...
                 self.__send_to_realtime_mimic_start_position(initial_ik_solutions)
+
+                #TODO: Joe Added.... QUICK AND SHOULD BE CHECKED...
+                old_min_dq = self.servo_gate.min_dq
+                self.servo_gate.min_dq = 0.0
+                self.servo_gate.reset_session(seed_q=self.rtde_recv.getActualQ())
+                self.servo_gate.warm_start_hold(hold_s=0.4, gain_warm=120, look_warm=0.18)
+                self.servo_gate.min_dq = old_min_dq
+                #TODO: Joe Added.... QUICK AND SHOULD BE CHECKED...
 
                 #Adding last initial IK solution to history to prevent bounce
                 self.realtime_mimic_ik_solutions.append(initial_ik_solutions[-1])
