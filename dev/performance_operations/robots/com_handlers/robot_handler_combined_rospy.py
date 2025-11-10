@@ -1390,7 +1390,7 @@ class RobotHandlerCombinedBackends:
         msg.geometry_frame = offset_pick_frame_safety
         data["offset_post_pick_frame"] = offset_post_pick_frame
 
-        fp_updated = os.path.join(self._logging_dir, f"{int(time.time())}_{self.participant_name}_realtime_mimic_pick_request_debug.json")
+        fp_updated = os.path.join(self._logging_dir, f"{int(time.time())}_{self.participant_name}_realtime_mimic_pick_request.json")
         dirpath = os.path.dirname(fp_updated)
         os.makedirs(dirpath, exist_ok=True)
         print("LOGDIR exists?", os.path.isdir(self._logging_dir), "FP dir exists?", os.path.isdir(os.path.dirname(fp_updated)), fp_updated)
@@ -1458,7 +1458,7 @@ class RobotHandlerCombinedBackends:
         data["geometry_frame_safety"] = offset_place_frame
         msg.geometry_frame = offset_place_frame
 
-        fp_updated = os.path.join(self._logging_dir, f"{int(time.time())}_{self.participant_name}_realtime_mimic_pick_request_debug.json")
+        fp_updated = os.path.join(self._logging_dir, f"{int(time.time())}_{self.participant_name}_realtime_mimic_pick_request.json")
         dirpath = os.path.dirname(fp_updated)
         os.makedirs(dirpath, exist_ok=True)
         print("LOGDIR exists?", os.path.isdir(self._logging_dir), "FP dir exists?", os.path.isdir(os.path.dirname(fp_updated)), fp_updated)
