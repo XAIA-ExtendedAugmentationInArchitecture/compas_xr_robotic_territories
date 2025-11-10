@@ -1805,43 +1805,6 @@ class RobotHandlerCombinedBackends:
 
         print(f"CombinedBackendHandler: [{self.robot_name}] Planned {len(trajectories)} legs for RT mimic pick (C, C).")
         return trajectories
-    
-    # def _ros_plan_place_for_realtime_mimic(self, start_config, ik_config_place: Configuration) -> List[JointTrajectory]:
-    #     """
-    #     Plans a pick sequence given a list of IK configurations.
-    #         start_config: current robot config from stream
-    #         ik_config_place: place configuration
-    #     Plans legs:
-    #         current -> place (cartesian)
-    #     """
-    #     if not ik_config_place:
-    #         print(f"CombinedBackendHandler: [{self.robot_name}] Need at least 3 configs (current, pick, exit).")
-    #         return []
-
-    #     if start_config is None:
-    #         print(f"CombinedBackendHandler: [{self.robot_name}] Could not read current joint state.")
-    #         return []
-        
-    #     ros_joint_names = self.ros_robot.get_configurable_joint_names(self.group)
-    #     ros_joint_types = self.ros_robot.get_configurable_joint_types(self.group)
-
-    #     # Align all configs to ROS joint ordering/types
-    #     start_config = self._align_config(start_config, ros_joint_names, ros_joint_types)
-    #     place_config = self._align_config(ik_config_place, ros_joint_names, ros_joint_types)
-
-    #     trajectories: List[JointTrajectory] = []
-
-    #     cart_options = dict(link_name="tool0", avoid_collisions=True, max_step=0.05, jump_threshold=0.0)
-
-    #     traj = self._ros_plan_cartesian(start_config, place_config, cart_options=cart_options)
-    #     if traj is None:
-    #         print(f"CombinedBackendHandler: [{self.robot_name}] Leg 1 cartesian (start->pick) failed.")
-    #         return []
-    #     self._stamp_joint_meta(traj, ros_joint_names, ros_joint_types)
-    #     trajectories.append(traj)
-
-    #     print(f"CombinedBackendHandler: [{self.robot_name}] Planned {len(trajectories)} legs for RT mimic pick (C, C).")
-    #     return trajectories
 
     def _ros_plan_place_for_realtime_mimic(self, start_config, ik_config_list: List[Configuration]) -> List[JointTrajectory]:
         """
@@ -2059,15 +2022,6 @@ class RobotHandlerCombinedBackends:
         data["trajectories"] = trajectories
         json_dump(data, fp=fp_data, pretty=True)
         return trajectories
-
-
-        # For now just load information from a file.
-        # fp = r"C:\Users\jk6372\Desktop\00_princeton_projects\00_robotic_territories\00_git\compas_xr_robotic_territories\dev\performance_operations\testing\random_trajectory_for_testing.json"
-        # sample_message = json_load(fp)
-        # trajectories = sample_message["trajectories"]
-        # robot_base_frame = sample_message["robot_base_frame"]
-        # robot_name = sample_message["robot_name"]
-        # return trajectories, robot_base_frame, robot_name
 
 
 class URMimicHandlerCombined(RobotHandlerCombinedBackends):
