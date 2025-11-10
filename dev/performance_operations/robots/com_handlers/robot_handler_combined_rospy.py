@@ -1539,6 +1539,7 @@ class RobotHandlerCombinedBackends:
                 raise e
 
         #simple logging, and can be removed soon...
+        data["timestamp"] = time.time()
         data["start_config"] = start_config
         data["robot_frames"] = msg.robot_frames
 
@@ -1994,6 +1995,7 @@ class RobotHandlerCombinedBackends:
         approach_place_frame  = self.offset_frame_by_distance(place_frame, place_frame.zaxis, -0.4)                  # 40 cm above place
 
         data = {}
+        data["timestamp"] = time.time()
         data["current_tool_frame"] = current_tool_frame
         data["closest_target_frame"] = closest_target_frame
         data["transformed_target"] = transformed_target
