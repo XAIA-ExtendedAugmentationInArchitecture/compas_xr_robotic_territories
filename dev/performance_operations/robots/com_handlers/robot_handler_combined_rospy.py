@@ -38,6 +38,8 @@ from compas_fab.backends import RosClient
 from copy import deepcopy
 import random
 
+from pathlib import Path
+
 class RobotHandlerCombinedBackends:
 
     def __init__(self, robot_name, urdf_path, tool_info_fp,  pybullet_connect, participant_name, ros_ip='127.0.0.1', ros_port=9090, additional_static_collision_meshes_fp=None, group="manipulator", srdf_path=None, sim_test_start_coifig=None):
@@ -78,10 +80,12 @@ class RobotHandlerCombinedBackends:
             self.additional_static_collison_meshes = None
 
         #TODO: Test me...
-        self._logging_dir = os.path.join(os.path.dirname(__file__), "planning_recordings", self.participant_name)
-        if not os.path.exists(self._logging_dir):
-            os.makedirs(self._logging_dir)
-        print (f"CombinedBackendHandler: [{robot_name}] Logging Directory set to : {self._logging_dir}")
+        # self._logging_dir = os.path.join(os.path.dirname(__file__), "planning_recordings", self.participant_name)
+        # if not os.path.exists(self._logging_dir):
+        #     os.makedirs(self._logging_dir)
+        self._logging_dir = Path(__file__).parent / "planning_recordings" / self.participant_name
+        self._logging_dir.mkdir(parents=True, exist_ok=True)
+        print(f"CombinedBackendHandler: [{robot_name}] Logging directory set to: {self._logging_dir}")
 
         #ROS Inputs
         #TODO: See if You need a PlanningScene for ROS
@@ -1377,13 +1381,23 @@ class RobotHandlerCombinedBackends:
             raise ValueError("Pick request must include both the current robot and place frames.")
 
         offset_post_pick_frame = self.offset_frame_by_distance(msg.geometry_frame, msg.geometry_frame.zaxis, -0.4)   
-
+        offset_pick_frame_safety = self.offset_frame_by_distance(msg.geometry_frame, msg.geometry_frame.zaxis, -0.01) #TODO: JOOOOEEEEE YOUUUUU ADDEEEEDDDD THISSSSSS....
         #Temp logging ########################################################################################################
         data = {}
         data["requested_robot_frame"] = msg.requested_robot_frame
         data["geometry_frame"] = msg.geometry_frame
+        data["geometry_frame_safety"] = offset_pick_frame_safety
+        msg.geometry_frame = offset_pick_frame_safety
         data["offset_post_pick_frame"] = offset_post_pick_frame
-        fp = os.path.join(self._logging_dir, f"{int(time.time())}_{self.participant_name}_realtime_mimic_pick_request_debug.json")
+
+        fp_updated = os.path.join(self._logging_dir, f"{int(time.time())}_{self.participant_name}_realtime_mimic_pick_request_debug.json")
+        dirpath = os.path.dirname(fp_updated)
+        os.makedirs(dirpath, exist_ok=True)
+        print("LOGDIR exists?", os.path.isdir(self._logging_dir), "FP dir exists?", os.path.isdir(os.path.dirname(fp_updated)), fp_updated)
+        fp_updated = os.path.normpath(fp_updated)
+        fp_updated = os.path.normpath(fp_updated)
+        if os.name == "nt":
+            fp_updated = "\\\\?\\" + os.path.abspath(fp_updated)
         #Temp logging ########################################################################################################
 
         frames_for_ik = [msg.geometry_frame, offset_post_pick_frame]
@@ -1403,7 +1417,7 @@ class RobotHandlerCombinedBackends:
         data["start_config"] = start_config
         if start_config is None:
             print(f"CombinedBackendHandler: [{self.robot_name}] No valid start configuration found. Returning empty trajectory.")
-            json_dump(data, fp=fp, pretty=True)
+            json_dump(data, fp=fp_updated, pretty=True)
             return []
 
         configs_for_planning, success = self._ros_plan_ik_for_frames_list(frames_for_ik, start_config, options=ik_options)
@@ -1411,7 +1425,7 @@ class RobotHandlerCombinedBackends:
         if not success or len(configs_for_planning) == 0:
             print(f"CombinedBackendHandler: [{self.robot_name}] No valid configurations found for planning. Returning empty trajectory.")
             #TODO: Add configurations to log and keep moving....
-            json_dump(data, fp=fp, pretty=True)
+            json_dump(data, fp=fp_updated, pretty=True)
             return []
         
         print(f"CombinedBackendHandler: [{self.robot_name}] Valid configurations found for planning. Found {len(configs_for_planning)} configs for planning.")
@@ -1420,11 +1434,11 @@ class RobotHandlerCombinedBackends:
         data["trajectories"] = trajectories
         if len(trajectories) < 1:
             print(f"CombinedBackendHandler: [{self.robot_name}] No valid trajectories found for planning. Returning empty trajectory.")
-            json_dump(data, fp=fp, pretty=True)
+            json_dump(data, fp=fp_updated, pretty=True)
             return []
 
         print(f"CombinedBackendHandler: [{self.robot_name}] Valid trajectories found for planning. Found {len(trajectories)} trajectories for planning.")
-        json_dump(data, fp=fp, pretty=True)
+        json_dump(data, fp=fp_updated, pretty=True)
         self._execute_pick_realtime_mimic(trajectories)
         return trajectories
 
@@ -1441,7 +1455,15 @@ class RobotHandlerCombinedBackends:
         data["requested_robot_frame"] = msg.requested_robot_frame
         data["geometry_frame"] = msg.geometry_frame
         data["offset_post_place_frame"] = offset_post_place_frame
-        fp = os.path.join(self._logging_dir, f"{int(time.time())}_{self.participant_name}_realtime_mimic_place_request_debug.json")
+
+        fp_updated = os.path.join(self._logging_dir, f"{int(time.time())}_{self.participant_name}_realtime_mimic_pick_request_debug.json")
+        dirpath = os.path.dirname(fp_updated)
+        os.makedirs(dirpath, exist_ok=True)
+        print("LOGDIR exists?", os.path.isdir(self._logging_dir), "FP dir exists?", os.path.isdir(os.path.dirname(fp_updated)), fp_updated)
+        fp_updated = os.path.normpath(fp_updated)
+        fp_updated = os.path.normpath(fp_updated)
+        if os.name == "nt":
+            fp_updated = "\\\\?\\" + os.path.abspath(fp_updated)
         #Temp logging ########################################################################################################
 
         try:

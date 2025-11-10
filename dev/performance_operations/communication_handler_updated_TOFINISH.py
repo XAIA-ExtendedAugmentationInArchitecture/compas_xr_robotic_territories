@@ -1057,10 +1057,10 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         manager._LOGGER.save_log()
         if len(manager.handler.realtime_mimic_data_storage) > 0:
-            fp = os.path.join(manager.handler.__logging_dir, f"{int(time.time())}_{manager.handler.participant_name}_realtime_mimic_data_storage_final_log.json")
+            fp = os.path.join(manager.handler.logging_dir, f"{int(time.time())}_{manager.handler.participant_name}_realtime_mimic_data_storage_final_log.json")
             json_dump(manager.handler.realtime_mimic_data_storage, fp, pretty=True)
         if len(manager.handler.realtime_mimic_ik_solutions) > 0:
-            fp_data = os.path.join(manager.handler.__logging_dir, f"{int(time.time())}_{manager.handler.participant_name}_realtime_mimic_ik_solutions_final_log.json")
+            fp_data = os.path.join(manager.handler.logging_dir, f"{int(time.time())}_{manager.handler.participant_name}_realtime_mimic_ik_solutions_final_log.json")
             json_dump(manager.handler.realtime_mimic_ik_solutions, fp_data, pretty=True)
         
         print("[CommunicationManager] Shutdown requested.")
