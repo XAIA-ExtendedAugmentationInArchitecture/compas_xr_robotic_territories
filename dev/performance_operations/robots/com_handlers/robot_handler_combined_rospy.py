@@ -2224,6 +2224,7 @@ class URMimicHandlerCombined(RobotHandlerCombinedBackends):
         if msg.initial_request:
             data["initial_request"] = True
             data["requested_robot_frame"] = frame
+            data["timestamp"] = time.time()
 
             print(f"[{self.robot_name}] Interpolating move to first target.")
             current_config = self._get_latest_joint_values_from_stream_as_configuration()
@@ -2269,23 +2270,36 @@ class URMimicHandlerCombined(RobotHandlerCombinedBackends):
                 # Send the staged interpolation THEN EXIT this call to avoid double-commanding
                 #TODO: Comment me out when you want to run sim only...
                 self.__send_to_realtime_mimic_start_position(initial_ik_solutions)
+
+                #Adding last initial IK solution to history to prevent bounce
+                self.realtime_mimic_ik_solutions.append(initial_ik_solutions[-1])
+
                 #TODO: Comment me out when you want to run sim only...
                 return initial_ik_solutions[-1]  # <-- prevents immediate second servoj target that can cause a bounce
 
         # choose seed: current joints if no history, else last good
+        # if msg.initial_request or not self.realtime_mimic_ik_solutions:
+        #     if not initial_ik_solutions:
+        #         print(f"[{self.robot_name}] (SIM) Using current stream joints as seed for realtime mimic.")
+        #         start_cfg = self._get_latest_joint_values_from_stream_as_configuration()
+        #     else:
+        #         print(f"[{self.robot_name}] (SIM) Using last of initial IK solutions as seed for realtime mimic.")
+        #         start_cfg = initial_ik_solutions[-1]
+        #     if start_cfg is None:
+        #         start_cfg = self.pyb_robot.zero_configuration()
+        #         print(f"[{self.robot_name}] (SIM) No stream data yet, using zero configuration as seed.")
+        # else:
+        #     start_cfg = self.realtime_mimic_ik_solutions[-1]
+
         if msg.initial_request or not self.realtime_mimic_ik_solutions:
-            if not initial_ik_solutions:
-                print(f"[{self.robot_name}] (SIM) Using current stream joints as seed for realtime mimic.")
-                start_cfg = self._get_latest_joint_values_from_stream_as_configuration()
-            else:
-                print(f"[{self.robot_name}] (SIM) Using last of initial IK solutions as seed for realtime mimic.")
-                start_cfg = initial_ik_solutions[-1]
+            start_cfg = self._get_latest_joint_values_from_stream_as_configuration()
             if start_cfg is None:
                 start_cfg = self.pyb_robot.zero_configuration()
-                print(f"[{self.robot_name}] (SIM) No stream data yet, using zero configuration as seed.")
         else:
             start_cfg = self.realtime_mimic_ik_solutions[-1]
+
         data["start_cfg"] = start_cfg
+        data["timestamp"] = time.time()
 
         # fast IK; one target for this tick
         ik = self.pyb_try_fast_ik(frame, start_config=start_cfg, do_collision_check=True, extra_seed=True, visual_hz=30)

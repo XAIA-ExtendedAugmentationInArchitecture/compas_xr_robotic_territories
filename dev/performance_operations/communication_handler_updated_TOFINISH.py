@@ -1028,11 +1028,11 @@ WHOSE_PYBULLET = "JOSEPH"
 # PARTICIPANT_NAME = f"P{PARTICIPANT_NUMBER}_{PARTICIPANT_ID}"
 
 # PARTICIPANT_NUMBER = "02"
-# PARTICIPANT_ID = "XXXXXX"
+# PARTICIPANT_ID = "911324"
 # PARTICIPANT_NAME = f"P{PARTICIPANT_NUMBER}_{PARTICIPANT_ID}"
 
 #TODO: While testing comment this in.
-PARTICIPANT_NAME = "researcher_tests_5"
+PARTICIPANT_NAME = "researcher_tests_6"
 
 requested_frames = []
 
@@ -1055,4 +1055,11 @@ if __name__ == "__main__":
             pass  # Keep the process alive
     except KeyboardInterrupt:
         manager._LOGGER.save_log()
+        if len(manager.handler.realtime_mimic_data_storage) > 0:
+            fp = os.path.join(manager.handler.__logging_dir, f"{int(time.time())}_{manager.handler.participant_name}_realtime_mimic_data_storage_final_log.json")
+            json_dump(manager.handler.realtime_mimic_data_storage, fp, pretty=True)
+        if len(manager.handler.realtime_mimic_ik_solutions) > 0:
+            fp_data = os.path.join(manager.handler.__logging_dir, f"{int(time.time())}_{manager.handler.participant_name}_realtime_mimic_ik_solutions_final_log.json")
+            json_dump(manager.handler.realtime_mimic_ik_solutions, fp_data, pretty=True)
+        
         print("[CommunicationManager] Shutdown requested.")
