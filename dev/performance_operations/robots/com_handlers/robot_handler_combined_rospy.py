@@ -1618,7 +1618,7 @@ class RobotHandlerCombinedBackends:
             print(f"CombinedBackendHandler: [{self.robot_name}] No trajectories to execute.")
             data["success"] = False
             data["message"] = "No trajectories to execute."
-            json_dump(data, fp=fp_data, pretty=True)
+            # json_dump(data, fp=fp_data, pretty=True)
             return False
 
         if len(io_control_list) != len(trajectory_list) - 1:
@@ -1643,14 +1643,14 @@ class RobotHandlerCombinedBackends:
 
             data["success"] = True
             data["message"] = f"All trajectories should execute. {len(trajectory_list)} trajectories, with io toggles {io_control_list} sent at {int(time.time())}."
-            json_dump(data, fp=fp_data, pretty=True)
+            # json_dump(data, fp=fp_data, pretty=True)
             return True
 
         except Exception as e:
             print(f"CombinedBackendHandler: [{self.robot_name}] Failed to execute mimic sequence: {e}")
             data["success"] = False
             data["message"] = "Failed to execute trajectories in the process."
-            json_dump(data, fp=fp_data, pretty=True)
+            # json_dump(data, fp=fp_data, pretty=True)
             return False
 
     #####################################################################################################
