@@ -86,8 +86,12 @@ PROJECT_CONFIG_FP = os.path.join(SCRIPT_DIR, "project_config.json")
 PROJECT_CONFIG_DICT = json_load(PROJECT_CONFIG_FP)
 OPTITRACK_INFO_DICT = PROJECT_CONFIG_DICT.get("optitrack_info", {})
 # SESION_DIR_NAME = "20251019_user_study_local_test"
-# SESION_DIR_NAME = "20251030_josquin_user_study"
-SESION_DIR_NAME = "20251101_ruxin_user_study_start"
+# SESION_DIR_NAME = "20251030_4970_user_study"
+# SESION_DIR_NAME = "20251101_850029_user_study_start"
+
+SESION_DIR_NAME = "20251110_911324_user_study_usermimic"
+
+# SESION_DIR_NAME = "20251110_Test_Session"
 
 #Geometry Manger Information
 UPLOAD_TO_FIREBASE = PROJECT_CONFIG_DICT.get("upload_geo_to_firebase", False)
