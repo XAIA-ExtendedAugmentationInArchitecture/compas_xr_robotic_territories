@@ -2306,7 +2306,7 @@ class URMimicHandlerCombined(RobotHandlerCombinedBackends):
             self.realtime_mimic_ik_solutions.append(ik)
 
             #TODO: Joe added.... QUICK AND SHOULD BE CHECKED...
-            self.realtime_mimic_data_storage.append(data)
+            # self.realtime_mimic_data_storage.append(data)
             self.servo_gate.set_target(ik.joint_values)
             self.servo_gate.tick()
             #TODO: Comment me in to run sim only...
@@ -2321,7 +2321,7 @@ class URMimicHandlerCombined(RobotHandlerCombinedBackends):
         # IK failed: keep feeding last known good or measured
         if self.realtime_mimic_ik_solutions:
             #TODO: Joe added.... QUICK AND SHOULD BE CHECKED...
-            self.realtime_mimic_data_storage.append(data)
+            # self.realtime_mimic_data_storage.append(data)
             self.servo_gate.set_target(self.realtime_mimic_ik_solutions[-1].joint_values)
         else:
             q = self._get_latest_joint_values_from_stream()
