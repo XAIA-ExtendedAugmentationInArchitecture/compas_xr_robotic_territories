@@ -1041,7 +1041,7 @@ WHOSE_PYBULLET = "JOSEPH"
 # PARTICIPANT_NAME = f"P{PARTICIPANT_NUMBER}_{PARTICIPANT_ID}"
 
 #TODO: While testing comment this in.
-PARTICIPANT_NAME = "researcher_tests_6"
+PARTICIPANT_NAME = "researcher_tests_7"
 
 requested_frames = []
 
