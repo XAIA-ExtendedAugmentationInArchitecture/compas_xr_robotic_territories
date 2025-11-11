@@ -89,9 +89,15 @@ OPTITRACK_INFO_DICT = PROJECT_CONFIG_DICT.get("optitrack_info", {})
 # SESION_DIR_NAME = "20251030_4970_user_study"
 # SESION_DIR_NAME = "20251101_850029_user_study_start"
 
-SESION_DIR_NAME = "20251110_911324_user_study_usermimic"
+# SESION_DIR_NAME = "20251110_911324_user_study_usermimic"
 
-# SESION_DIR_NAME = "20251110_Test_Session"
+#TODO: Comment in for Soulaf
+SESION_DIR_NAME = "20251110_0874_user_study"
+
+#TODO: Comment in for Lucia
+# SESION_DIR_NAME = "20251110_2022653_user_study"
+
+SESION_DIR_NAME = "20251111_Test_Session"
 
 #Geometry Manger Information
 UPLOAD_TO_FIREBASE = PROJECT_CONFIG_DICT.get("upload_geo_to_firebase", False)
