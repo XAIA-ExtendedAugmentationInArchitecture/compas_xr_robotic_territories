@@ -2196,7 +2196,7 @@ class URMimicHandlerCombined(RobotHandlerCombinedBackends):
         # reset history on first call
         if msg.initial_request:
             fp = os.path.join(self.logging_dir, f"{int(time.time())}_{self.participant_name}_realtime_mimic_data_storage.json")
-            json_dump(self.realtime_mimic_data_storage, fp, pretty=True)
+            json_dump(self.realtime_mimic_data_storage, fp=fp, pretty=True)
             self.realtime_mimic_data_storage = []
 
             fp_data = os.path.join(self.logging_dir, f"{int(time.time())}_{self.participant_name}_realtime_mimic_ik_solutions.json")
@@ -2299,6 +2299,7 @@ class URMimicHandlerCombined(RobotHandlerCombinedBackends):
         # fast IK; one target for this tick
         ik = self.pyb_try_fast_ik(frame, start_config=start_cfg, do_collision_check=True, extra_seed=True, visual_hz=30)
         data["computed_ik"] = ik
+        self.realtime_mimic_data_storage.append(data)
 
         if ik:
             #TODO: Comment me in to run sim only....
