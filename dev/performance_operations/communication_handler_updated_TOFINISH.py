@@ -606,8 +606,8 @@ class CommunicationManager:
         transformed_requested_robot_frames = self._transform_requested_frames_list_from_robot_space_to_ar_space(requested_robot_frames)
 
         #TODO: Accomodate pick and place tolerances here if needed.
-        #TODO: OFFSET AGAIN.......
-        offset_distance = -0.01
+        #TODO: JOSEPH - OFFSETTING FRAMES HERE IF TOLERANCE ISSUES ARISE.
+        offset_distance = -0.012
         offset_frames = []
         for frame in transformed_requested_robot_frames:
             print(f"CommunicationManager : Offsetting by {offset_distance} cm for : {frame}")
@@ -1011,7 +1011,7 @@ BACKEND_TYPE = "COMBINED"
 #TODO: PICK & PLACE FRAMES TOLERANCE VALUES
 PICK_AND_PLACE_XAXIS_TOLERANCE = 0.04  # Meters
 # PICK_AND_PLACE_ZAXIS_TOLERANCE = None  # Meters
-PICK_AND_PLACE_ZAXIS_TOLERANCE = 0.012  # Meters
+PICK_AND_PLACE_ZAXIS_TOLERANCE = 0.012  # Meters #TODO: JOSEPH IF TOLERANCE NEEDED UPDATE HERE... (INFERENCE ONLY)
 
 
 #TODO: This is the quickest fix to avoid the dual pybullet issues....
