@@ -1045,7 +1045,7 @@ PARTICIPANT_ID = "123087101"
 PARTICIPANT_NAME = f"P{PARTICIPANT_NUMBER}_{PARTICIPANT_ID}"
 
 #TODO: While testing comment this in.
-PARTICIPANT_NAME = "researcher_tests_9"
+# PARTICIPANT_NAME = "researcher_tests_9"
 
 requested_frames = []
 
