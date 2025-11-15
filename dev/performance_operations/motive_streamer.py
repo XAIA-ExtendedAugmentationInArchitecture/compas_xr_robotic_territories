@@ -113,9 +113,9 @@ OPTITRACK_INFO_DICT = PROJECT_CONFIG_DICT.get("optitrack_info", {})
 # SESION_DIR_NAME = "20251114_123456_user_study_realtime_mimic"
 # SESION_DIR_NAME = "20251114_123456_user_study_inference"
 
-SESION_DIR_NAME = "20251115_437728_user_study_realtime_mimic"
+# SESION_DIR_NAME = "20251115_437728_user_study_realtime_mimic"
 # SESION_DIR_NAME = "20251115_437728_user_study_inference"
-# SESION_DIR_NAME = "20251115_437728_user_study_mimic"
+SESION_DIR_NAME = "20251115_437728_user_study_mimic"
 
 # SESION_DIR_NAME = "20251115_0649_user_study_realtime_mimic"
 # SESION_DIR_NAME = "20251115_0649_user_study_inference"
