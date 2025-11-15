@@ -1,0 +1,1 @@
+During the mimic mode the participant accidentally requested inference, so the later of the two should be ignored.
