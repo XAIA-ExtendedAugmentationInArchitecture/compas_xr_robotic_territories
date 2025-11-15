@@ -1381,7 +1381,7 @@ class RobotHandlerCombinedBackends:
             raise ValueError("Pick request must include both the current robot and place frames.")
 
         offset_post_pick_frame = self.offset_frame_by_distance(msg.geometry_frame, msg.geometry_frame.zaxis, -0.4)   
-        offset_pick_frame_safety = self.offset_frame_by_distance(msg.geometry_frame, msg.geometry_frame.zaxis, -0.01) #TODO: JOOOOEEEEE YOUUUUU ADDEEEEDDDD THISSSSSS....
+        offset_pick_frame_safety = self.offset_frame_by_distance(msg.geometry_frame, msg.geometry_frame.zaxis, -0.012) #TODO: JOOOOEEEEE YOUUUUU ADDEEEEDDDD THISSSSSS....
         #Temp logging ########################################################################################################
         data = {}
         data["requested_robot_frame"] = msg.requested_robot_frame
@@ -1449,7 +1449,7 @@ class RobotHandlerCombinedBackends:
             raise ValueError("Place request must include both the current robot and place frames.")
 
         offset_post_place_frame = self.offset_frame_by_distance(msg.geometry_frame, msg.geometry_frame.zaxis, -0.4)   
-        offset_place_frame = self.offset_frame_by_distance(msg.geometry_frame, msg.geometry_frame.zaxis, -0.01) #TODO: JOOOOEEEEE YOUUUUU ADDEEEEDDDD THISSSSSS....
+        offset_place_frame = self.offset_frame_by_distance(msg.geometry_frame, msg.geometry_frame.zaxis, -0.012) #TODO: JOOOOEEEEE YOUUUUU ADDEEEEDDDD THISSSSSS....
         #Temp logging ########################################################################################################
         data = {}
         data["requested_robot_frame"] = msg.requested_robot_frame
