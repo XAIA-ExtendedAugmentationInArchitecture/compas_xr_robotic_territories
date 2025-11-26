@@ -1,0 +1,1227 @@
+[
+    {
+        "current_config": {
+            "data": {
+                "joint_names": [
+                    "shoulder_pan_joint",
+                    "shoulder_lift_joint",
+                    "elbow_joint",
+                    "wrist_1_joint",
+                    "wrist_2_joint",
+                    "wrist_3_joint"
+                ],
+                "joint_types": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                ],
+                "joint_values": [
+                    0.5723560452461243,
+                    -0.7630717319301148,
+                    1.8941920439349573,
+                    -2.6498004398741664,
+                    -1.572458569203512,
+                    0.5153017044067383
+                ]
+            },
+            "dtype": "compas_robots/Configuration",
+            "guid": "e9375d5c-1cad-4fa6-a09d-399d08e62c56"
+        },
+        "current_tcp": {
+            "data": {
+                "point": [
+                    0.7979690844655319,
+                    0.7527144724017166,
+                    -0.09938073457992118
+                ],
+                "xaxis": [
+                    0.057648650860717465,
+                    -0.997968627513274,
+                    0.02711552236656112
+                ],
+                "yaxis": [
+                    -0.9974151953223185,
+                    -0.0564073117372474,
+                    0.04451003620217335
+                ]
+            },
+            "dtype": "compas.geometry/Frame",
+            "guid": "b5ae9817-5e28-4157-8f83-2f8bca07250a"
+        },
+        "initial_ik_solutions": [
+            {
+                "data": {
+                    "joint_names": [
+                        "shoulder_pan_joint",
+                        "shoulder_lift_joint",
+                        "elbow_joint",
+                        "wrist_1_joint",
+                        "wrist_2_joint",
+                        "wrist_3_joint"
+                    ],
+                    "joint_types": [
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "joint_values": [
+                        0.5723560625906785,
+                        -0.7630717274317631,
+                        1.8941920291703134,
+                        -2.649800438308625,
+                        -1.572458572131366,
+                        0.5153016324312867
+                    ]
+                },
+                "dtype": "compas_robots/Configuration",
+                "guid": "300b3b9a-2084-49b5-a384-dfe18337d249",
+                "name": "Configuration"
+            },
+            {
+                "data": {
+                    "joint_names": [
+                        "shoulder_pan_joint",
+                        "shoulder_lift_joint",
+                        "elbow_joint",
+                        "wrist_1_joint",
+                        "wrist_2_joint",
+                        "wrist_3_joint"
+                    ],
+                    "joint_types": [
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "joint_values": [
+                        0.5600885141754719,
+                        -0.8272647002870697,
+                        1.9283855394008032,
+                        -2.631045731300275,
+                        -1.5255603386394285,
+                        1.007813708503705
+                    ]
+                },
+                "dtype": "compas_robots/Configuration",
+                "guid": "c9c2ee1f-8473-4c5c-b372-b55cbd753fb5",
+                "name": "Configuration"
+            },
+            {
+                "data": {
+                    "joint_names": [
+                        "shoulder_pan_joint",
+                        "shoulder_lift_joint",
+                        "elbow_joint",
+                        "wrist_1_joint",
+                        "wrist_2_joint",
+                        "wrist_3_joint"
+                    ],
+                    "joint_types": [
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "joint_values": [
+                        0.5503539223311026,
+                        -0.8912480088365835,
+                        1.9663732397487992,
+                        -2.63714359594317,
+                        -1.4894931036371912,
+                        1.5048258031748791
+                    ]
+                },
+                "dtype": "compas_robots/Configuration",
+                "guid": "7f638524-2a7c-45e8-a1a9-895cfa1159e5",
+                "name": "Configuration"
+            },
+            {
+                "data": {
+                    "joint_names": [
+                        "shoulder_pan_joint",
+                        "shoulder_lift_joint",
+                        "elbow_joint",
+                        "wrist_1_joint",
+                        "wrist_2_joint",
+                        "wrist_3_joint"
+                    ],
+                    "joint_types": [
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "joint_values": [
+                        0.5454062541519966,
+                        -0.955112768700347,
+                        2.004189874053066,
+                        -2.6569039017842444,
+                        -1.4732362083413726,
+                        2.008685012806191
+                    ]
+                },
+                "dtype": "compas_robots/Configuration",
+                "guid": "e35d4405-6d38-42de-a9de-a2585f2adbfb",
+                "name": "Configuration"
+            },
+            {
+                "data": {
+                    "joint_names": [
+                        "shoulder_pan_joint",
+                        "shoulder_lift_joint",
+                        "elbow_joint",
+                        "wrist_1_joint",
+                        "wrist_2_joint",
+                        "wrist_3_joint"
+                    ],
+                    "joint_types": [
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "joint_values": [
+                        0.5466773900065722,
+                        -1.018916869555456,
+                        2.0366266291001236,
+                        -2.6740041838194935,
+                        -1.4815461959736314,
+                        2.519166176673132
+                    ]
+                },
+                "dtype": "compas_robots/Configuration",
+                "guid": "e10b4155-d880-4da4-96ac-8ce910f71633",
+                "name": "Configuration"
+            },
+            {
+                "data": {
+                    "joint_names": [
+                        "shoulder_pan_joint",
+                        "shoulder_lift_joint",
+                        "elbow_joint",
+                        "wrist_1_joint",
+                        "wrist_2_joint",
+                        "wrist_3_joint"
+                    ],
+                    "joint_types": [
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "joint_values": [
+                        0.5540961532430221,
+                        -1.0825844951251224,
+                        2.0587099807568627,
+                        -2.6709861672089183,
+                        -1.513108599965642,
+                        3.034055043363075
+                    ]
+                },
+                "dtype": "compas_robots/Configuration",
+                "guid": "f14c904e-1924-4c23-b7d2-8eb2546bf277",
+                "name": "Configuration"
+            },
+            {
+                "data": {
+                    "joint_names": [
+                        "shoulder_pan_joint",
+                        "shoulder_lift_joint",
+                        "elbow_joint",
+                        "wrist_1_joint",
+                        "wrist_2_joint",
+                        "wrist_3_joint"
+                    ],
+                    "joint_types": [
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "joint_values": [
+                        0.5658557293304687,
+                        -1.1455286405357195,
+                        2.066888047729093,
+                        -2.634435276918374,
+                        -1.5601484876042184,
+                        3.551026862229902
+                    ]
+                },
+                "dtype": "compas_robots/Configuration",
+                "guid": "561275b8-572b-47e1-80d8-7bbf6bae60d4",
+                "name": "Configuration"
+            }
+        ],
+        "initial_request": true,
+        "initial_request_frames_list": [
+            {
+                "data": {
+                    "point": [
+                        0.7979690844655319,
+                        0.7527144724017166,
+                        -0.09938073457992118
+                    ],
+                    "xaxis": [
+                        0.057648650860717465,
+                        -0.997968627513274,
+                        0.027115522366561125
+                    ],
+                    "yaxis": [
+                        -0.9974151953223185,
+                        -0.0564073117372474,
+                        0.044510036202173364
+                    ]
+                },
+                "dtype": "compas.geometry/Frame",
+                "guid": "2c564c3f-5779-4b10-81f2-5d11448bb638"
+            },
+            {
+                "data": {
+                    "point": [
+                        0.7862279913709471,
+                        0.7445542572814668,
+                        -0.04908868470724184
+                    ],
+                    "xaxis": [
+                        -0.43360253703872653,
+                        -0.9010435731494597,
+                        0.010455580310734095
+                    ],
+                    "yaxis": [
+                        -0.8991966105346993,
+                        0.4334100802282111,
+                        0.060009648886525276
+                    ]
+                },
+                "dtype": "compas.geometry/Frame",
+                "guid": "08ec979e-4288-49cd-a4fe-3eb5e4e739b6"
+            },
+            {
+                "data": {
+                    "point": [
+                        0.7744868982763622,
+                        0.7363940421612171,
+                        0.001203365165437495
+                    ],
+                    "xaxis": [
+                        -0.8162336896925185,
+                        -0.5777118568934999,
+                        0.0034020898873594785
+                    ],
+                    "yaxis": [
+                        -0.5755620575818531,
+                        0.8136768224205102,
+                        0.08159869194910732
+                    ]
+                },
+                "dtype": "compas.geometry/Frame",
+                "guid": "5af06172-ece1-4b1f-87bc-a718d77e0e0d"
+            },
+            {
+                "data": {
+                    "point": [
+                        0.7627458051817773,
+                        0.7282338270409672,
+                        0.05149541503811687
+                    ],
+                    "xaxis": [
+                        -0.9939762793151105,
+                        -0.10932249618543448,
+                        0.007729682184622947
+                    ],
+                    "yaxis": [
+                        -0.10793674645313601,
+                        0.9887192636412014,
+                        0.1038454451091245
+                    ]
+                },
+                "dtype": "compas.geometry/Frame",
+                "guid": "10f7d407-d488-454b-b469-d8f03464a711"
+            },
+            {
+                "data": {
+                    "point": [
+                        0.7510047120871923,
+                        0.7200736119207174,
+                        0.10178746491079618
+                    ],
+                    "xaxis": [
+                        -0.9221109533156795,
+                        0.38627954556011757,
+                        0.02234955160887596
+                    ],
+                    "yaxis": [
+                        0.38602659137521217,
+                        0.9144973982623282,
+                        0.12115271075245275
+                    ]
+                },
+                "dtype": "compas.geometry/Frame",
+                "guid": "896540b2-c2ae-4182-a7f8-f9d6997bc9e0"
+            },
+            {
+                "data": {
+                    "point": [
+                        0.7392636189926074,
+                        0.7119133968004676,
+                        0.15207951478347553
+                    ],
+                    "xaxis": [
+                        -0.618718751580316,
+                        0.7844026989415256,
+                        0.043583395188370545
+                    ],
+                    "yaxis": [
+                        0.7820486781105727,
+                        0.6096851624230809,
+                        0.1291660473446774
+                    ]
+                },
+                "dtype": "compas.geometry/Frame",
+                "guid": "85b1d3a9-9b6a-4774-8650-beff0f1bc5c9"
+            },
+            {
+                "data": {
+                    "point": [
+                        0.7275225258980225,
+                        0.7037531816802178,
+                        0.2023715646561549
+                    ],
+                    "xaxis": [
+                        -0.16013198631127779,
+                        0.984880708316646,
+                        0.06608885946743787
+                    ],
+                    "yaxis": [
+                        0.9804918784058079,
+                        0.1509721434499144,
+                        0.12586933018964364
+                    ]
+                },
+                "dtype": "compas.geometry/Frame",
+                "guid": "8f14af4d-7e40-404e-bb40-27547a313ea9"
+            }
+        ],
+        "requested_robot_frame": {
+            "data": {
+                "point": [
+                    0.7275225258980225,
+                    0.7037531816802178,
+                    0.2023715646561549
+                ],
+                "xaxis": [
+                    -0.1601319863112778,
+                    0.9848807083166459,
+                    0.06608885946743787
+                ],
+                "yaxis": [
+                    0.9804918784058076,
+                    0.15097214344991441,
+                    0.12586933018964358
+                ]
+            },
+            "dtype": "compas.geometry/Frame",
+            "guid": "54bc64e7-9034-4eb7-aa1d-ef22fc1c1634",
+            "name": "Frame"
+        },
+        "timestamp": 1764100059.675499
+    },
+    {
+        "computed_ik": {
+            "data": {
+                "joint_names": [
+                    "shoulder_pan_joint",
+                    "shoulder_lift_joint",
+                    "elbow_joint",
+                    "wrist_1_joint",
+                    "wrist_2_joint",
+                    "wrist_3_joint"
+                ],
+                "joint_types": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                ],
+                "joint_values": [
+                    0.5585655318228868,
+                    -1.124512438286123,
+                    2.0619255419805635,
+                    -2.6259391299020574,
+                    -1.5871858936126444,
+                    3.5567029622250406
+                ]
+            },
+            "dtype": "compas_robots/Configuration",
+            "guid": "5f55fde8-dde5-4493-b50d-14ad81e74d8f",
+            "name": "Configuration"
+        },
+        "start_cfg": {
+            "data": {
+                "joint_names": [
+                    "shoulder_pan_joint",
+                    "shoulder_lift_joint",
+                    "elbow_joint",
+                    "wrist_1_joint",
+                    "wrist_2_joint",
+                    "wrist_3_joint"
+                ],
+                "joint_types": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                ],
+                "joint_values": [
+                    0.5658557293304687,
+                    -1.1455286405357195,
+                    2.066888047729093,
+                    -2.634435276918374,
+                    -1.5601484876042184,
+                    3.551026862229902
+                ]
+            },
+            "dtype": "compas_robots/Configuration",
+            "guid": "561275b8-572b-47e1-80d8-7bbf6bae60d4",
+            "name": "Configuration"
+        },
+        "timestamp": 1764100073.7111003
+    },
+    {
+        "computed_ik": {
+            "data": {
+                "joint_names": [
+                    "shoulder_pan_joint",
+                    "shoulder_lift_joint",
+                    "elbow_joint",
+                    "wrist_1_joint",
+                    "wrist_2_joint",
+                    "wrist_3_joint"
+                ],
+                "joint_types": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                ],
+                "joint_values": [
+                    0.5550614989305541,
+                    -1.0973034211947843,
+                    2.062734802182412,
+                    -2.6482187730009046,
+                    -1.584884449854194,
+                    3.561016745981812
+                ]
+            },
+            "dtype": "compas_robots/Configuration",
+            "guid": "20d21959-f120-4b9a-98db-580de5bad515",
+            "name": "Configuration"
+        },
+        "start_cfg": {
+            "data": {
+                "joint_names": [
+                    "shoulder_pan_joint",
+                    "shoulder_lift_joint",
+                    "elbow_joint",
+                    "wrist_1_joint",
+                    "wrist_2_joint",
+                    "wrist_3_joint"
+                ],
+                "joint_types": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                ],
+                "joint_values": [
+                    0.5585655318228868,
+                    -1.124512438286123,
+                    2.0619255419805635,
+                    -2.6259391299020574,
+                    -1.5871858936126444,
+                    3.5567029622250406
+                ]
+            },
+            "dtype": "compas_robots/Configuration",
+            "guid": "5f55fde8-dde5-4493-b50d-14ad81e74d8f",
+            "name": "Configuration"
+        },
+        "timestamp": 1764100074.1419632
+    },
+    {
+        "computed_ik": {
+            "data": {
+                "joint_names": [
+                    "shoulder_pan_joint",
+                    "shoulder_lift_joint",
+                    "elbow_joint",
+                    "wrist_1_joint",
+                    "wrist_2_joint",
+                    "wrist_3_joint"
+                ],
+                "joint_types": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                ],
+                "joint_values": [
+                    0.5518999787386398,
+                    -1.0728165620226227,
+                    2.0632367393373383,
+                    -2.675141520672737,
+                    -1.5818809745882547,
+                    3.5648278089348784
+                ]
+            },
+            "dtype": "compas_robots/Configuration",
+            "guid": "9aea75bd-58d6-4365-b6dd-dd65460a8e1d",
+            "name": "Configuration"
+        },
+        "start_cfg": {
+            "data": {
+                "joint_names": [
+                    "shoulder_pan_joint",
+                    "shoulder_lift_joint",
+                    "elbow_joint",
+                    "wrist_1_joint",
+                    "wrist_2_joint",
+                    "wrist_3_joint"
+                ],
+                "joint_types": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                ],
+                "joint_values": [
+                    0.5550614989305541,
+                    -1.0973034211947843,
+                    2.062734802182412,
+                    -2.6482187730009046,
+                    -1.584884449854194,
+                    3.561016745981812
+                ]
+            },
+            "dtype": "compas_robots/Configuration",
+            "guid": "20d21959-f120-4b9a-98db-580de5bad515",
+            "name": "Configuration"
+        },
+        "timestamp": 1764100074.4503918
+    },
+    {
+        "computed_ik": {
+            "data": {
+                "joint_names": [
+                    "shoulder_pan_joint",
+                    "shoulder_lift_joint",
+                    "elbow_joint",
+                    "wrist_1_joint",
+                    "wrist_2_joint",
+                    "wrist_3_joint"
+                ],
+                "joint_types": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                ],
+                "joint_values": [
+                    0.5596727931345106,
+                    -1.0369871808910316,
+                    2.0568588727972505,
+                    -2.7046583872646828,
+                    -1.5880915586376214,
+                    3.5677923131224487
+                ]
+            },
+            "dtype": "compas_robots/Configuration",
+            "guid": "f1774f40-febc-405c-82dc-ef7126f86200",
+            "name": "Configuration"
+        },
+        "start_cfg": {
+            "data": {
+                "joint_names": [
+                    "shoulder_pan_joint",
+                    "shoulder_lift_joint",
+                    "elbow_joint",
+                    "wrist_1_joint",
+                    "wrist_2_joint",
+                    "wrist_3_joint"
+                ],
+                "joint_types": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                ],
+                "joint_values": [
+                    0.5518999787386398,
+                    -1.0728165620226227,
+                    2.0632367393373383,
+                    -2.675141520672737,
+                    -1.5818809745882547,
+                    3.5648278089348784
+                ]
+            },
+            "dtype": "compas_robots/Configuration",
+            "guid": "9aea75bd-58d6-4365-b6dd-dd65460a8e1d",
+            "name": "Configuration"
+        },
+        "timestamp": 1764100074.806017
+    },
+    {
+        "computed_ik": {
+            "data": {
+                "joint_names": [
+                    "shoulder_pan_joint",
+                    "shoulder_lift_joint",
+                    "elbow_joint",
+                    "wrist_1_joint",
+                    "wrist_2_joint",
+                    "wrist_3_joint"
+                ],
+                "joint_types": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                ],
+                "joint_values": [
+                    0.5694003698217353,
+                    -0.9984841502241342,
+                    2.052678189462635,
+                    -2.7405900317722187,
+                    -1.5877850885565317,
+                    3.573189815919418
+                ]
+            },
+            "dtype": "compas_robots/Configuration",
+            "guid": "09d93c92-f396-41ca-bba3-a98320b5ef38",
+            "name": "Configuration"
+        },
+        "start_cfg": {
+            "data": {
+                "joint_names": [
+                    "shoulder_pan_joint",
+                    "shoulder_lift_joint",
+                    "elbow_joint",
+                    "wrist_1_joint",
+                    "wrist_2_joint",
+                    "wrist_3_joint"
+                ],
+                "joint_types": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                ],
+                "joint_values": [
+                    0.5596727931345106,
+                    -1.0369871808910316,
+                    2.0568588727972505,
+                    -2.7046583872646828,
+                    -1.5880915586376214,
+                    3.5677923131224487
+                ]
+            },
+            "dtype": "compas_robots/Configuration",
+            "guid": "f1774f40-febc-405c-82dc-ef7126f86200",
+            "name": "Configuration"
+        },
+        "timestamp": 1764100075.1137972
+    },
+    {
+        "computed_ik": {
+            "data": {
+                "joint_names": [
+                    "shoulder_pan_joint",
+                    "shoulder_lift_joint",
+                    "elbow_joint",
+                    "wrist_1_joint",
+                    "wrist_2_joint",
+                    "wrist_3_joint"
+                ],
+                "joint_types": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                ],
+                "joint_values": [
+                    0.5789067619216689,
+                    -0.9596825059814772,
+                    2.0468827524388753,
+                    -2.771571744081833,
+                    -1.5866040477305787,
+                    3.574899704446396
+                ]
+            },
+            "dtype": "compas_robots/Configuration",
+            "guid": "6c220563-b020-4d3b-8a5c-a9b623bd5643",
+            "name": "Configuration"
+        },
+        "start_cfg": {
+            "data": {
+                "joint_names": [
+                    "shoulder_pan_joint",
+                    "shoulder_lift_joint",
+                    "elbow_joint",
+                    "wrist_1_joint",
+                    "wrist_2_joint",
+                    "wrist_3_joint"
+                ],
+                "joint_types": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                ],
+                "joint_values": [
+                    0.5694003698217353,
+                    -0.9984841502241342,
+                    2.052678189462635,
+                    -2.7405900317722187,
+                    -1.5877850885565317,
+                    3.573189815919418
+                ]
+            },
+            "dtype": "compas_robots/Configuration",
+            "guid": "09d93c92-f396-41ca-bba3-a98320b5ef38",
+            "name": "Configuration"
+        },
+        "timestamp": 1764100075.487991
+    },
+    {
+        "computed_ik": {
+            "data": {
+                "joint_names": [
+                    "shoulder_pan_joint",
+                    "shoulder_lift_joint",
+                    "elbow_joint",
+                    "wrist_1_joint",
+                    "wrist_2_joint",
+                    "wrist_3_joint"
+                ],
+                "joint_types": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                ],
+                "joint_values": [
+                    0.5802580735810704,
+                    -0.9206968395121544,
+                    2.0392987160660936,
+                    -2.798602865757781,
+                    -1.5768421739682732,
+                    3.5681625387128593
+                ]
+            },
+            "dtype": "compas_robots/Configuration",
+            "guid": "22dd4aa7-b7ea-45aa-8d7e-b7c0b66274ee",
+            "name": "Configuration"
+        },
+        "start_cfg": {
+            "data": {
+                "joint_names": [
+                    "shoulder_pan_joint",
+                    "shoulder_lift_joint",
+                    "elbow_joint",
+                    "wrist_1_joint",
+                    "wrist_2_joint",
+                    "wrist_3_joint"
+                ],
+                "joint_types": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                ],
+                "joint_values": [
+                    0.5789067619216689,
+                    -0.9596825059814772,
+                    2.0468827524388753,
+                    -2.771571744081833,
+                    -1.5866040477305787,
+                    3.574899704446396
+                ]
+            },
+            "dtype": "compas_robots/Configuration",
+            "guid": "6c220563-b020-4d3b-8a5c-a9b623bd5643",
+            "name": "Configuration"
+        },
+        "timestamp": 1764100075.7849073
+    },
+    {
+        "computed_ik": {
+            "data": {
+                "joint_names": [
+                    "shoulder_pan_joint",
+                    "shoulder_lift_joint",
+                    "elbow_joint",
+                    "wrist_1_joint",
+                    "wrist_2_joint",
+                    "wrist_3_joint"
+                ],
+                "joint_types": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                ],
+                "joint_values": [
+                    0.5834381101782001,
+                    -0.887442903235982,
+                    2.0356393093372103,
+                    -2.828740691592388,
+                    -1.5795965253924922,
+                    3.5689475637214216
+                ]
+            },
+            "dtype": "compas_robots/Configuration",
+            "guid": "7a90509b-bb70-4aad-8dc8-580e98e67de4",
+            "name": "Configuration"
+        },
+        "start_cfg": {
+            "data": {
+                "joint_names": [
+                    "shoulder_pan_joint",
+                    "shoulder_lift_joint",
+                    "elbow_joint",
+                    "wrist_1_joint",
+                    "wrist_2_joint",
+                    "wrist_3_joint"
+                ],
+                "joint_types": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                ],
+                "joint_values": [
+                    0.5802580735810704,
+                    -0.9206968395121544,
+                    2.0392987160660936,
+                    -2.798602865757781,
+                    -1.5768421739682732,
+                    3.5681625387128593
+                ]
+            },
+            "dtype": "compas_robots/Configuration",
+            "guid": "22dd4aa7-b7ea-45aa-8d7e-b7c0b66274ee",
+            "name": "Configuration"
+        },
+        "timestamp": 1764100076.155433
+    },
+    {
+        "computed_ik": {
+            "data": {
+                "joint_names": [
+                    "shoulder_pan_joint",
+                    "shoulder_lift_joint",
+                    "elbow_joint",
+                    "wrist_1_joint",
+                    "wrist_2_joint",
+                    "wrist_3_joint"
+                ],
+                "joint_types": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                ],
+                "joint_values": [
+                    0.5783504858977254,
+                    -0.8505221313284399,
+                    2.0317403130158893,
+                    -2.862736815115587,
+                    -1.5765451931252699,
+                    3.5682106991670035
+                ]
+            },
+            "dtype": "compas_robots/Configuration",
+            "guid": "2962dbaf-9422-4162-9ea7-cc2449d3da1d",
+            "name": "Configuration"
+        },
+        "start_cfg": {
+            "data": {
+                "joint_names": [
+                    "shoulder_pan_joint",
+                    "shoulder_lift_joint",
+                    "elbow_joint",
+                    "wrist_1_joint",
+                    "wrist_2_joint",
+                    "wrist_3_joint"
+                ],
+                "joint_types": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                ],
+                "joint_values": [
+                    0.5834381101782001,
+                    -0.887442903235982,
+                    2.0356393093372103,
+                    -2.828740691592388,
+                    -1.5795965253924922,
+                    3.5689475637214216
+                ]
+            },
+            "dtype": "compas_robots/Configuration",
+            "guid": "7a90509b-bb70-4aad-8dc8-580e98e67de4",
+            "name": "Configuration"
+        },
+        "timestamp": 1764100076.4344041
+    },
+    {
+        "computed_ik": {
+            "data": {
+                "joint_names": [
+                    "shoulder_pan_joint",
+                    "shoulder_lift_joint",
+                    "elbow_joint",
+                    "wrist_1_joint",
+                    "wrist_2_joint",
+                    "wrist_3_joint"
+                ],
+                "joint_types": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                ],
+                "joint_values": [
+                    0.5732704620273263,
+                    -0.8229306972070212,
+                    2.031964415904034,
+                    -2.8871681291623537,
+                    -1.5631154606427569,
+                    3.5466509691070702
+                ]
+            },
+            "dtype": "compas_robots/Configuration",
+            "guid": "c382ebee-72d0-4230-b1bd-a2adcd186576",
+            "name": "Configuration"
+        },
+        "start_cfg": {
+            "data": {
+                "joint_names": [
+                    "shoulder_pan_joint",
+                    "shoulder_lift_joint",
+                    "elbow_joint",
+                    "wrist_1_joint",
+                    "wrist_2_joint",
+                    "wrist_3_joint"
+                ],
+                "joint_types": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                ],
+                "joint_values": [
+                    0.5783504858977254,
+                    -0.8505221313284399,
+                    2.0317403130158893,
+                    -2.862736815115587,
+                    -1.5765451931252699,
+                    3.5682106991670035
+                ]
+            },
+            "dtype": "compas_robots/Configuration",
+            "guid": "2962dbaf-9422-4162-9ea7-cc2449d3da1d",
+            "name": "Configuration"
+        },
+        "timestamp": 1764100076.743991
+    },
+    {
+        "computed_ik": {
+            "data": {
+                "joint_names": [
+                    "shoulder_pan_joint",
+                    "shoulder_lift_joint",
+                    "elbow_joint",
+                    "wrist_1_joint",
+                    "wrist_2_joint",
+                    "wrist_3_joint"
+                ],
+                "joint_types": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                ],
+                "joint_values": [
+                    0.5897899739091346,
+                    -0.790585495637762,
+                    2.0119025264368497,
+                    -2.8899156629702225,
+                    -1.572503515230839,
+                    3.568465544536224
+                ]
+            },
+            "dtype": "compas_robots/Configuration",
+            "guid": "a0c47802-924d-47d2-b3c3-b862b2b4a0f4",
+            "name": "Configuration"
+        },
+        "start_cfg": {
+            "data": {
+                "joint_names": [
+                    "shoulder_pan_joint",
+                    "shoulder_lift_joint",
+                    "elbow_joint",
+                    "wrist_1_joint",
+                    "wrist_2_joint",
+                    "wrist_3_joint"
+                ],
+                "joint_types": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                ],
+                "joint_values": [
+                    0.5732704620273263,
+                    -0.8229306972070212,
+                    2.031964415904034,
+                    -2.8871681291623537,
+                    -1.5631154606427569,
+                    3.5466509691070702
+                ]
+            },
+            "dtype": "compas_robots/Configuration",
+            "guid": "c382ebee-72d0-4230-b1bd-a2adcd186576",
+            "name": "Configuration"
+        },
+        "timestamp": 1764100076.9140935
+    },
+    {
+        "computed_ik": {
+            "data": {
+                "joint_names": [
+                    "shoulder_pan_joint",
+                    "shoulder_lift_joint",
+                    "elbow_joint",
+                    "wrist_1_joint",
+                    "wrist_2_joint",
+                    "wrist_3_joint"
+                ],
+                "joint_types": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                ],
+                "joint_values": [
+                    0.5922261841428316,
+                    -0.7521026425683495,
+                    1.9978713438846187,
+                    -2.9043422748556984,
+                    -1.5670609319364674,
+                    3.568335687274951
+                ]
+            },
+            "dtype": "compas_robots/Configuration",
+            "guid": "d9a706d2-8005-41e5-b965-5f6f11e4ee0f",
+            "name": "Configuration"
+        },
+        "start_cfg": {
+            "data": {
+                "joint_names": [
+                    "shoulder_pan_joint",
+                    "shoulder_lift_joint",
+                    "elbow_joint",
+                    "wrist_1_joint",
+                    "wrist_2_joint",
+                    "wrist_3_joint"
+                ],
+                "joint_types": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                ],
+                "joint_values": [
+                    0.5897899739091346,
+                    -0.790585495637762,
+                    2.0119025264368497,
+                    -2.8899156629702225,
+                    -1.572503515230839,
+                    3.568465544536224
+                ]
+            },
+            "dtype": "compas_robots/Configuration",
+            "guid": "a0c47802-924d-47d2-b3c3-b862b2b4a0f4",
+            "name": "Configuration"
+        },
+        "timestamp": 1764100077.1919014
+    }
+]
